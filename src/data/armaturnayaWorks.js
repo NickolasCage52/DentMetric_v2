@@ -22,41 +22,41 @@ export const ARMATURNAYA_BY_ELEMENT = {
     { code: 'Z0', name: 'Без дополнительных работ', price: 0 }
   ],
   door: [
-    { code: 'ZD1', name: 'Простая установка двери', price: 1500 },
-    { code: 'ZD2', name: 'Сложная установка двери', price: 2000 },
-    { code: 'ZD3', name: 'Установка карты двери', price: 1000 },
-    { code: 'ZD4', name: 'Полная разборка двери', price: 50000 },
-    { code: 'ZD5', name: 'Снятие ручки', price: 500 }
+    { code: 'ZD1', name: 'С/установка двери (простое)', price: 1500 },
+    { code: 'ZD2', name: 'С/установка двери (сложное)', price: 2000 },
+    { code: 'ZD3', name: 'С/установка дверной карты', price: 1000 },
+    { code: 'ZD4', name: 'Полный разбор двери', price: 5000 },
+    { code: 'ZD5', name: 'Демонтаж ручки', price: 500 }
   ],
   rearWing: [
-    { code: 'ZRW1', name: 'Простой фонарь', price: 500 },
-    { code: 'ZRW2', name: 'Сложный фонарь', price: 2000 },
+    { code: 'ZRW1', name: 'Фонарь простой', price: 500 },
+    { code: 'ZRW2', name: 'Фонарь сложный', price: 2000 },
     { code: 'ZRW3', name: 'Колесо', price: 500 },
     { code: 'ZRW4', name: 'Подкрылок', price: 1000 }
   ],
   trunkLid: [
-    { code: 'ZT1', name: 'Установка обшивки крышки багажника', price: 1000 },
-    { code: 'ZT2', name: 'Установка заднего фонаря', price: 5000 },
-    { code: 'ZT3', name: 'Установка крышки багажника', price: 3000 }
+    { code: 'ZT1', name: 'С/установка обшивки', price: 1000 },
+    { code: 'ZT2', name: 'С/установка фонаря', price: 500 },
+    { code: 'ZT3', name: 'С/установка крышки багажника', price: 3000 }
   ],
   frontWing: [
-    { code: 'ZFW1', name: 'Снятие молдинга', price: 500 },
-    { code: 'ZFW2', name: 'Снятие молдинга + замена скотча', price: 1500 },
-    { code: 'ZFW3', name: 'Простая фара', price: 1000 },
-    { code: 'ZFW4', name: 'Сложная фара', price: 3000 }
+    { code: 'ZFW1', name: 'Демонтаж молдинга', price: 500 },
+    { code: 'ZFW2', name: 'Демонтаж молдинга + замена скотча', price: 1500 },
+    { code: 'ZFW3', name: 'Фара простая', price: 1000 },
+    { code: 'ZFW4', name: 'Фара сложная', price: 3000 }
   ],
   hood: [
-    { code: 'ZH1', name: 'Установка обшивки', price: 500 },
-    { code: 'ZH2', name: 'Установка капота', price: 2000 }
+    { code: 'ZH1', name: 'С/установка обшивки', price: 500 },
+    { code: 'ZH2', name: 'С/установка капота', price: 2000 }
   ],
   roof: [
-    { code: 'ZR1', name: 'Простая установка потолка', price: 3000 },
-    { code: 'ZR2', name: 'Сложная установка потолка', price: 5000 },
-    { code: 'ZR3', name: 'Снятие люка', price: 5000 }
+    { code: 'ZR1', name: 'С/установка потолка простое', price: 3000 },
+    { code: 'ZR2', name: 'С/установка потолка сложное', price: 5000 },
+    { code: 'ZR3', name: 'Демонтаж люка', price: 5000 }
   ],
   bumper: [
-    { code: 'ZB1', name: 'Частичное снятие', price: 1000 },
-    { code: 'ZB2', name: 'Полная разборка', price: 2000 }
+    { code: 'ZB1', name: 'Частично', price: 1000 },
+    { code: 'ZB2', name: 'Полный демонтаж', price: 2000 }
   ]
 };
 

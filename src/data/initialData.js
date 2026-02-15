@@ -8,9 +8,9 @@ export const initialData = {
         { code: 'M2', name: 'Алюминий', mult: 1.3 }
     ],
     paintMaterials: [
-        { code: 'P1', name: 'Глянец', desc: 'Стандартное глянцевое ЛКП', mult: 1.0 },
-        { code: 'P2', name: 'Матовая покраска', desc: 'Матовая покраска требует особой технологии', mult: 1.25 },
-        { code: 'P3', name: 'Плёнка', desc: 'Виниловая плёнка или оклейка', mult: 1.25 }
+        { code: 'P1', name: 'Глянец (1.0)', desc: 'Стандартное глянцевое ЛКП', mult: 1.0 },
+        { code: 'P2', name: 'Матовая краска (1.25)', desc: 'Матовая краска требует особой технологии', mult: 1.25 },
+        { code: 'P3', name: 'Плёнка (1.25)', desc: 'Виниловая плёнка или оклейка', mult: 1.25 }
     ],
     carClasses: [
         { code: 'CLASS_STD', name: 'Стандарт', mult: 1.0 },
@@ -19,8 +19,8 @@ export const initialData = {
     risks: [
         { code: 'RK1', name: 'Лёгкая (плавная вмятина)', matrixKey: 'K1' },
         { code: 'RK2', name: 'Средняя (стандартная вмятина)', matrixKey: 'K2' },
-        { code: 'RK3', name: 'Высокая (острая вмятина с изломом)', matrixKey: 'K3' },
-        { code: 'RK4', name: 'Экстра (острая вмятина в труднодоступной зоне)', matrixKey: 'K4' }
+        { code: 'RK3', name: 'Высокая (острая/с заломом)', matrixKey: 'K3' },
+        { code: 'RK4', name: 'Экстра (острая+сложный доступ)', matrixKey: 'K4' }
     ],
     soundInsulation: [
         { code: 'SI0', name: 'Нет', desc: 'Шумоизоляция не требуется', price: 0 },

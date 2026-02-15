@@ -1,4 +1,10 @@
 /* ===== DentMetric Design System ===== */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 :root {
   --metric-green: #88E523;
   --metric-green-glow: rgba(136, 229, 35, 0.4);
@@ -10,6 +16,39 @@
   --metric-bg-card: #151515;
   --metric-error: rgba(239, 68, 68, 0.9);
   --metric-success: rgba(136, 229, 35, 0.9);
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  /* Wow theme: premium home / mode selection */
+  --wow-green: #88e523;
+  --wow-green-rgb: 136, 229, 35;
+  --wow-glow-intensity: 0.14;
+  --wow-glow-soft: 0.08;
+  --wow-tile-radius: 1rem;
+  --wow-tile-gap: 1rem;
+  --wow-tile-min-height: 120px;
+  --wow-tile-padding: 1.25rem;
+  --wow-tile-inner-highlight: rgba(255, 255, 255, 0.08);
+  --wow-tile-shadow-depth: 0 6px 20px rgba(0, 0, 0, 0.5);
+  --wow-tile-border: 1px solid rgba(255, 255, 255, 0.06);
+  --wow-tile-border-active: rgba(136, 229, 35, 0.45);
+  --wow-tile-glow-active: 0 0 24px rgba(136, 229, 35, 0.35);
+  --wow-vignette-opacity: 0.55;
+  --bottom-nav-h: calc(64px + env(safe-area-inset-bottom, 0px));
+
+  /* Shared screen shell layout (Home + Mode selection) — single source of truth */
+  --screen-padding-x: 1rem;
+  --screen-gap-y: 1rem;
+  --topbar-padding-top: 1.5rem;
+  --topbar-padding-bottom: 1rem;
+  --topbar-subtitle-height: 1.75rem;
+  --topbar-h: calc(var(--safe-top) + 24px + 88px + 1rem);
+  --logo-h: 88px;
+  --logo-max-w: 420px;
+  --profile-btn-size: 40px;
+  --content-max-w: 380px;
+  --tiles-gap: 1rem;
+  --tile-radius: 1rem;
+  --tile-h: 120px;
 }
 
 /* Part C: Background gradient animation */
@@ -25,8 +64,9 @@
   100% { box-shadow: 0 0 20px 0 var(--metric-green-glow); }
 }
 
-/* Global styles */
+/* Global styles: dvh with vh fallback for mobile viewport */
 #app {
+  min-height: 100dvh;
   min-height: 100vh;
 }
 
@@ -36,7 +76,9 @@ body {
   overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
   margin: 0;
+  min-height: 100dvh;
   min-height: 100vh;
+  overflow-x: hidden;
   font-family: Montserrat, Roboto, SF Pro Display, -apple-system, BlinkMacSystemFont, Segoe UI, Helvetica Neue, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

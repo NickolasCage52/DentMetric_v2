@@ -9,9 +9,10 @@
       <span class="hidden sm:inline">Домой</span>
     </button>
     <img
-      src="/dm-small.png"
+      src="/logo.png"
       alt="DentMetric"
       class="graphics-header-logo h-7 w-auto object-contain shrink-0"
+      style="border:none;box-shadow:none"
       onerror="this.style.display='none'"
     >
     <div class="flex-1 min-w-0 flex flex-wrap items-center gap-1.5">
@@ -43,14 +44,16 @@
       👤
       <span class="hidden sm:inline">Клиент</span>
     </button>
-    <button
-      v-if="showReset"
-      @click="$emit('reset')"
-      class="text-xs font-medium text-red-400 px-4 py-2.5 min-h-[44px] rounded-lg border border-red-500/30 hover:bg-red-500/10 hover:text-red-300 shrink-0 touch-manipulation transition-colors"
-      aria-label="Сбросить всё"
-    >
-      Сброс
-    </button>
+    <div v-if="showReset" class="flex items-center gap-1.5 shrink-0">
+      <button
+        type="button"
+        @click="$emit('reset-dents')"
+        class="text-[10px] font-bold uppercase tracking-widest text-red-400 px-2.5 py-2 min-h-[36px] rounded-lg border border-red-500/30 hover:bg-red-500/10 transition-colors touch-manipulation"
+        aria-label="Сбросить вмятины"
+      >
+        Вмятины
+      </button>
+    </div>
   </header>
 </template>
 
@@ -65,7 +68,7 @@ defineProps({
   currentStep: { type: Number, default: 1 }
 });
 
-defineEmits(['update:selectedClassId', 'update:selectedPartId', 'reset', 'home', 'client']);
+defineEmits(['update:selectedClassId', 'update:selectedPartId', 'reset', 'reset-dents', 'home', 'client']);
 </script>
 
 <style scoped>

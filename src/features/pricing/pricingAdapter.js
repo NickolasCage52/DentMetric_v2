@@ -91,6 +91,8 @@ export function calculateDentPrice(input, context) {
 /**
  * Нормализует вмятины из режима Графика для расчёта.
  * Пересчитывает base price через адаптер (bboxMm → adapter), чтобы устранить расхождения с Quick.
+ * Полоса (strip): использует реальные bboxMm (w×h), stripSizesWithArea и userSettings.prices — формулы/таблицы заказчика не меняются.
+ *
  * @param {Array} dents - из konvaEditor (с price, bboxMm, type, sizeCode)
  * @param {Object} context - { circleSizes, stripSizes, prices, initialData }
  * @returns {Array} денты с price и sizeCode от адаптера

@@ -17,7 +17,7 @@
       @client="showClientInfo = true"
       @update:selected-class-id="$emit('update:selectedClassId', $event)"
       @update:selected-part-id="$emit('update:selectedPartId', $event)"
-      @reset="resetAll"
+      @reset-dents="resetDentsOnly"
     />
     <!-- Hint: фиксированная высота, не влияет на позицию матрицы -->
     <div class="graphics-hint-area">
@@ -113,6 +113,7 @@
         v-else-if="wizardStep === 4"
         :model="form"
         :initial-data="initialData"
+        :selected-part-name="selectedPart?.name"
         :base-price="roundPrice(basePrice)"
         :total-price="displayTotal"
         :show-info-tooltips="userSettings?.showInfoTooltips !== false"
@@ -232,6 +233,7 @@ import FreeformDrawModal from './FreeformDrawModal.vue';
 
 const props = defineProps({
   form: { type: Object, required: true },
+  conditionsForCalc: { type: Object, default: null },
   initialData: { type: Object, required: true },
   userSettings: { type: Object, required: true },
   carClasses: { type: Array, default: () => [] },
@@ -363,15 +365,16 @@ const dentsForPricing = computed(() => {
   return normalizeGraphicsDentsForPricing(dents.value, ctx);
 });
 const basePrice = computed(() => calcBasePriceFromDents(dentsForPricing.value));
+const conditionsForCalc = computed(() => props.conditionsForCalc || props.form);
 const totalPrice = computed(() =>
-  calcTotalPrice(dentsForPricing.value, props.form, props.initialData, props.userSettings?.priceRoundStep ?? 0)
+  calcTotalPrice(dentsForPricing.value, conditionsForCalc.value, props.initialData, props.userSettings?.priceRoundStep ?? 0)
 );
 const displayTotal = computed(() =>
   applyPriceRoundingCeil(totalPrice.value, props.userSettings?.priceRoundStep ?? 0)
 );
 const breakdown = computed(() => {
   const sizeCode = dentsForPricing.value?.[0]?.sizeCode ?? 'STRIP_DEFAULT';
-  const items = buildBreakdown(basePrice.value, props.form, props.initialData, sizeCode);
+  const items = buildBreakdown(basePrice.value, conditionsForCalc.value, props.initialData, sizeCode);
   props.estimateDraft.breakdown = items;
   return items;
 });
@@ -514,11 +517,11 @@ function goToStep(step) {
 }
 
 /**
- * Полный сброс: wizardStep=1, все вмятины, условия, цены, UI-флаги.
- * Состояние как при первом заходе в графический режим.
+ * Сброс только вмятин и шага (данные клиента в estimateDraft не трогаем).
+ * Вызывается из App при нажатии «Сброс вмятин».
  */
-function resetAll() {
-  if (dents.value.length > 0 && !confirm('Сбросить все вмятины и начать заново?')) return;
+function resetDentsOnly() {
+  if (dents.value.length > 0 && !confirm('Сбросить вмятины и расчёт? Данные клиента сохранятся.')) return;
   if (sizeApplyTimeout) {
     clearTimeout(sizeApplyTimeout);
     sizeApplyTimeout = null;
@@ -542,6 +545,15 @@ function resetAll() {
   props.form.soundInsulationCode = null;
   initWizardStep();
   emit('dents-change', []);
+}
+
+/**
+ * Полный сброс: wizardStep=1, все вмятины, условия, цены, UI-флаги.
+ * Состояние как при первом заходе в графический режим.
+ */
+function resetAll() {
+  if (dents.value.length > 0 && !confirm('Сбросить все вмятины и начать заново?')) return;
+  resetDentsOnly();
 }
 
 function openSizeMenu(type) {
@@ -727,6 +739,8 @@ onBeforeUnmount(() => {
   }
   destroyKonva();
 });
+
+defineExpose({ resetDentsOnly });
 </script>
 
 <style scoped>
@@ -1005,11 +1019,11 @@ onBeforeUnmount(() => {
 }
 
 .graphics-step-5 {
-  --actionbar-height: calc(240px + env(safe-area-inset-bottom, 0px) + var(--app-footer-height, 0px));
+  --actionbar-height: calc(160px + env(safe-area-inset-bottom, 0px) + var(--app-footer-height, 0px));
 }
 
 .graphics-step-5 :deep(.graphics-panel-content) {
-  padding-bottom: calc(var(--actionbar-height) + 12px);
+  padding-bottom: calc(var(--actionbar-height) + 8px);
 }
 
 :deep(.graphics-panel-content) {

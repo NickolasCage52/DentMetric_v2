@@ -106,7 +106,7 @@
                 :class="['w-full rounded-xl px-4 py-3 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', model.disassemblyCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
               >
                 <option :value="null" disabled>Выберите арматурные работы</option>
-                <option v-for="work in initialData.disassembly" :key="work.code" :value="work.code">
+                <option v-for="work in disassemblyOptions" :key="work.code" :value="work.code">
                   {{ work.name }}{{ work.price > 0 ? ' — ' + work.price.toLocaleString('ru-RU') + ' ₽' : '' }}
                 </option>
               </select>
@@ -170,16 +170,32 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, watch } from 'vue';
 import InfoIcon from '../InfoIcon.vue';
+import { getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks.js';
 
 const props = defineProps({
   model: { type: Object, required: true },
   initialData: { type: Object, required: true },
+  selectedPartName: { type: String, default: null },
   basePrice: { type: Number, default: 0 },
   totalPrice: { type: Number, default: 0 },
   showInfoTooltips: { type: Boolean, default: true }
 });
+
+const disassemblyOptions = computed(() =>
+  props.selectedPartName
+    ? getArmaturnayaWorksForElement(props.selectedPartName)
+    : (props.initialData?.disassembly ?? [])
+);
+
+watch(disassemblyOptions, (options) => {
+  if (!props.model?.disassemblyCode) return;
+  const codes = options.map((w) => w.code);
+  if (!codes.includes(props.model.disassemblyCode)) {
+    props.model.disassemblyCode = null;
+  }
+}, { immediate: true });
 
 defineEmits(['back', 'calculate']);
 
