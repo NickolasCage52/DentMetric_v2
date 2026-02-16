@@ -119,7 +119,7 @@
         </div>
       </div>
 
-      <div class="flex-1 overflow-y-auto p-4 pt-0 pb-[calc(13rem+var(--app-footer-height,64px)+env(safe-area-inset-bottom,0px))]" :class="{ 'overflow-hidden h-0': calcMode === 'graphics' }">
+      <div ref="metricScrollRef" class="flex-1 overflow-y-auto p-4 pt-0 pb-[calc(13rem+var(--app-footer-height,64px)+env(safe-area-inset-bottom,0px))]" :class="{ 'overflow-hidden h-0': calcMode === 'graphics' }">
         <!-- Standard mode -->
         <div v-if="calcMode === 'standard'" class="flex flex-col min-h-full">
           <div data-testid="step-dots" class="flex items-center justify-center pb-2">
@@ -138,13 +138,27 @@
                   <span v-else class="text-[10px] text-gray-500">опционально</span>
                 </div>
                 <div class="grid grid-cols-2 gap-2">
-                  <input v-model="estimateDraft.clientName" @focus="scrollFieldIntoView" placeholder="Имя клиента" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-                  <input v-model="estimateDraft.clientCompany" @focus="scrollFieldIntoView" placeholder="Компания / Юр. лицо" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-                  <input v-model="estimateDraft.clientPhone" @focus="scrollFieldIntoView" placeholder="Телефон" inputmode="tel" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-                  <input v-model="estimateDraft.carBrand" @focus="scrollFieldIntoView" placeholder="Марка автомобиля" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-                  <input v-model="estimateDraft.carModel" @focus="scrollFieldIntoView" placeholder="Модель автомобиля" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-                  <input v-model="estimateDraft.inspectDate" @focus="scrollFieldIntoView" type="date" placeholder="Дата осмотра" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-                  <input v-model="estimateDraft.inspectTime" @focus="scrollFieldIntoView" type="time" placeholder="Время осмотра" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
+                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('clientName', 'Имя клиента', 'text', 'Имя клиента')">
+                    <span class="truncate">{{ estimateDraft.clientName || 'Имя клиента' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  </button>
+                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('clientCompany', 'Компания / Юр. лицо', 'text', 'Компания')">
+                    <span class="truncate">{{ estimateDraft.clientCompany || 'Компания' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  </button>
+                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('clientPhone', 'Телефон', 'tel', 'Телефон')">
+                    <span class="truncate">{{ estimateDraft.clientPhone || 'Телефон' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  </button>
+                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('carBrand', 'Марка автомобиля', 'text', 'Марка')">
+                    <span class="truncate">{{ estimateDraft.carBrand || 'Марка' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  </button>
+                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('carModel', 'Модель автомобиля', 'text', 'Модель')">
+                    <span class="truncate">{{ estimateDraft.carModel || 'Модель' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  </button>
+                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('inspectDate', 'Дата осмотра', 'date', 'Дата')">
+                    <span class="truncate">{{ estimateDraft.inspectDate || 'Дата' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  </button>
+                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('inspectTime', 'Время осмотра', 'time', 'Время')">
+                    <span class="truncate">{{ estimateDraft.inspectTime || 'Время' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  </button>
                 </div>
                 <p v-if="userSettings.clientRequired && !clientDataValid" class="text-[10px] text-gray-500 text-center">Заполните обязательные поля</p>
               </div>
@@ -269,33 +283,27 @@
                     <div class="grid grid-cols-2 gap-2">
                     <div>
                       <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 tracking-widest">Длина (мм)</label>
-                      <input
+                      <button
+                        type="button"
                         data-testid="dent-size-length"
-                        v-model.number="dent.sizeLengthMm"
-                        @input="syncQuickDentSizeFromMm(dent)"
-                        @blur="syncQuickDentSizeFromMm(dent)"
-                        @focus="scrollFieldIntoView"
-                        type="number"
-                        min="0.1"
-                        step="0.5"
-                        inputmode="decimal"
-                        :class="['w-full rounded-xl px-4 py-3 text-lg font-semibold shadow-inner focus:border-metric-green/50 focus:ring-1 focus:ring-metric-green/50 outline-none transition-colors', (dent.sizeLengthMm && dent.sizeLengthMm > 0) ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
+                        :class="['input-row w-full rounded-xl px-4 py-3 min-h-[48px] text-[16px] font-semibold text-left flex items-center justify-between gap-1 transition-colors', (dent.sizeLengthMm && dent.sizeLengthMm > 0) ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
+                        @click="openQuickDentSizeModal(dent, 'sizeLengthMm', 'Длина (мм)')"
                       >
+                        <span>{{ dent.sizeLengthMm && dent.sizeLengthMm > 0 ? dent.sizeLengthMm : '—' }}</span>
+                        <span class="text-gray-500 shrink-0 text-sm">✎</span>
+                      </button>
                     </div>
                     <div>
                       <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 tracking-widest">Ширина (мм)</label>
-                      <input
+                      <button
+                        type="button"
                         data-testid="dent-size-width"
-                        v-model.number="dent.sizeWidthMm"
-                        @input="syncQuickDentSizeFromMm(dent)"
-                        @blur="syncQuickDentSizeFromMm(dent)"
-                        @focus="scrollFieldIntoView"
-                        type="number"
-                        min="0.1"
-                        step="0.5"
-                        inputmode="decimal"
-                        :class="['w-full rounded-xl px-4 py-3 text-lg font-semibold shadow-inner focus:border-metric-green/50 focus:ring-1 focus:ring-metric-green/50 outline-none transition-colors', (dent.sizeWidthMm && dent.sizeWidthMm > 0) ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
+                        :class="['input-row w-full rounded-xl px-4 py-3 min-h-[48px] text-[16px] font-semibold text-left flex items-center justify-between gap-1 transition-colors', (dent.sizeWidthMm && dent.sizeWidthMm > 0) ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
+                        @click="openQuickDentSizeModal(dent, 'sizeWidthMm', 'Ширина (мм)')"
                       >
+                        <span>{{ dent.sizeWidthMm && dent.sizeWidthMm > 0 ? dent.sizeWidthMm : '—' }}</span>
+                        <span class="text-gray-500 shrink-0 text-sm">✎</span>
+                      </button>
                     </div>
                   </div>
                   </div>
@@ -470,14 +478,14 @@
                   </div>
                   <div class="flex items-center gap-2">
                     <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest shrink-0">Ввод часов вручную:</label>
-                    <input
-                      v-model.number="estimateDraft.repairTimeHours"
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      placeholder="ч"
-                      class="w-20 bg-[#151515] border border-[#333] rounded-lg px-2 py-1.5 text-sm text-white text-right focus:border-metric-green/50 outline-none"
-                    />
+                    <button
+                      type="button"
+                      class="input-row min-w-[5rem] flex items-center justify-between gap-1 rounded-lg px-3 py-2 min-h-[44px] bg-[#151515] border border-[#333] text-[16px] text-white"
+                      @click="openRepairHoursModal"
+                    >
+                      <span>{{ estimateDraft.repairTimeHours != null && estimateDraft.repairTimeHours !== '' ? estimateDraft.repairTimeHours : 'ч' }}</span>
+                      <span class="text-gray-500 shrink-0 text-sm">✎</span>
+                    </button>
                     <span class="text-gray-500 text-sm">ч</span>
                   </div>
                 </div>
@@ -507,13 +515,14 @@
 
               <div class="card-metallic rounded-2xl p-5 space-y-2">
                 <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Комментарий</div>
-                <textarea
-                  v-model="estimateDraft.comment"
-                  @focus="scrollFieldIntoView"
-                  rows="3"
-                  placeholder="Комментарий к оценке (необязательно)"
-                  class="w-full bg-[#151515] border border-[#333] rounded-xl px-4 py-3 text-white text-sm shadow-inner focus:border-metric-green/50 outline-none resize-none"
-                ></textarea>
+                <button
+                  type="button"
+                  class="input-row w-full flex items-center justify-between gap-2 rounded-xl px-4 py-3 min-h-[48px] bg-[#151515] border border-[#333] text-left text-[16px] text-white"
+                  @click="openCommentModal"
+                >
+                  <span class="truncate flex-1">{{ estimateDraft.comment || 'Комментарий к оценке (необязательно)' }}</span>
+                  <span class="text-gray-500 shrink-0">✎</span>
+                </button>
               </div>
             </div>
           </div>
@@ -546,7 +555,7 @@
         :history-saving="isSavingHistory"
           :client-required="userSettings.clientRequired"
           :client-valid="clientDataValid"
-          :show-client-step="true"
+          :show-client-step="userSettings.showClientDetail"
           :auto-save="userSettings.autoSaveHistory"
         @home="goHome"
           @close="closeEditor"
@@ -630,7 +639,7 @@
     </div>
 
     <!-- Section: Settings -->
-    <div v-else-if="currentSection === 'history'" class="content-padding-bottom p-4 space-y-4 overflow-y-auto">
+    <div ref="historyScrollRef" v-else-if="currentSection === 'history'" class="content-padding-bottom p-4 space-y-4 overflow-y-auto">
       <div class="flex items-center justify-between">
         <button
           type="button"
@@ -688,20 +697,36 @@
         <div v-else class="card-metallic rounded-2xl p-4 space-y-3">
           <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Редактирование</div>
           <div class="grid grid-cols-2 gap-2">
-            <input v-model="historyEditDraft.clientName" placeholder="Имя" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-            <input v-model="historyEditDraft.clientCompany" placeholder="Компания" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-            <input v-model="historyEditDraft.clientPhone" placeholder="Тел" inputmode="tel" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-            <input v-model="historyEditDraft.carBrand" placeholder="Марка" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-            <input v-model="historyEditDraft.carModel" placeholder="Модель" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-            <input v-model="historyEditDraft.inspectDate" type="date" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-            <input v-model="historyEditDraft.inspectTime" type="time" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
+            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('clientName', 'Имя', 'text')">
+              <span class="truncate">{{ historyEditDraft.clientName || 'Имя' }}</span><span class="text-gray-500 shrink-0">✎</span>
+            </button>
+            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('clientCompany', 'Компания', 'text')">
+              <span class="truncate">{{ historyEditDraft.clientCompany || 'Компания' }}</span><span class="text-gray-500 shrink-0">✎</span>
+            </button>
+            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('clientPhone', 'Тел', 'tel')">
+              <span class="truncate">{{ historyEditDraft.clientPhone || 'Тел' }}</span><span class="text-gray-500 shrink-0">✎</span>
+            </button>
+            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('carBrand', 'Марка', 'text')">
+              <span class="truncate">{{ historyEditDraft.carBrand || 'Марка' }}</span><span class="text-gray-500 shrink-0">✎</span>
+            </button>
+            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('carModel', 'Модель', 'text')">
+              <span class="truncate">{{ historyEditDraft.carModel || 'Модель' }}</span><span class="text-gray-500 shrink-0">✎</span>
+            </button>
+            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('inspectDate', 'Дата', 'date')">
+              <span class="truncate">{{ historyEditDraft.inspectDate || 'Дата' }}</span><span class="text-gray-500 shrink-0">✎</span>
+            </button>
+            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('inspectTime', 'Время', 'time')">
+              <span class="truncate">{{ historyEditDraft.inspectTime || 'Время' }}</span><span class="text-gray-500 shrink-0">✎</span>
+            </button>
           </div>
-          <textarea
-            v-model="historyEditDraft.comment"
-            rows="3"
-            placeholder="Комментарий (необязательно)"
-            class="w-full bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm shadow-inner focus:border-metric-green/50 outline-none resize-none"
-          ></textarea>
+          <button
+            type="button"
+            class="input-row w-full flex items-center justify-between gap-2 rounded-xl px-3 py-3 min-h-[48px] bg-[#151515] border border-[#333] text-left text-[16px] text-white"
+            @click="openHistoryCommentModal"
+          >
+            <span class="truncate flex-1">{{ historyEditDraft.comment || 'Комментарий (необязательно)' }}</span>
+            <span class="text-gray-500 shrink-0">✎</span>
+          </button>
           <div class="flex gap-2">
             <button
               type="button"
@@ -800,7 +825,7 @@
     </div>
 
     <!-- Section: Settings -->
-    <div v-else-if="currentSection === 'settings'" class="content-padding-bottom p-4 space-y-5 overflow-y-auto">
+    <div ref="settingsScrollRef" v-else-if="currentSection === 'settings'" class="content-padding-bottom p-4 space-y-5 overflow-y-auto">
       <div class="flex items-center justify-between">
         <button
           type="button"
@@ -1017,7 +1042,7 @@
     </div>
 
     <!-- Section: Info -->
-    <div v-else-if="currentSection === 'info'" class="content-padding-bottom p-4 space-y-3 overflow-y-auto">
+    <div ref="infoScrollRef" v-else-if="currentSection === 'info'" class="content-padding-bottom p-4 space-y-3 overflow-y-auto">
       <div class="flex items-center justify-between">
         <button
           type="button"
@@ -1232,12 +1257,13 @@
         {{ toast.text }}
       </div>
     </Transition>
+    <InputModal :model-value="inputModalOpen" :config="inputModalConfig" @confirm="inputModalConfirm" @cancel="inputModalCancel" />
     <QADebugOverlay />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, nextTick, onBeforeUnmount } from 'vue';
+import { ref, reactive, computed, watch, onMounted, nextTick, onBeforeUnmount, provide } from 'vue';
 import { deleteSelected } from './graphics/konvaEditor';
 import { initialData } from './data/initialData';
 import { getArmaturnayaWorksForElement, getArmaturnayaTotalPrice } from './data/armaturnayaWorks';
@@ -1257,6 +1283,8 @@ import TopBrandBar from './components/TopBrandBar.vue';
 import WowScreenShell from './components/WowScreenShell.vue';
 import { getElementIconPath } from './utils/elementIcons';
 import { useHistoryStore } from './features/history/historyStore';
+import InputModal from './components/InputModal.vue';
+import { useInputModal } from './composables/useInputModal';
 
 // Sections & mode
 const currentSection = ref('home');
@@ -1269,6 +1297,13 @@ const showWowBg = computed(() => currentSection.value === 'home' || (currentSect
 const appRootRef = ref(null);
 const bottomNavRef = ref(null);
 const graphicsWizardRef = ref(null);
+const metricScrollRef = ref(null);
+const historyScrollRef = ref(null);
+const settingsScrollRef = ref(null);
+const infoScrollRef = ref(null);
+
+const { modalOpen: inputModalOpen, modalConfig: inputModalConfig, openInputModal, confirm: inputModalConfirm, cancel: inputModalCancel } = useInputModal();
+provide('openInputModal', openInputModal);
 let footerResizeObserver = null;
 const updateFooterHeight = () => {
   const root = appRootRef.value;
@@ -2043,6 +2078,10 @@ const switchSection = (section) => {
   if (section !== 'metric' && calcMode.value === 'graphics') closeEditor();
   currentSection.value = section;
   haptic('selection');
+  nextTick(() => {
+    const container = section === 'metric' ? metricScrollRef.value : section === 'history' ? historyScrollRef.value : section === 'settings' ? settingsScrollRef.value : section === 'info' ? infoScrollRef.value : null;
+    if (container?.scrollTo) container.scrollTo({ top: 0, behavior: 'auto' });
+  });
   if (section === 'metric') {
     ensureInspectDateTime();
   }
@@ -2119,6 +2158,80 @@ const resetDefaults = () => {
     saveSettings();
   }
 };
+
+async function openClientField(field, label, inputType, placeholder) {
+  const value = await openInputModal({
+    title: 'Данные клиента',
+    label,
+    value: estimateDraft[field] ?? '',
+    inputType,
+    placeholder
+  });
+  if (value !== undefined && value !== null) estimateDraft[field] = value;
+}
+
+async function openRepairHoursModal() {
+  const value = await openInputModal({
+    title: 'Часы работы',
+    label: 'Время ремонта (ч)',
+    value: estimateDraft.repairTimeHours != null && estimateDraft.repairTimeHours !== '' ? estimateDraft.repairTimeHours : '',
+    inputType: 'number',
+    placeholder: 'ч',
+    min: 0,
+    step: 0.5
+  });
+  if (value !== undefined && value !== null && Number.isFinite(Number(value))) estimateDraft.repairTimeHours = Number(value);
+  else if (value === '' || value === null) estimateDraft.repairTimeHours = null;
+}
+
+async function openCommentModal() {
+  const value = await openInputModal({
+    title: 'Комментарий',
+    label: 'Комментарий к оценке (необязательно)',
+    value: estimateDraft.comment ?? '',
+    multiline: true,
+    placeholder: 'Введите комментарий...'
+  });
+  if (value !== undefined) estimateDraft.comment = value ?? '';
+}
+
+async function openQuickDentSizeModal(dent, field, label) {
+  const value = await openInputModal({
+    title: 'Произвольный размер',
+    label,
+    value: dent[field] != null && dent[field] > 0 ? dent[field] : '',
+    inputType: 'number',
+    placeholder: 'мм',
+    min: 0.1,
+    step: 0.5
+  });
+  if (value !== undefined && value !== null && Number.isFinite(Number(value))) {
+    dent[field] = Number(value);
+    syncQuickDentSizeFromMm(dent);
+  }
+}
+
+async function openHistoryEditField(field, label, inputType) {
+  const value = await openInputModal({
+    title: 'Редактирование',
+    label,
+    value: historyEditDraft[field] ?? '',
+    inputType,
+    placeholder: label
+  });
+  if (value !== undefined && value !== null) historyEditDraft[field] = value;
+}
+
+async function openHistoryCommentModal() {
+  const value = await openInputModal({
+    title: 'Комментарий',
+    label: 'Комментарий (необязательно)',
+    value: historyEditDraft.comment ?? '',
+    multiline: true,
+    placeholder: 'Введите комментарий...'
+  });
+  if (value !== undefined) historyEditDraft.comment = value ?? '';
+}
 
 function scrollFieldIntoView(e) {
   const el = e?.target || e;

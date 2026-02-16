@@ -99,37 +99,29 @@
               <label class="block text-[10px] text-gray-500 mb-0.5">
                 {{ selectedDentSize?.type === 'circle' ? 'Ширина' : 'Длина' }}
               </label>
-              <input
-                :value="displayWidthVal"
-                @input="onWidthInput"
-                type="number"
-                min="0.1"
-                max="2000"
-                step="0.5"
-                inputmode="decimal"
-                :placeholder="selectedDentSize ? '' : '—'"
+              <button
+                type="button"
                 :disabled="inputsDisabled"
-                class="step2-input w-full rounded-lg bg-white/5 border border-white/20 px-2 py-2 min-h-[44px] text-base text-white focus:border-metric-green focus:ring-1 focus:ring-metric-green/50 outline-none disabled:opacity-50 disabled:cursor-not-allowed placeholder-gray-500"
-                @focus="selectedDentSize && $emit('dimensions-focus', sizesPanel)"
-              />
+                class="step2-input w-full rounded-lg bg-white/5 border border-white/20 px-2 py-2 min-h-[44px] text-[16px] text-white text-left flex items-center justify-between gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                @click="openWidthModal"
+              >
+                <span>{{ displayWidthVal || (selectedDentSize ? '' : '—') }}</span>
+                <span class="text-gray-500 shrink-0 text-sm">✎</span>
+              </button>
             </div>
             <div>
               <label class="block text-[10px] text-gray-500 mb-0.5">
                 {{ selectedDentSize?.type === 'circle' ? 'Высота' : 'Ширина' }}
               </label>
-              <input
-                :value="displayHeightVal"
-                @input="onHeightInput"
-                type="number"
-                min="0.1"
-                max="2000"
-                step="0.5"
-                inputmode="decimal"
-                :placeholder="selectedDentSize ? '' : '—'"
+              <button
+                type="button"
                 :disabled="inputsDisabled"
-                class="step2-input w-full rounded-lg bg-white/5 border border-white/20 px-2 py-2 min-h-[44px] text-base text-white focus:border-metric-green focus:ring-1 focus:ring-metric-green/50 outline-none disabled:opacity-50 disabled:cursor-not-allowed placeholder-gray-500"
-                @focus="selectedDentSize && $emit('dimensions-focus', sizesPanel)"
-              />
+                class="step2-input w-full rounded-lg bg-white/5 border border-white/20 px-2 py-2 min-h-[44px] text-[16px] text-white text-left flex items-center justify-between gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                @click="openHeightModal"
+              >
+                <span>{{ displayHeightVal || (selectedDentSize ? '' : '—') }}</span>
+                <span class="text-gray-500 shrink-0 text-sm">✎</span>
+              </button>
             </div>
           </div>
           <div v-if="areaMm2" class="mt-1 text-[10px] text-gray-500">
@@ -163,8 +155,10 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, inject } from 'vue';
 import { classifyShapeByRatio } from '../../utils/shapeClassification';
+
+const openInputModal = inject('openInputModal');
 
 const props = defineProps({
   selectedDentSize: { type: Object, default: null },
@@ -215,16 +209,36 @@ const freeformBboxHint = computed(() => {
   return classified === 'stripe' ? 'Полоса' : classified === 'round' ? 'Круг' : 'Овал';
 });
 
-function sanitizeInput(val) {
-  const n = parseFloat(String(val || '').replace(',', '.'));
-  return Number.isFinite(n) ? n : 0;
+async function openWidthModal() {
+  if (inputsDisabled.value) return;
+  const label = props.selectedDentSize?.type === 'circle' ? 'Ширина (мм)' : 'Длина (мм)';
+  const value = await openInputModal({
+    title: 'Размер повреждения',
+    label,
+    value: props.sizeWidthMm > 0 ? props.sizeWidthMm : '',
+    inputType: 'number',
+    placeholder: 'мм',
+    min: 0.1,
+    max: 2000,
+    step: 0.5
+  });
+  if (value !== undefined && value !== null && Number.isFinite(Number(value))) emit('update:sizeWidthMm', Number(value));
 }
 
-function onWidthInput(e) {
-  emit('update:sizeWidthMm', sanitizeInput(e?.target?.value));
-}
-function onHeightInput(e) {
-  emit('update:sizeHeightMm', sanitizeInput(e?.target?.value));
+async function openHeightModal() {
+  if (inputsDisabled.value) return;
+  const label = props.selectedDentSize?.type === 'circle' ? 'Высота (мм)' : 'Ширина (мм)';
+  const value = await openInputModal({
+    title: 'Размер повреждения',
+    label,
+    value: props.sizeHeightMm > 0 ? props.sizeHeightMm : '',
+    inputType: 'number',
+    placeholder: 'мм',
+    min: 0.1,
+    max: 2000,
+    step: 0.5
+  });
+  if (value !== undefined && value !== null && Number.isFinite(Number(value))) emit('update:sizeHeightMm', Number(value));
 }
 
 const formatArea = (v) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Math.round(v));

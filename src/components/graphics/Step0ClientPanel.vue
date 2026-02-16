@@ -6,13 +6,34 @@
         <div v-if="clientRequired" class="text-[10px] text-red-400 uppercase tracking-widest">обязательно</div>
       </div>
       <div class="grid grid-cols-2 gap-2">
-        <input v-model="model.clientName" placeholder="Имя" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-        <input v-model="model.clientCompany" placeholder="Компания" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-        <input v-model="model.clientPhone" placeholder="Тел" inputmode="tel" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-        <input v-model="model.carBrand" placeholder="Марка" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-        <input v-model="model.carModel" placeholder="Модель" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-        <input v-model="model.inspectDate" type="date" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
-        <input v-model="model.inspectTime" type="time" class="bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm focus:border-metric-green/50 outline-none">
+        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('clientName', 'Имя', 'text', 'Имя')">
+          <span class="truncate">{{ model.clientName || 'Имя' }}</span>
+          <span class="text-gray-500 shrink-0">✎</span>
+        </button>
+        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('clientCompany', 'Компания', 'text', 'Компания')">
+          <span class="truncate">{{ model.clientCompany || 'Компания' }}</span>
+          <span class="text-gray-500 shrink-0">✎</span>
+        </button>
+        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('clientPhone', 'Тел', 'tel', 'Телефон')">
+          <span class="truncate">{{ model.clientPhone || 'Тел' }}</span>
+          <span class="text-gray-500 shrink-0">✎</span>
+        </button>
+        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('carBrand', 'Марка', 'text', 'Марка')">
+          <span class="truncate">{{ model.carBrand || 'Марка' }}</span>
+          <span class="text-gray-500 shrink-0">✎</span>
+        </button>
+        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('carModel', 'Модель', 'text', 'Модель')">
+          <span class="truncate">{{ model.carModel || 'Модель' }}</span>
+          <span class="text-gray-500 shrink-0">✎</span>
+        </button>
+        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('inspectDate', 'Дата осмотра', 'date', 'Дата')">
+          <span class="truncate">{{ model.inspectDate || 'Дата' }}</span>
+          <span class="text-gray-500 shrink-0">✎</span>
+        </button>
+        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('inspectTime', 'Время осмотра', 'time', 'Время')">
+          <span class="truncate">{{ model.inspectTime || 'Время' }}</span>
+          <span class="text-gray-500 shrink-0">✎</span>
+        </button>
       </div>
       <p v-if="clientRequired && !canNext" class="text-[10px] text-gray-500 text-center">Заполните имя и телефон</p>
     </div>
@@ -41,11 +62,26 @@
 </template>
 
 <script setup>
-defineProps({
+import { inject } from 'vue';
+
+const props = defineProps({
   model: { type: Object, required: true },
   clientRequired: { type: Boolean, default: false },
   canNext: { type: Boolean, default: true }
 });
 
 defineEmits(['back', 'next']);
+
+const openInputModal = inject('openInputModal');
+
+async function openField(field, label, inputType, placeholder) {
+  const value = await openInputModal({
+    title: 'Данные клиента',
+    label,
+    value: props.model[field] ?? '',
+    inputType,
+    placeholder
+  });
+  if (value !== undefined && value !== null) props.model[field] = value;
+}
 </script>

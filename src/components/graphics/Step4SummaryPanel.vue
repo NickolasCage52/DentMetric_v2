@@ -1,7 +1,6 @@
 <template>
   <div class="summary-panel flex flex-col min-h-0">
-    <div class="graphics-panel-content p-2 space-y-3">
-      <!-- Breakdown -->
+    <div class="summary-scroll flex-1 min-h-0 overflow-y-auto p-2">
       <div class="summary-card rounded-xl bg-black/35 border border-white/10 p-4 space-y-2">
         <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Расчёт стоимости</div>
         <div v-if="freeformUsed" class="summary-row flex justify-between text-[11px]">
@@ -17,18 +16,19 @@
           <span data-testid="total-price-graphics" class="text-metric-green font-bold text-lg">{{ formatPrice(totalPrice) }} ₽</span>
         </div>
       </div>
-      <div class="summary-card rounded-xl bg-black/35 border border-white/10 p-4 space-y-2">
-        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Комментарий</div>
-        <textarea
-          :value="comment"
-          @input="$emit('update:comment', $event.target.value)"
-          rows="3"
-          placeholder="Комментарий к оценке (необязательно)"
-          class="w-full bg-[#151515] border border-[#333] rounded-xl px-3 py-2.5 text-white text-sm shadow-inner focus:border-metric-green/50 outline-none resize-none"
-        ></textarea>
-      </div>
     </div>
-    <div class="graphics-action-bar space-y-2">
+    <div class="summary-comment-card rounded-xl bg-black/35 border border-white/10 p-3 mx-2 mt-1 shrink-0">
+      <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Комментарий</div>
+      <button
+        type="button"
+        class="input-row w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]"
+        @click="openCommentModal"
+      >
+        <span class="truncate flex-1">{{ comment ? comment : 'Комментарий к оценке (необязательно)' }}</span>
+        <span class="text-gray-500 shrink-0">✎</span>
+      </button>
+    </div>
+    <div class="graphics-action-bar space-y-2 shrink-0 p-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
       <div class="flex items-center gap-2 w-full">
         <button
           type="button"
@@ -60,7 +60,9 @@
 </template>
 
 <script setup>
-defineProps({
+import { inject } from 'vue';
+
+const props = defineProps({
   breakdown: { type: Array, default: () => [] },
   totalPrice: { type: Number, default: 0 },
   freeformUsed: { type: Boolean, default: false },
@@ -69,7 +71,20 @@ defineProps({
   historySaving: { type: Boolean, default: false }
 });
 
-defineEmits(['back', 'back-to-edit', 'reset', 'update:comment', 'save']);
+const emit = defineEmits(['back', 'back-to-edit', 'reset', 'update:comment', 'save']);
+
+const openInputModal = inject('openInputModal');
+
+async function openCommentModal() {
+  const value = await openInputModal({
+    title: 'Комментарий',
+    label: 'Комментарий к оценке (необязательно)',
+    value: props.comment ?? '',
+    multiline: true,
+    placeholder: 'Введите комментарий...'
+  });
+  if (value !== undefined) emit('update:comment', value ?? '');
+}
 
 const formatPrice = (v) => new Intl.NumberFormat('ru-RU').format(v);
 const formatArea = (v) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits: 0 }).format(Math.round(v));
