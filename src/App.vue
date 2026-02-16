@@ -1742,11 +1742,19 @@ const estimatedRepairTime = computed(() => {
 });
 
 const quickBreakdownItems = computed(() => {
-  const items = quickLineItems.value.map((item, idx) => ({
-    name: `Вмятина ${idx + 1}${item.discount ? ' (50%)' : ''}`,
-    value: `${formatCurrency(item.appliedTotal)} ₽`
-  }));
-  return items;
+  const result = [];
+  quickLineItems.value.forEach((item, idx) => {
+    const dentLabel = `Вмятина ${idx + 1}${item.discount ? ' (50%)' : ''}`;
+    const lines = item.breakdown || [];
+    lines.forEach((line) => {
+      result.push({ name: `${dentLabel} · ${line.name}`, value: line.value });
+    });
+    result.push({
+      name: `${dentLabel} · Итог`,
+      value: `${formatCurrency(item.appliedTotal)} ₽`
+    });
+  });
+  return result;
 });
 
 const quickStep2Valid = computed(() => {
