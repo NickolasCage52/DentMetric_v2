@@ -1,7 +1,7 @@
 /**
  * Unit tests for shape classification by width/height ratio.
  * L = max(w,h), H = min(w,h), r = L/H
- * r ≤ 1.20 → round; r ≥ 2.5 → stripe; else → oval
+ * r ≤ 1.20 → round; r ≥ 2.40 and L ≥ 50mm → stripe; else → oval
  */
 import { describe, it, expect } from 'vitest';
 import { classifyShapeByRatio } from '../src/utils/shapeClassification';
@@ -20,8 +20,8 @@ describe('classifyShapeByRatio', () => {
     it('20×2 cm (200×20 mm) → stripe', () => {
       expect(classifyShapeByRatio({ widthMm: 200, heightMm: 20 })).toBe('stripe');
     });
-    it('3×1 cm (30×10 mm) r=3 → stripe', () => {
-      expect(classifyShapeByRatio({ widthMm: 30, heightMm: 10 })).toBe('stripe');
+    it('3×1 cm (30×10 mm) r=3 but L<50mm → oval', () => {
+      expect(classifyShapeByRatio({ widthMm: 30, heightMm: 10 })).toBe('oval');
     });
   });
 
@@ -40,8 +40,8 @@ describe('classifyShapeByRatio', () => {
     });
   });
 
-  describe('stripe (r ≥ 2.5)', () => {
-    it('50×20 r=2.5 exactly → stripe', () => {
+  describe('stripe (r ≥ 2.4 and L ≥ 50mm)', () => {
+    it('50×20 r=2.5 exactly and L=50 → stripe', () => {
       expect(classifyShapeByRatio({ widthMm: 50, heightMm: 20 })).toBe('stripe');
     });
     it('20×50 reversed → stripe', () => {
@@ -50,23 +50,29 @@ describe('classifyShapeByRatio', () => {
     it('125×50 r=2.5 → stripe', () => {
       expect(classifyShapeByRatio({ widthMm: 125, heightMm: 50 })).toBe('stripe');
     });
-    it('60×24 r=2.5 → stripe', () => {
+    it('120×50 r=2.4 exactly and L>=50 → stripe', () => {
+      expect(classifyShapeByRatio({ widthMm: 120, heightMm: 50 })).toBe('stripe');
+    });
+    it('60×24 r=2.5 and L>=50 → stripe', () => {
       expect(classifyShapeByRatio({ widthMm: 60, heightMm: 24 })).toBe('stripe');
+    });
+    it('30×10 r=3 but L<50 → oval', () => {
+      expect(classifyShapeByRatio({ widthMm: 30, heightMm: 10 })).toBe('oval');
     });
   });
 
-  describe('oval (1.2 < r < 2.5)', () => {
+  describe('oval (1.2 < r < 2.4 OR L < 50mm)', () => {
     it('r between 1.2 and 2.5 → oval', () => {
       expect(classifyShapeByRatio({ widthMm: 60, heightMm: 45 })).toBe('oval');
     });
-    it('r=2.4 → oval', () => {
-      expect(classifyShapeByRatio({ widthMm: 120, heightMm: 50 })).toBe('oval');
+    it('r=2.39 → oval', () => {
+      expect(classifyShapeByRatio({ widthMm: 100, heightMm: 42 })).toBe('oval');
     });
     it('r=1.21 → oval', () => {
       expect(classifyShapeByRatio({ widthMm: 121, heightMm: 100 })).toBe('oval');
     });
-    it('r=2.39 → oval', () => {
-      expect(classifyShapeByRatio({ widthMm: 100, heightMm: 42 })).toBe('oval');
+    it('r>=2.4 but L<50 → oval', () => {
+      expect(classifyShapeByRatio({ widthMm: 48, heightMm: 20 })).toBe('oval');
     });
   });
 
@@ -80,7 +86,7 @@ describe('classifyShapeByRatio', () => {
     it('negative treated as 0 → oval', () => {
       expect(classifyShapeByRatio({ widthMm: -10, heightMm: 50 })).toBe('oval');
     });
-    it('r=2.5 exactly → stripe', () => {
+    it('r=2.5 exactly and L>=50 → stripe', () => {
       expect(classifyShapeByRatio({ widthMm: 50, heightMm: 20 })).toBe('stripe');
     });
   });

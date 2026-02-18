@@ -45,7 +45,14 @@
         class="canvas-editor-wrap relative overflow-hidden matrix-container flex-1 min-h-0 w-full"
         style="background-color: #0b0f14"
       >
-        <div ref="konvaContainer" id="konva-container" class="absolute inset-0 w-full h-full" style="background-color: #0b0f14; padding: 0; margin: 0"></div>
+        <div
+          ref="konvaContainer"
+          id="konva-container"
+          data-testid="graphics-konva"
+          :data-ready="konvaReady ? '1' : '0'"
+          class="absolute inset-0 w-full h-full"
+          style="background-color: #0b0f14; padding: 0; margin: 0"
+        ></div>
         <!-- Кнопка удаления вмятины на этапах 1–3 (HUD): активна только при выбранной вмятине -->
         <button
           v-if="wizardStep <= 3"
@@ -117,6 +124,8 @@
         :base-price="roundPrice(basePrice)"
         :total-price="displayTotal"
         :show-info-tooltips="userSettings?.showInfoTooltips !== false"
+        :show-paint-material="userSettings?.showPaintMaterial !== false"
+        :show-sound-insulation="userSettings?.showSoundInsulation !== false"
         @back="goBack"
         @calculate="() => goToStep(5)"
       />
@@ -142,7 +151,7 @@
         class="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
         @click.self="showSizeMenu = false"
       >
-        <div class="bg-[#151F2E] w-full max-w-md rounded-2xl p-5 border border-white/10 shadow-2xl space-y-4 pb-8 max-h-[80vh] overflow-y-auto">
+        <div class="bg-[#0b0f14] w-full max-w-md rounded-2xl p-5 border border-white/10 shadow-2xl space-y-4 pb-8 max-h-[80vh] overflow-y-auto">
           <div class="flex justify-between items-center border-b border-white/5 pb-3">
             <h3 class="text-white font-bold text-lg pl-1">
               Выберите размер ({{ activeToolType === 'circle' ? 'Круг/Овал' : 'Полоса' }})
@@ -170,7 +179,7 @@
         class="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm"
         @click.self="showClientInfo = false"
       >
-        <div class="bg-[#151F2E] w-full max-w-md rounded-2xl p-5 border border-white/10 shadow-2xl space-y-3 pb-6 max-h-[85vh] overflow-y-auto">
+        <div class="bg-[#0b0f14] w-full max-w-md rounded-2xl p-5 border border-white/10 shadow-2xl space-y-3 pb-6 max-h-[85vh] overflow-y-auto">
           <div class="flex justify-between items-center border-b border-white/5 pb-3">
             <h3 class="text-white font-bold text-lg pl-1">Данные клиента</h3>
             <button @click="showClientInfo = false" class="text-gray-400 p-2 text-xl">✕</button>
@@ -283,6 +292,15 @@ const wizardStep = ref(1);
 function initWizardStep() {
   if (!props.showClientStep) wizardStep.value = 2;
 }
+
+watch(
+  () => props.showClientStep,
+  (show) => {
+    // Enforce settings immediately: when client step is disabled, skip it.
+    // When enabled again, do not force-jump backwards (avoid surprise navigation).
+    if (!show && wizardStep.value === 1) wizardStep.value = 2;
+  }
+);
 const graphicsRoot = ref(null);
 const konvaContainer = ref(null);
 const controlsAreaRef = ref(null);
@@ -290,6 +308,7 @@ const hintRef = ref(null);
 const showSizeMenu = ref(false);
 const showClientInfo = ref(false);
 const activeToolType = ref(null);
+const konvaReady = ref(false);
 const selectedDentSize = ref(null);
 const sizeWidthMm = ref(0);
 const sizeHeightMm = ref(0);
@@ -660,18 +679,25 @@ const formatCurrency = (v) => new Intl.NumberFormat('ru-RU').format(v);
 
 const initKonvaEditor = async () => {
   if (!konvaContainer.value || !props.selectedPart) return;
+  konvaReady.value = false;
   const baseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '';
-  await initKonva(
-    konvaContainer.value,
-    props.selectedPart,
-    props.userSettings.prices,
-    (newDents) => {
-      dents.value = newDents;
-      emit('dents-change', newDents);
-    },
-    baseUrl,
-    (info) => { selectedDentSize.value = info; }
-  );
+  try {
+    await initKonva(
+      konvaContainer.value,
+      props.selectedPart,
+      props.userSettings.prices,
+      (newDents) => {
+        dents.value = newDents;
+        emit('dents-change', newDents);
+      },
+      baseUrl,
+      (info) => { selectedDentSize.value = info; }
+    );
+    konvaReady.value = true;
+  } catch (e) {
+    konvaReady.value = false;
+    throw e;
+  }
   /* Применить текущий шаг (draggable формы vs handle) после init */
   setEditable(wizardStep.value >= 2 && wizardStep.value <= 3, wizardStep.value);
   setDisplayUnit(props.userSettings?.sizeUnit || 'mm');
@@ -753,6 +779,7 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+  konvaReady.value = false;
   window.removeEventListener('resize', updateMobileGrid);
   window.removeEventListener('resize', updateMatrixSafeTop);
   const vv = window.visualViewport;

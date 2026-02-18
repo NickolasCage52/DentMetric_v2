@@ -1,0 +1,20 @@
+### Health checks
+GET http://localhost:8000/health
+
+###
+GET http://localhost:8001/health
+
+###
+GET http://localhost:8002/health
+
+###
+GET http://localhost:8003/health
+
+### Agent message (creates lead + logs agent_run)
+POST http://localhost:8001/api/agent/message
+Content-Type: application/json
+
+{
+  "message": "Toyota Camry 2019, нужно ТО"
+}
+

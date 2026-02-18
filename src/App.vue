@@ -115,15 +115,35 @@
       <template v-else>
       <div v-if="calcMode !== 'graphics'" class="p-4 space-y-3 shrink-0 z-20 bg-black">
         <div class="flex items-center justify-center">
-          <img src="/dm-small.png" alt="DentMetric" class="h-7 w-auto object-contain drop-shadow-2xl" onerror="this.style.display='none'">
+          <img src="/dm-small.png" alt="DentMetric" class="h-7 w-auto max-w-full object-contain drop-shadow-2xl" onerror="this.style.display='none'">
         </div>
       </div>
 
-      <div ref="metricScrollRef" class="flex-1 overflow-y-auto p-4 pt-0 pb-[calc(13rem+var(--app-footer-height,64px)+env(safe-area-inset-bottom,0px))]" :class="{ 'overflow-hidden h-0': calcMode === 'graphics' }">
+      <div
+        ref="metricScrollRef"
+        class="flex-1 overflow-y-auto p-4 pt-0"
+        :style="{ paddingBottom: metricScrollPaddingBottom }"
+        :class="{ 'overflow-hidden h-0': calcMode === 'graphics' }"
+      >
         <!-- Standard mode -->
         <div v-if="calcMode === 'standard'" class="flex flex-col min-h-full">
           <div data-testid="step-dots" class="flex items-center justify-center pb-2">
             <StepDots :current-step="quickLogicalStep" :total-steps="quickTotalSteps" />
+          </div>
+
+          <!-- Quick reset actions (moved from bottom bar into screen content) -->
+          <div
+            v-if="!(quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))"
+            class="flex flex-wrap items-center justify-center gap-2 pb-2"
+          >
+            <button
+              type="button"
+              @click="resetClientDataOnly"
+              class="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 rounded-lg px-3 py-2 transition-colors min-h-[36px] touch-manipulation"
+              aria-label="Сбросить только данные клиента"
+            >
+              Сброс клиента
+            </button>
           </div>
 
           <div class="space-y-4 pb-40">
@@ -165,292 +185,244 @@
             </div>
 
             <div v-else-if="quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)" class="space-y-4">
-              <div class="space-y-3">
-                <div
-                  v-for="(dent, idx) in estimateDraft.quickDents"
-                  :key="dent.id"
-                  class="card-metallic rounded-2xl p-5 space-y-3"
-                >
-                  <div class="flex items-center justify-between">
-                    <div class="text-[11px] font-bold text-gray-300 uppercase tracking-widest">Вмятина {{ idx + 1 }}</div>
+              <div v-if="!activeQuickDent" class="card-metallic rounded-2xl p-5 text-center text-gray-400">
+                Повреждение не выбрано
+              </div>
+              <div v-else class="card-metallic rounded-2xl p-4 space-y-4" data-testid="quick-step2">
+                <div class="flex items-center justify-between">
+                  <div class="text-[11px] font-bold text-gray-300 uppercase tracking-widest">
+                    Быстрый расчёт
+                  </div>
+                  <div class="flex items-center gap-2">
                     <button
                       type="button"
-                      @click="removeQuickDent(dent.id)"
-                      class="p-2 text-red-400 hover:text-red-300 border border-red-500/30 rounded-lg hover:bg-red-500/10 transition-colors"
-                      aria-label="Удалить"
+                      @click="resetDentsOnly"
+                      class="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-red-400 border border-white/10 hover:border-red-500/30 rounded-lg px-2.5 py-1.5 transition-colors min-h-[32px] touch-manipulation"
+                      aria-label="Сбросить вмятины и расчёт, данные клиента сохраняются"
                     >
-                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                      Сброс вмятин
                     </button>
-                  </div>
-
-                  <div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-2 tracking-widest">Сторона</label>
-                    <div class="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        @click="setQuickDentSide(dent, 'left')"
-                        class="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-widest border transition-all"
-                        :class="dent.panelSide === 'left' ? 'bg-metric-green text-black border-metric-green shadow-neon' : 'bg-[#151515] border-white/10 text-gray-400'"
-                      >
-                        Левая
-                      </button>
-                      <button
-                        type="button"
-                        @click="setQuickDentSide(dent, 'right')"
-                        class="rounded-xl px-3 py-2 text-xs font-bold uppercase tracking-widest border transition-all"
-                        :class="dent.panelSide === 'right' ? 'bg-metric-green text-black border-metric-green shadow-neon' : 'bg-[#151515] border-white/10 text-gray-400'"
-                      >
-                        Правая
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div class="flex items-center gap-1.5 mb-2">
-                      <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest">Поврежденный элемент</label>
-                      <InfoIcon v-if="userSettings.showInfoTooltips" tooltip-text="Выберите деталь кузова, на которой расположена вмятина (капот, дверь, крыло и т.д.)." />
-                    </div>
-                    <div class="relative flex items-center gap-2">
-                      <svg v-if="dent.panelElement" class="w-6 h-6 shrink-0 text-metric-green/80" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path :d="getElementIconPath(dent.panelElement)" /></svg>
-                      <select
-                        v-model="dent.panelElement"
-                        @change="onQuickDentElementChange(dent)"
-                        :class="['flex-1 min-w-0 rounded-xl pl-4 pr-10 py-3 text-base font-medium shadow-inner focus:border-metric-green/50 focus:ring-1 focus:ring-metric-green/50 outline-none appearance-none transition-colors', dent.panelElement ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                      >
-                        <option :value="null" disabled>Выберите элемент</option>
-                        <option v-for="part in (dent.panelSide === 'right' ? quickPartsRight : quickPartsLeft)" :key="part" :value="part">{{ part }}</option>
-                      </select>
-                      <div class="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-                        <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div class="flex items-center gap-1.5 mb-2">
-                      <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ГЕОМЕТРИЯ ПОВРЕЖДЕНИЯ</span>
-                      <InfoIcon v-if="userSettings.showInfoTooltips" tooltip-text="Круг/Овал — точечные вмятины. Полоса — удлинённые повреждения, царапины. Система автоматически подбирает форму по соотношению сторон (L/H ≥ 2.5 → Полоса)." />
-                    </div>
-                    <div class="flex space-x-3">
-                    <div
-                      @click="setQuickDentShape(dent, 'circle')"
-                      class="flex-1 relative rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 border"
-                      :class="dent.shape === 'circle' ? 'bg-[#222] border-metric-green shadow-neon' : 'bg-[#151515] border-white/5 hover:border-white/10'"
+                    <button
+                      v-if="estimateDraft.quickDents.length > 1"
+                      type="button"
+                      class="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-white border border-white/10 hover:border-white/20 rounded-lg px-2.5 py-1.5 transition-colors min-h-[32px] touch-manipulation"
+                      @click="removeQuickDent(activeQuickDent.id)"
                     >
-                      <div
-                        class="w-4 h-4 rounded-full border-2 mb-2 shadow-[0_0_5px_currentColor]"
-                        :class="dent.shape === 'circle' ? 'border-metric-green bg-metric-green' : 'border-gray-500'"
-                      ></div>
-                      <span class="text-xs font-bold uppercase" :class="dent.shape === 'circle' ? 'text-white' : 'text-gray-400'">Круг/Овал</span>
-                    </div>
-                    <div
-                      @click="setQuickDentShape(dent, 'strip')"
-                      class="flex-1 relative rounded-xl p-4 flex flex-col items-center justify-center cursor-pointer transition-all duration-200 border"
-                      :class="dent.shape === 'strip' ? 'bg-[#222] border-metric-green shadow-neon' : 'bg-[#151515] border-white/5 hover:border-white/10'"
-                    >
-                      <div
-                        class="w-6 h-2 rounded-sm mb-3 shadow-[0_0_5px_currentColor]"
-                        :class="dent.shape === 'strip' ? 'bg-metric-green' : 'bg-gray-500'"
-                      ></div>
-                      <span class="text-xs font-bold uppercase" :class="dent.shape === 'strip' ? 'text-white' : 'text-gray-400'">Полоса</span>
-                    </div>
-                    </div>
-                  </div>
-
-                  <div class="mb-2">
-                    <div class="flex items-center gap-1.5 mb-2">
-                      <label class="block text-[10px] font-bold text-gray-500 uppercase tracking-widest">Размер повреждения</label>
-                      <InfoIcon v-if="userSettings.showInfoTooltips" tooltip-text="Выберите шаблонный размер или введите произвольные длину и ширину в мм. Длина — большая сторона, ширина — меньшая." />
-                    </div>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 tracking-widest">РАЗМЕР ПО ШАБЛОНУ</label>
-                    <div class="relative group mb-3">
-                      <select
-                        v-model="dent.sizeCode"
-                        required
-                        @change="onQuickDentSizeCodeChange(dent)"
-                        :class="['w-full rounded-xl px-4 py-3 text-lg font-semibold shadow-inner focus:border-metric-green/50 focus:ring-1 focus:ring-metric-green/50 outline-none appearance-none transition-colors', dent.sizeCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                      >
-                        <option :value="null" disabled selected>Выберите размер</option>
-                        <option v-for="size in getSizeListForShape(dent.shape)" :key="size.code" :value="size.code">{{ size.name }}</option>
-                      </select>
-                      <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
-                        <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                      </div>
-                    </div>
-                    <div class="mb-1">
-                      <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Произвольный размер</span>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                    <div>
-                      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 tracking-widest">Длина (мм)</label>
-                      <button
-                        type="button"
-                        data-testid="dent-size-length"
-                        :class="['input-row w-full rounded-xl px-4 py-3 min-h-[48px] text-[16px] font-semibold text-left flex items-center justify-between gap-1 transition-colors', (dent.sizeLengthMm && dent.sizeLengthMm > 0) ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                        @click="openQuickDentSizeModal(dent, 'sizeLengthMm', 'Длина (мм)')"
-                      >
-                        <span>{{ dent.sizeLengthMm && dent.sizeLengthMm > 0 ? dent.sizeLengthMm : '—' }}</span>
-                        <span class="text-gray-500 shrink-0 text-sm">✎</span>
-                      </button>
-                    </div>
-                    <div>
-                      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1 tracking-widest">Ширина (мм)</label>
-                      <button
-                        type="button"
-                        data-testid="dent-size-width"
-                        :class="['input-row w-full rounded-xl px-4 py-3 min-h-[48px] text-[16px] font-semibold text-left flex items-center justify-between gap-1 transition-colors', (dent.sizeWidthMm && dent.sizeWidthMm > 0) ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                        @click="openQuickDentSizeModal(dent, 'sizeWidthMm', 'Ширина (мм)')"
-                      >
-                        <span>{{ dent.sizeWidthMm && dent.sizeWidthMm > 0 ? dent.sizeWidthMm : '—' }}</span>
-                        <span class="text-gray-500 shrink-0 text-sm">✎</span>
-                      </button>
-                    </div>
-                  </div>
-                  </div>
-
-                  <div class="rounded-2xl border border-metric-green/20 bg-[#0d0d0d]/80 p-4">
-                    <div class="flex items-center gap-1.5 mb-3">
-                      <span class="text-[10px] font-bold text-metric-green uppercase tracking-widest">ПАРАМЕТРЫ РАСЧЁТА</span>
-                      <InfoIcon v-if="userSettings.showInfoTooltips" tooltip-text="Технология ремонта, сложность, материал панели и класс авто влияют на итоговую стоимость. Материал ЛКП — тип лакокрасочного покрытия (глянец, мат, плёнка)." />
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                    <div>
-                      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Технология ремонта</label>
-                      <div class="relative">
-                        <select
-                          v-model="dent.conditions.repairCode"
-                          required
-                          :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', dent.conditions.repairCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                        >
-                          <option :value="null" disabled selected>Выберите</option>
-                          <option v-for="r in initialData.repairTypes" :key="r.code" :value="r.code">{{ r.name }}</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                          <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Сложность выполнения</label>
-                      <div class="relative">
-                        <select
-                          v-model="dent.conditions.riskCode"
-                          required
-                          :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', dent.conditions.riskCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                        >
-                          <option :value="null" disabled selected>Выберите</option>
-                          <option v-for="risk in initialData.risks" :key="risk.code" :value="risk.code">{{ risk.name }}</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                          <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                      </div>
-                    </div>
-                    <div>
-                      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Материал панели</label>
-                      <div class="relative">
-                        <select
-                          v-model="dent.conditions.materialCode"
-                          required
-                          :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', dent.conditions.materialCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                        >
-                          <option :value="null" disabled selected>Выберите</option>
-                          <option v-for="m in initialData.materials" :key="m.code" :value="m.code">{{ m.name }}</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                          <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                      </div>
-                    </div>
-                    <div v-if="userSettings.showPaintMaterial">
-                      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Материал ЛКП</label>
-                      <div class="relative">
-                        <select
-                          v-model="dent.conditions.paintMaterialCode"
-                          :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', dent.conditions.paintMaterialCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                        >
-                          <option :value="null" disabled selected>Выберите</option>
-                          <option v-for="p in initialData.paintMaterials" :key="p.code" :value="p.code">{{ p.name }}</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                          <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                      </div>
-                      <p v-if="dent.conditions.paintMaterialCode" class="text-[9px] text-gray-500 mt-1 ml-1">{{ (initialData.paintMaterials.find(p => p.code === dent.conditions.paintMaterialCode))?.desc }}</p>
-                    </div>
-                    <div>
-                      <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Класс автомобиля</label>
-                      <div class="relative">
-                        <select
-                          v-model="dent.conditions.carClassCode"
-                          required
-                          :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', dent.conditions.carClassCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                        >
-                          <option :value="null" disabled selected>Выберите</option>
-                          <option v-for="c in initialData.carClasses" :key="c.code" :value="c.code">{{ c.name }}</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                          <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="col-span-2">
-                    <p class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-1.5 ml-1">ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ</p>
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Арматурные работы</label>
-                    <p class="text-[9px] text-gray-500 mb-2 ml-1">Сначала выберите поврежденный элемент. Работы зависят от элемента.</p>
-                    <div class="relative">
-                      <select
-                        :value="(dent.conditions.disassemblyCodes || ['Z0'])[0]"
-                        @change="onArmaturnayaSelect(dent, $event.target.value)"
-                        :class="['w-full rounded-xl px-4 py-3 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', (dent.conditions.disassemblyCodes || ['Z0'])[0] ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                      >
-                        <option
-                          v-for="work in getArmaturnayaWorksForElement(dent.panelElement)"
-                          :key="work.code"
-                          :value="work.code"
-                        >
-                          {{ work.name }}{{ work.price > 0 ? ' — ' + work.price.toLocaleString('ru-RU') + ' ₽' : '' }}
-                        </option>
-                      </select>
-                      <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
-                        <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                      </div>
-                    </div>
-                  </div>
-                  <div v-if="userSettings.showSoundInsulation">
-                    <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Шумоизоляция</label>
-                    <div class="relative">
-                      <select
-                        v-model="dent.conditions.soundInsulationCode"
-                        :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', dent.conditions.soundInsulationCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                      >
-                        <option :value="null" disabled selected>Выберите</option>
-                        <option v-for="s in initialData.soundInsulation" :key="s.code" :value="s.code" :title="s.desc">{{ s.name }}</option>
-                      </select>
-                      <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                        <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                      </div>
-                    </div>
-                    <p v-if="dent.conditions.soundInsulationCode" class="text-[9px] text-gray-500 mt-1 ml-1">{{ (initialData.soundInsulation.find(s => s.code === dent.conditions.soundInsulationCode))?.desc }}</p>
-                  </div>
-                  </div>
-
-                  <div class="flex justify-between text-[11px] text-gray-400 pt-1">
-                    <span>Подитог:</span>
-                    <span class="text-white font-medium">{{ formatRoundedPrice(getQuickDentTotal(dent.id)) }} ₽</span>
+                      Удалить
+                    </button>
                   </div>
                 </div>
 
-                <button
-                  data-testid="btn-add-dent"
-                  type="button"
-                  @click="addQuickDent"
-                  class="w-full py-3 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl transition-all hover:bg-metric-green/10 min-h-[44px]"
+                <div class="space-y-2">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">СТОРОНА АВТОМОБИЛЯ</span>
+                    <InfoIcon v-if="userSettings.showInfoTooltips" tooltip-text="Выберите сторону автомобиля. Список элементов зависит от стороны." />
+                  </div>
+                  <SegmentedControl
+                    :model-value="activeQuickDent.panelSide"
+                    :options="[{ value: 'left', label: 'ЛЕВАЯ' }, { value: 'right', label: 'ПРАВАЯ' }]"
+                    @update:modelValue="setQuickDentSide(activeQuickDent, $event)"
+                  />
+                </div>
+
+                <SelectRow
+                  data-testid="quick-panel-element"
+                  label="ПОВРЕЖДЕННЫЙ ЭЛЕМЕНТ"
+                  :value-text="activeQuickDent.panelElement || ''"
+                  :active="!!activeQuickDent.panelElement"
+                  :show-check="true"
+                  @click="openQuickPanelElementPicker(activeQuickDent)"
                 >
-                  + Добавить вмятину
-                </button>
+                  <template #right>
+                    <svg v-if="activeQuickDent.panelElement" class="w-5 h-5 shrink-0 text-metric-green/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path :d="getElementIconPath(activeQuickDent.panelElement)" />
+                    </svg>
+                  </template>
+                </SelectRow>
+
+                <div class="space-y-2">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ГЕОМЕТРИЯ ПОВРЕЖДЕНИЯ</span>
+                    <InfoIcon v-if="userSettings.showInfoTooltips" tooltip-text="Выберите стандартный размер или укажите произвольные длину и ширину. Форма повреждения определяется автоматически по соотношению сторон." />
+                  </div>
+                  <SegmentedControl
+                    v-model="quickGeometryTab"
+                    :options="[{ value: 'standard', label: 'СТАНДАРТНЫЕ РАЗМЕРЫ' }, { value: 'custom', label: 'ПРОИЗВОЛЬНЫЙ РАЗМЕР' }]"
+                  />
+
+                  <div v-if="quickGeometryTab === 'standard'" class="grid grid-cols-4 gap-2">
+                    <button
+                      v-for="pill in quickStandardSizePills"
+                      :key="pill.code"
+                      type="button"
+                      :data-testid="`quick-size-pill-${pill.code}`"
+                      class="rounded-xl px-2 py-2.5 min-h-[44px] text-[11px] font-bold uppercase tracking-widest border transition-all touch-manipulation"
+                      :class="(activeQuickDent.sizeInputMode !== 'manual' && activeQuickDent.sizeCode === pill.code) ? 'bg-metric-green text-black border-metric-green shadow-[0_0_12px_rgba(136,229,35,0.25)]' : 'bg-[#151515] border-white/10 text-gray-300 hover:border-white/20'"
+                      @click="activeQuickDent.sizeInputMode = 'preset'; activeQuickDent.sizeCode = pill.code; onQuickDentSizeCodeChange(activeQuickDent)"
+                    >
+                      {{ pill.label }}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="quick-size-pill-manual"
+                      class="rounded-xl px-2 py-2.5 min-h-[44px] text-[11px] font-bold uppercase tracking-widest border transition-all touch-manipulation"
+                      :class="activeQuickDent.sizeInputMode === 'manual' ? 'bg-metric-green text-black border-metric-green shadow-[0_0_12px_rgba(136,229,35,0.25)]' : 'bg-[#151515] border-white/10 text-gray-300 hover:border-white/20'"
+                      @click="openQuickManualSize(activeQuickDent)"
+                    >
+                      ВВЕСТИ
+                    </button>
+                  </div>
+                  <div
+                    v-if="quickGeometryTab === 'standard' && activeQuickDent.sizeInputMode === 'manual' && (Number(activeQuickDent.sizeLengthMm) || 0) > 0 && (Number(activeQuickDent.sizeWidthMm) || 0) > 0"
+                    class="text-[11px] text-gray-500 mt-2"
+                  >
+                    Введено: <span class="text-white font-medium">{{ formatSizeDisplay(activeQuickDent.sizeLengthMm, activeQuickDent.sizeWidthMm) }}</span>
+                  </div>
+                  <div v-else>
+                    <div class="grid grid-cols-2 gap-2">
+                      <button
+                        type="button"
+                        class="rounded-xl px-3 py-3 min-h-[52px] border transition-colors touch-manipulation text-left"
+                        :class="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                        @click="activeQuickDent.sizeInputMode = 'manual'; openQuickDentSizeModal(activeQuickDent, 'sizeLengthMm', 'Ширина (мм)')"
+                      >
+                        <div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Ширина (мм)</div>
+                        <div class="text-[14px] font-semibold mt-0.5" :class="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 ? 'text-white' : 'text-gray-500'">
+                          {{ (Number(activeQuickDent.sizeLengthMm) || 0) > 0 ? Number(activeQuickDent.sizeLengthMm).toFixed(1) : '—' }}
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        class="rounded-xl px-3 py-3 min-h-[52px] border transition-colors touch-manipulation text-left"
+                        :class="(Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                        @click="activeQuickDent.sizeInputMode = 'manual'; openQuickDentSizeModal(activeQuickDent, 'sizeWidthMm', 'Высота (мм)')"
+                      >
+                        <div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Высота (мм)</div>
+                        <div class="text-[14px] font-semibold mt-0.5" :class="(Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? 'text-white' : 'text-gray-500'">
+                          {{ (Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? Number(activeQuickDent.sizeWidthMm).toFixed(1) : '—' }}
+                        </div>
+                      </button>
+                    </div>
+                    <div
+                      v-if="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 && (Number(activeQuickDent.sizeWidthMm) || 0) > 0"
+                      class="text-[11px] text-gray-500 mt-2"
+                    >
+                      Определено: <span class="text-white font-medium">{{ getQuickDetectedShapeLabel(activeQuickDent) }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="rounded-2xl border border-metric-green/20 bg-[#0d0d0d]/80 p-4 space-y-3">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-bold text-metric-green uppercase tracking-widest">ПАРАМЕТРЫ РАСЧЁТА</span>
+                    <InfoIcon v-if="userSettings.showInfoTooltips" tooltip-text="Технология ремонта, сложность выполнения, материал панели и класс автомобиля влияют на итоговую стоимость." />
+                  </div>
+                  <div class="grid grid-cols-2 gap-2">
+                    <SelectRow
+                      data-testid="quick-param-repair"
+                      label="ТЕХНОЛОГИЯ РЕМОНТА"
+                      :value-text="getRepairLabel(activeQuickDent.conditions?.repairCode)"
+                      :active="!!activeQuickDent.conditions?.repairCode"
+                      :show-check="true"
+                      @click="openQuickParamPicker(activeQuickDent, 'repairCode', 'Технология ремонта', initialData.repairTypes)"
+                    />
+                    <SelectRow
+                      data-testid="quick-param-risk"
+                      label="СЛОЖНОСТЬ ВЫПОЛНЕНИЯ"
+                      :value-text="getRiskLabel(activeQuickDent.conditions?.riskCode)"
+                      :active="!!activeQuickDent.conditions?.riskCode"
+                      :show-check="true"
+                      @click="openQuickParamPicker(activeQuickDent, 'riskCode', 'Сложность выполнения', initialData.risks)"
+                    />
+                    <SelectRow
+                      data-testid="quick-param-material"
+                      label="МАТЕРИАЛ ПАНЕЛИ"
+                      :value-text="getMaterialLabel(activeQuickDent.conditions?.materialCode)"
+                      :active="!!activeQuickDent.conditions?.materialCode"
+                      :show-check="true"
+                      @click="openQuickParamPicker(activeQuickDent, 'materialCode', 'Материал панели', initialData.materials)"
+                    />
+                    <SelectRow
+                      data-testid="quick-param-carclass"
+                      label="КЛАСС АВТОМОБИЛЯ"
+                      :value-text="getCarClassLabel(activeQuickDent.conditions?.carClassCode)"
+                      :active="!!activeQuickDent.conditions?.carClassCode"
+                      :show-check="true"
+                      @click="openQuickParamPicker(activeQuickDent, 'carClassCode', 'Класс автомобиля', initialData.carClasses)"
+                    />
+                  </div>
+                </div>
+
+                <div class="space-y-2">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ</span>
+                  </div>
+                  <SelectRow
+                    data-testid="quick-armaturnaya"
+                    label="АРМАТУРНЫЕ РАБОТЫ"
+                    :value-text="formatArmaturnayaSummary(activeQuickDent.conditions?.disassemblyCodes, activeQuickDent.panelElement)"
+                    :active="(activeQuickDent.conditions?.disassemblyCodes?.length ?? 0) > 0"
+                    :show-check="true"
+                    @click="openQuickArmaturnayaPicker(activeQuickDent)"
+                  />
+                </div>
+              </div>
+
+              <div class="card-metallic rounded-2xl p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                  <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Дополнительно</span>
+                </div>
+                <SelectRow
+                  v-if="userSettings.showPaintMaterial"
+                  label="МАТЕРИАЛ ЛКП"
+                  :value-text="getPaintMaterialLabel(activeQuickDent?.conditions?.paintMaterialCode)"
+                  :active="!!activeQuickDent?.conditions?.paintMaterialCode"
+                  :show-check="true"
+                  @click="openQuickPaintPicker(activeQuickDent)"
+                />
+                <SelectRow
+                  v-if="userSettings.showSoundInsulation"
+                  label="ШУМОИЗОЛЯЦИЯ"
+                  :value-text="getSoundInsulationLabel(activeQuickDent?.conditions?.soundInsulationCode)"
+                  :active="!!activeQuickDent?.conditions?.soundInsulationCode"
+                  :show-check="true"
+                  @click="openQuickSoundPicker(activeQuickDent)"
+                />
+
+                <div class="pt-3 border-t border-white/10">
+                  <div class="flex items-center justify-between">
+                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+                      Повреждения ({{ estimateDraft.quickDents.length }})
+                    </span>
+                    <button
+                      type="button"
+                      class="text-[10px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-lg px-2.5 py-1.5 hover:bg-metric-green/10 transition-colors"
+                      @click="addQuickDent"
+                    >
+                      + Добавить
+                    </button>
+                  </div>
+                  <div class="mt-2 space-y-2">
+                    <button
+                      v-for="(dent, idx) in estimateDraft.quickDents"
+                      :key="dent.id"
+                      type="button"
+                      class="w-full rounded-xl px-3 py-2.5 min-h-[44px] flex items-center justify-between gap-2 border transition-colors"
+                      :class="dent.id === activeQuickDentId ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      @click="setActiveQuickDent(dent.id)"
+                    >
+                      <div class="min-w-0 text-left">
+                        <div class="text-[12px] font-semibold truncate text-white">Повреждение {{ idx + 1 }}</div>
+                        <div class="text-[10px] text-gray-500 truncate">
+                          {{ dent.panelElement || 'Без элемента' }} · {{ dent.sizeLengthMm && dent.sizeWidthMm ? formatSizeDisplay(dent.sizeLengthMm, dent.sizeWidthMm) : '—' }}
+                        </div>
+                      </div>
+                      <span class="text-metric-green font-bold text-[12px] shrink-0">
+                        {{ formatRoundedPrice(getQuickDentTotal(dent.id)) }} ₽
+                      </span>
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -564,30 +536,30 @@
         />
       </div>
 
+      <!-- CTA for quick calc (Step 2) — pinned above bottom nav -->
+      <div
+        v-if="calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))"
+        class="quick-cta-bar fixed left-0 right-0 max-w-md mx-auto px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] z-[215]"
+        style="bottom: var(--app-footer-height, calc(64px + env(safe-area-inset-bottom, 0px)));"
+      >
+        <button
+          data-testid="btn-go-next"
+          type="button"
+          @click="goQuickNext"
+          :disabled="!quickStep2Valid"
+          class="w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest min-h-[56px] transition-all touch-manipulation"
+          :class="quickStep2Valid ? 'bg-metric-green text-black shadow-[0_0_18px_rgba(136,229,35,0.35)] active:scale-[0.99]' : 'bg-white/10 text-gray-500 cursor-not-allowed'"
+        >
+          РАССЧИТАТЬ СТОИМОСТЬ
+        </button>
+      </div>
+
       <!-- Панель Назад/Вперёд быстрого расчёта — вне скролла, всегда видна внизу -->
       <div
-        v-if="calcMode === 'standard'"
+        v-if="calcMode === 'standard' && !(quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))"
         class="quick-nav-bar fixed left-0 right-0 max-w-md mx-auto px-4 pt-2 pb-3 bg-black border-t border-white/10 shrink-0 z-[210]"
         style="bottom: var(--app-footer-height, calc(64px + env(safe-area-inset-bottom, 0px)));"
       >
-        <div class="flex flex-wrap items-center gap-2 mb-1">
-          <button
-            type="button"
-            @click="resetClientDataOnly"
-            class="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 rounded-lg px-2.5 py-1.5 transition-colors"
-            aria-label="Сбросить только данные клиента"
-          >
-            Сброс клиента
-          </button>
-          <button
-            type="button"
-            @click="resetDentsOnly"
-            class="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-red-400 border border-white/10 hover:border-red-500/30 rounded-lg px-2.5 py-1.5 transition-colors"
-            aria-label="Сбросить вмятины и расчёт, данные клиента сохраняются"
-          >
-            Сброс вмятин
-          </button>
-        </div>
         <div v-if="quickStep < 3" class="quick-nav-buttons flex">
           <button
             type="button"
@@ -649,7 +621,7 @@
           <span>←</span>
           <span>Домой</span>
         </button>
-        <img src="/dm-small.png" alt="DentMetric" class="h-8 w-auto object-contain" onerror="this.style.display='none'">
+        <img src="/dm-small.png" alt="DentMetric" class="h-8 w-auto max-w-full object-contain" onerror="this.style.display='none'">
         <button
           type="button"
           @click="clearHistoryConfirm"
@@ -746,9 +718,9 @@
           </div>
         </div>
 
-        <div v-if="selectedHistory.dents?.items?.length" class="card-metallic rounded-2xl p-4 space-y-2">
+        <div v-if="selectedHistoryDentItems.length" class="card-metallic rounded-2xl p-4 space-y-2">
           <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Вмятины</div>
-          <div v-for="dent in selectedHistory.dents.items" :key="dent.id" class="text-[11px] text-gray-400 flex justify-between">
+          <div v-for="dent in selectedHistoryDentItems" :key="dent.id" class="text-[11px] text-gray-400 flex justify-between">
             <span>
               {{ dent.type }} · {{ dent.bboxMm?.width?.toFixed?.(1) || '—' }}×{{ dent.bboxMm?.height?.toFixed?.(1) || '—' }} мм
               <span v-if="dent.panelElement">· {{ (dent.panelSide || 'left') + ':' }}{{ dent.panelElement }}</span>
@@ -812,7 +784,7 @@
             <div>
               <div class="text-sm font-bold text-white">{{ item.element || 'Без элемента' }}</div>
               <div class="text-[10px] text-gray-500">
-                {{ formatDateTime(item.createdAt) }} · {{ item.mode === 'detail' ? 'Детализация' : 'Быстрый' }}
+                {{ formatDateTime(item.createdAt) }} · {{ item.mode === 'detail' ? 'Детализация' : 'Быстрый' }}<span v-if="(item.dents?.count ?? item.quickDents?.length)"> · {{ item.dents?.count ?? item.quickDents?.length }} вмят.</span>
               </div>
             </div>
             <div class="text-metric-green font-bold">{{ formatCurrency(item.total || 0) }} ₽</div>
@@ -835,7 +807,7 @@
           <span>←</span>
           <span>Домой</span>
         </button>
-        <img src="/logo.png" alt="DentMetric" class="h-7 w-auto object-contain" style="border:none;box-shadow:none" onerror="this.style.display='none'">
+        <img src="/logo.png" alt="DentMetric" class="h-7 w-auto max-w-full object-contain" style="border:none;box-shadow:none" onerror="this.style.display='none'">
         <div class="w-[70px]"></div>
       </div>
       <h2 class="text-xl font-bold text-white px-1">Настройки</h2>
@@ -911,7 +883,7 @@
           <div class="flex items-center justify-between gap-3 py-1">
             <span class="text-sm text-gray-300 flex-1">Показывать подсказки (i)</span>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input v-model="userSettings.showInfoTooltips" type="checkbox" class="sr-only peer">
+              <input data-testid="settings-show-tooltips" v-model="userSettings.showInfoTooltips" type="checkbox" class="sr-only peer">
               <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
               <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
             </label>
@@ -919,7 +891,7 @@
           <div class="flex items-center justify-between gap-3 py-1">
             <span class="text-sm text-gray-300 flex-1">Экран клиента в режиме «Быстрый»</span>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input v-model="userSettings.showClientQuick" type="checkbox" class="sr-only peer">
+              <input data-testid="settings-show-client-quick" v-model="userSettings.showClientQuick" type="checkbox" class="sr-only peer">
               <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
               <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
             </label>
@@ -927,7 +899,7 @@
           <div class="flex items-center justify-between gap-3 py-1">
             <span class="text-sm text-gray-300 flex-1">Экран клиента в режиме «Детализация»</span>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input v-model="userSettings.showClientDetail" type="checkbox" class="sr-only peer">
+              <input data-testid="settings-show-client-detail" v-model="userSettings.showClientDetail" type="checkbox" class="sr-only peer">
               <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
               <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
             </label>
@@ -941,7 +913,7 @@
           <div class="flex items-center justify-between gap-3 py-1">
             <span class="text-sm text-gray-300 flex-1">Данные клиента обязательны</span>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input v-model="userSettings.clientRequired" type="checkbox" class="sr-only peer">
+              <input data-testid="settings-client-required" v-model="userSettings.clientRequired" type="checkbox" class="sr-only peer">
               <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
               <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
             </label>
@@ -950,7 +922,7 @@
             <div class="flex items-center justify-between gap-3 py-1">
               <span class="text-sm text-gray-300 flex-1">Телефон обязателен</span>
               <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                <input v-model="userSettings.requirePhone" type="checkbox" class="sr-only peer" :disabled="!userSettings.clientRequired">
+                <input data-testid="settings-require-phone" v-model="userSettings.requirePhone" type="checkbox" class="sr-only peer" :disabled="!userSettings.clientRequired">
                 <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
                 <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
               </label>
@@ -958,7 +930,7 @@
             <div class="flex items-center justify-between gap-3 py-1">
               <span class="text-sm text-gray-300 flex-1">Имя обязательно</span>
               <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                <input v-model="userSettings.requireName" type="checkbox" class="sr-only peer" :disabled="!userSettings.clientRequired">
+                <input data-testid="settings-require-name" v-model="userSettings.requireName" type="checkbox" class="sr-only peer" :disabled="!userSettings.clientRequired">
                 <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
                 <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
               </label>
@@ -966,7 +938,7 @@
             <div class="flex items-center justify-between gap-3 py-1">
               <span class="text-sm text-gray-300 flex-1">Марка/Модель обязательны</span>
               <label class="relative inline-flex items-center cursor-pointer shrink-0">
-                <input v-model="userSettings.requireCarBrandModel" type="checkbox" class="sr-only peer" :disabled="!userSettings.clientRequired">
+                <input data-testid="settings-require-car-brand-model" v-model="userSettings.requireCarBrandModel" type="checkbox" class="sr-only peer" :disabled="!userSettings.clientRequired">
                 <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
                 <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
               </label>
@@ -982,7 +954,7 @@
           <div class="flex items-center justify-between gap-3 py-1">
             <span class="text-sm text-gray-300 flex-1">Показывать Время ремонта (мастера)</span>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input v-model="userSettings.showRepairTime" type="checkbox" class="sr-only peer">
+              <input data-testid="settings-show-repair-time" v-model="userSettings.showRepairTime" type="checkbox" class="sr-only peer">
               <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
               <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
             </label>
@@ -990,7 +962,7 @@
           <div class="flex items-center justify-between gap-3 py-1">
             <span class="text-sm text-gray-300 flex-1">Показывать Материал ЛКП</span>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input v-model="userSettings.showPaintMaterial" type="checkbox" class="sr-only peer">
+              <input data-testid="settings-show-paint-material" v-model="userSettings.showPaintMaterial" type="checkbox" class="sr-only peer">
               <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
               <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
             </label>
@@ -998,7 +970,7 @@
           <div class="flex items-center justify-between gap-3 py-1">
             <span class="text-sm text-gray-300 flex-1">Показывать Шумоизоляция</span>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input v-model="userSettings.showSoundInsulation" type="checkbox" class="sr-only peer">
+              <input data-testid="settings-show-sound-insulation" v-model="userSettings.showSoundInsulation" type="checkbox" class="sr-only peer">
               <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
               <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
             </label>
@@ -1011,7 +983,7 @@
         <div class="flex items-center justify-between gap-3 py-1">
           <span class="text-sm text-gray-300 flex-1">Автосохранение в историю</span>
           <label class="relative inline-flex items-center cursor-pointer shrink-0">
-            <input v-model="userSettings.autoSaveHistory" type="checkbox" class="sr-only peer">
+            <input data-testid="settings-auto-save-history" v-model="userSettings.autoSaveHistory" type="checkbox" class="sr-only peer">
             <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
             <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
           </label>
@@ -1052,7 +1024,7 @@
           <span>←</span>
           <span>Домой</span>
         </button>
-        <img src="/dm-small.png" alt="DentMetric" class="h-7 w-auto object-contain" onerror="this.style.display='none'">
+        <img src="/dm-small.png" alt="DentMetric" class="h-7 w-auto max-w-full object-contain" onerror="this.style.display='none'">
         <div class="w-[70px]"></div>
       </div>
       <div class="flex items-center justify-center pb-4">
@@ -1174,7 +1146,7 @@
           <span>←</span>
           <span>Домой</span>
         </button>
-        <img src="/dm-small.png" alt="DentMetric" class="h-7 w-auto object-contain" onerror="this.style.display='none'">
+        <img src="/dm-small.png" alt="DentMetric" class="h-7 w-auto max-w-full object-contain" onerror="this.style.display='none'">
         <div class="w-[70px]"></div>
       </div>
       <div class="card-metallic rounded-2xl p-6 text-center text-gray-400 mt-6">
@@ -1258,12 +1230,13 @@
       </div>
     </Transition>
     <InputModal :model-value="inputModalOpen" :config="inputModalConfig" @confirm="inputModalConfirm" @cancel="inputModalCancel" />
-    <QADebugOverlay />
+    <SelectModal :model-value="selectModalOpen" :config="selectModalConfig" @confirm="selectModalConfirm" @cancel="selectModalCancel" />
+    <component :is="QAOverlayComp" v-if="qaEnabled && QAOverlayComp" />
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, watch, onMounted, nextTick, onBeforeUnmount, provide } from 'vue';
+import { ref, reactive, computed, watch, onMounted, nextTick, onBeforeUnmount, provide, defineAsyncComponent } from 'vue';
 import { deleteSelected } from './graphics/konvaEditor';
 import { initialData } from './data/initialData';
 import { getArmaturnayaWorksForElement, getArmaturnayaTotalPrice } from './data/armaturnayaWorks';
@@ -1277,7 +1250,6 @@ import { classifyShapeByRatio } from './utils/shapeClassification';
 import GraphicsWizard from './components/graphics/GraphicsWizard.vue';
 import StepDots from './components/graphics/StepDots.vue';
 import InfoIcon from './components/InfoIcon.vue';
-import QADebugOverlay from './components/QADebugOverlay.vue';
 import AppWowBackground from './components/AppWowBackground.vue';
 import TopBrandBar from './components/TopBrandBar.vue';
 import WowScreenShell from './components/WowScreenShell.vue';
@@ -1285,6 +1257,21 @@ import { getElementIconPath } from './utils/elementIcons';
 import { useHistoryStore } from './features/history/historyStore';
 import InputModal from './components/InputModal.vue';
 import { useInputModal } from './composables/useInputModal';
+import SelectModal from './components/SelectModal.vue';
+import { useSelectModal } from './composables/useSelectModal';
+import SegmentedControl from './components/ui/SegmentedControl.vue';
+import SelectRow from './components/ui/SelectRow.vue';
+
+// DEV-only QA overlay (?qa=1). Must not ship in production bundles.
+const qaEnabled = computed(() => {
+  if (typeof window === 'undefined') return false;
+  if (!import.meta.env?.DEV) return false;
+  const qs = window.location.search || '';
+  return new URLSearchParams(qs).get('qa') === '1' || qs.includes('qa=1');
+});
+const QAOverlayComp = import.meta.env?.DEV
+  ? defineAsyncComponent(() => import('./components/dev/QAOverlay.vue'))
+  : null;
 
 // Sections & mode
 const currentSection = ref('home');
@@ -1302,8 +1289,19 @@ const historyScrollRef = ref(null);
 const settingsScrollRef = ref(null);
 const infoScrollRef = ref(null);
 
+function scrollToTop(el) {
+  if (!el?.scrollTo) return;
+  el.scrollTo({ top: 0, behavior: 'auto' });
+}
+
+function scrollMetricToTop() {
+  scrollToTop(metricScrollRef.value);
+}
+
 const { modalOpen: inputModalOpen, modalConfig: inputModalConfig, openInputModal, confirm: inputModalConfirm, cancel: inputModalCancel } = useInputModal();
 provide('openInputModal', openInputModal);
+const { modalOpen: selectModalOpen, modalConfig: selectModalConfig, openSelectModal, confirm: selectModalConfirm, cancel: selectModalCancel } = useSelectModal();
+provide('openSelectModal', openSelectModal);
 let footerResizeObserver = null;
 const updateFooterHeight = () => {
   const root = appRootRef.value;
@@ -1346,6 +1344,26 @@ const estimateDraft = reactive({
 const { historyItems, loadHistory, saveEstimate, updateEstimate, deleteEstimate, clearHistory } = useHistoryStore();
 const selectedHistoryId = ref(null);
 const selectedHistory = computed(() => historyItems.value.find((item) => item.id === selectedHistoryId.value) || null);
+const selectedHistoryDentItems = computed(() => {
+  const h = selectedHistory.value;
+  const items = h?.dents?.items;
+  if (Array.isArray(items) && items.length) return items;
+  // Back-compat for older quick entries saved as `quickDents`
+  const q = h?.quickDents;
+  if (!Array.isArray(q) || q.length === 0) return [];
+  return q.map((d) => {
+    const { widthMm: w, heightMm: hh } = normalizeDimensions(d.sizeLengthMm, d.sizeWidthMm);
+    return {
+      id: d.id,
+      type: d.shape,
+      sizeCode: d.sizeCode,
+      bboxMm: { width: w, height: hh },
+      panelSide: d.panelSide || 'left',
+      panelElement: d.panelElement || null,
+      conditions: d.conditions
+    };
+  });
+});
 const isSavingHistory = ref(false);
 const toast = reactive({ visible: false, text: '', type: 'success', timeoutId: null });
 const skipNextAutoFill = ref(false);
@@ -1376,6 +1394,30 @@ const quickPartsLeft = [
 ];
 const quickPartsRight = [...quickPartsLeft];
 
+// Quick Calc UI state (active damage)
+const activeQuickDentId = ref(null);
+const activeQuickDent = computed(() => {
+  const list = estimateDraft.quickDents || [];
+  if (list.length === 0) return null;
+  const found = activeQuickDentId.value ? list.find((d) => d.id === activeQuickDentId.value) : null;
+  return found || list[list.length - 1] || null;
+});
+
+function setActiveQuickDent(id) {
+  if (!id) return;
+  activeQuickDentId.value = id;
+}
+
+const quickGeometryTab = ref('standard'); // 'standard' | 'custom'
+const quickStandardSizePills = computed(() => {
+  // Reference pills: "С МОНЕТУ", "10мм", "25мм", "100мм"
+  // Map to existing ordered circle sizes to preserve underlying meaning.
+  const circleCodes = (initialData.circleSizes || []).map((s) => s.code);
+  const pick = [circleCodes[0], circleCodes[1], circleCodes[2], circleCodes[3]].filter(Boolean);
+  const labels = ['С МОНЕТУ', '10мм', '25мм', '100мм'];
+  return pick.map((code, idx) => ({ code, label: labels[idx] || code }));
+});
+
 const clientDataValid = computed(() => {
   if (!userSettings.clientRequired) return true;
   const name = String(estimateDraft.clientName || '').trim();
@@ -1402,6 +1444,7 @@ function createQuickDent(panelElement = null) {
   return {
     id: `quick_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     shape: 'circle',
+    sizeInputMode: 'preset',
     sizeCode: null,
     sizeLengthMm: null,
     sizeWidthMm: null,
@@ -1420,8 +1463,11 @@ function createQuickDent(panelElement = null) {
 }
 
 function addQuickDent() {
-  const panel = getQuickDefaultPanel();
-  estimateDraft.quickDents.push(createQuickDent(panel?.element ? `${panel.side}:${panel.element}` : null));
+  // New dent should be a clean card (no copied values).
+  const next = createQuickDent(null);
+  next.panelSide = getQuickDefaultSide();
+  estimateDraft.quickDents.push(next);
+  activeQuickDentId.value = next.id;
   haptic('selection');
 }
 
@@ -1444,13 +1490,21 @@ function getQuickDefaultPanel() {
   return { side: 'left', element: quickPartsLeft.length ? quickPartsLeft[0] : null };
 }
 
+function getQuickDefaultSide() {
+  const last = estimateDraft.quickDents[estimateDraft.quickDents.length - 1];
+  return last?.panelSide === 'right' ? 'right' : 'left';
+}
+
 function onQuickDentElementChange(dent) {
   if (dent?.panelElement && !dent.panelSide) dent.panelSide = 'left';
   if (dent?.conditions?.disassemblyCodes && dent.panelElement) {
     const works = getArmaturnayaWorksForElement(dent.panelElement);
     const validCodes = new Set(works.map((w) => w.code));
-    const current = (dent.conditions.disassemblyCodes || ['Z0'])[0];
-    dent.conditions.disassemblyCodes = validCodes.has(current) ? [current] : ['Z0'];
+    const cur = Array.isArray(dent.conditions.disassemblyCodes) ? dent.conditions.disassemblyCodes : ['Z0'];
+    let next = cur.filter((c) => validCodes.has(c));
+    if (next.length === 0) next = ['Z0'];
+    if (next.includes('Z0') && next.length > 1) next = next.filter((c) => c !== 'Z0');
+    dent.conditions.disassemblyCodes = next;
   }
   haptic('selection');
 }
@@ -1575,6 +1629,17 @@ function loadUserSettings() {
   }
 }
 loadUserSettings();
+
+const metricScrollPaddingBottom = computed(() => {
+  // Keep content clear of bottom nav + either quick CTA (Step 2) or quick nav bar (Steps 1/3).
+  const footer = 'var(--app-footer-height,64px)';
+  const safe = 'env(safe-area-inset-bottom,0px)';
+  const onQuickDentsStep = calcMode.value === 'standard' && (quickStep.value === 2 || (quickStep.value === 1 && !userSettings.showClientQuick));
+  const onQuickNav = calcMode.value === 'standard' && !onQuickDentsStep;
+  if (onQuickDentsStep) return `calc(${footer} + ${safe} + 96px)`;
+  if (onQuickNav) return `calc(${footer} + ${safe} + 96px)`;
+  return `calc(${footer} + ${safe} + 1rem)`;
+});
 
 // Graphics state
 const graphicsState = reactive({
@@ -1760,6 +1825,7 @@ const quickBreakdownItems = computed(() => {
 const quickStep2Valid = computed(() => {
   if (estimateDraft.quickDents.length === 0) return false;
   return estimateDraft.quickDents.every((d) =>
+    d.panelElement &&
     d.sizeCode &&
     d.conditions?.repairCode &&
     d.conditions?.riskCode &&
@@ -1790,6 +1856,132 @@ const formatSizeDisplay = (lengthMm, widthMm) => {
   }
   return `${l.toFixed(1)}×${w.toFixed(1)} мм`;
 };
+
+const getRepairLabel = (code) => initialData.repairTypes.find((r) => r.code === code)?.name || '';
+const getRiskLabel = (code) => initialData.risks.find((r) => r.code === code)?.name || '';
+const getMaterialLabel = (code) => initialData.materials.find((m) => m.code === code)?.name || '';
+const getCarClassLabel = (code) => initialData.carClasses.find((c) => c.code === code)?.name || '';
+const getPaintMaterialLabel = (code) => initialData.paintMaterials?.find((p) => p.code === code)?.name || '';
+const getSoundInsulationLabel = (code) => initialData.soundInsulation?.find((s) => s.code === code)?.name || '';
+
+async function openQuickPanelElementPicker(dent) {
+  if (!dent) return;
+  const list = (dent.panelSide === 'right' ? quickPartsRight : quickPartsLeft) || [];
+  const selected = await openSelectModal({
+    title: 'Поврежденный элемент',
+    options: list.map((p) => ({ value: p, label: p })),
+    value: dent.panelElement ?? null
+  });
+  if (selected === undefined) return;
+  dent.panelElement = selected || null;
+  onQuickDentElementChange(dent);
+}
+
+async function openQuickParamPicker(dent, field, title, options) {
+  if (!dent?.conditions) return;
+  const current = dent.conditions[field] ?? null;
+  const selected = await openSelectModal({
+    title,
+    options: (options || []).map((o) => ({ value: o.code, label: o.name })),
+    value: current
+  });
+  if (selected === undefined) return;
+  dent.conditions[field] = selected || null;
+  haptic('selection');
+}
+
+async function openQuickPaintPicker(dent) {
+  if (!dent?.conditions) return;
+  const selected = await openSelectModal({
+    title: 'Материал ЛКП',
+    options: (initialData.paintMaterials || []).map((p) => ({ value: p.code, label: p.name, subtitle: p.desc })),
+    value: dent.conditions.paintMaterialCode ?? null
+  });
+  if (selected === undefined) return;
+  dent.conditions.paintMaterialCode = selected || null;
+  haptic('selection');
+}
+
+async function openQuickSoundPicker(dent) {
+  if (!dent?.conditions) return;
+  const selected = await openSelectModal({
+    title: 'Шумоизоляция',
+    options: (initialData.soundInsulation || []).map((s) => ({
+      value: s.code,
+      label: s.name,
+      subtitle: s.desc,
+      rightText: s.price > 0 ? `${s.price.toLocaleString('ru-RU')} ₽` : ''
+    })),
+    value: dent.conditions.soundInsulationCode ?? null
+  });
+  if (selected === undefined) return;
+  dent.conditions.soundInsulationCode = selected || null;
+  haptic('selection');
+}
+
+function formatArmaturnayaSummary(codes, panelElement) {
+  const arr = Array.isArray(codes) ? codes : [];
+  const works = getArmaturnayaWorksForElement(panelElement);
+  const byCode = new Map(works.map((w) => [w.code, w]));
+  const normalized = arr.length ? arr : ['Z0'];
+  if (normalized.length === 1) return byCode.get(normalized[0])?.name || '—';
+  return `${normalized.length} выбрано`;
+}
+
+async function openQuickArmaturnayaPicker(dent) {
+  if (!dent?.conditions) return;
+  const works = getArmaturnayaWorksForElement(dent.panelElement);
+  const cur = Array.isArray(dent.conditions.disassemblyCodes) ? dent.conditions.disassemblyCodes : ['Z0'];
+  const selected = await openSelectModal({
+    title: 'Арматурные работы',
+    multiple: true,
+    options: works.map((w) => ({
+      value: w.code,
+      label: w.name,
+      rightText: w.price > 0 ? `${w.price.toLocaleString('ru-RU')} ₽` : ''
+    })),
+    value: cur
+  });
+  if (selected === undefined) return;
+  // Defensive: handle both multi-select (array) and accidental single-select (string).
+  let next = Array.isArray(selected)
+    ? selected.filter(Boolean)
+    : (selected ? [selected] : []);
+  if (next.length === 0) next = ['Z0'];
+  if (next.includes('Z0') && next.length > 1) next = next.filter((c) => c !== 'Z0');
+  dent.conditions.disassemblyCodes = next.length ? next : ['Z0'];
+  haptic('selection');
+}
+
+async function openQuickCustomSize(dent) {
+  if (!dent) return;
+  dent.sizeInputMode = 'manual';
+  const l = await openQuickDentSizeModal(dent, 'sizeLengthMm', 'Ширина (мм)');
+  if (l === undefined) return;
+  const w = await openQuickDentSizeModal(dent, 'sizeWidthMm', 'Высота (мм)');
+  if (w === undefined) return;
+}
+
+async function openQuickManualSize(dent) {
+  if (!dent) return;
+  dent.sizeInputMode = 'manual';
+  // Keep preset pills unselected when user inputs dimensions.
+  dent.sizeCode = null;
+  const w = await openQuickDentSizeModal(dent, 'sizeLengthMm', 'Ширина (мм)');
+  if (w === undefined) return;
+  const h = await openQuickDentSizeModal(dent, 'sizeWidthMm', 'Высота (мм)');
+  if (h === undefined) return;
+}
+
+function getQuickDetectedShapeLabel(dent) {
+  const w = Number(dent?.sizeLengthMm) || 0;
+  const h = Number(dent?.sizeWidthMm) || 0;
+  if (w <= 0 || h <= 0) return '—';
+  const classified = classifyShapeByRatio({ widthMm: w, heightMm: h });
+  if (classified === 'stripe') return 'Полоса';
+  if (classified === 'round') return 'Круг';
+  return 'Овал';
+}
 const formatDateTime = (iso) => {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -2047,6 +2239,7 @@ const setMode = (mode) => {
   }
   calcMode.value = mode;
   if (mode === 'standard') quickStep.value = userSettings.showClientQuick ? 1 : 2;
+  nextTick(() => scrollMetricToTop());
   haptic('selection');
   if (mode === 'graphics') {
     if (window.Telegram?.WebApp?.expand) window.Telegram.WebApp.expand();
@@ -2105,12 +2298,14 @@ const goQuickBack = () => {
     return;
   }
   quickStep.value -= 1;
+  nextTick(() => scrollMetricToTop());
 };
 
 const goQuickNext = () => {
   if (quickStep.value === 1 && userSettings.showClientQuick && !clientDataValid.value) return;
   if ((quickStep.value === 2 || (quickStep.value === 1 && !userSettings.showClientQuick)) && !quickStep2Valid.value) return;
   if (quickStep.value < 3) quickStep.value += 1;
+  nextTick(() => scrollMetricToTop());
 };
 
 const goHome = () => {
@@ -2216,7 +2411,9 @@ async function openQuickDentSizeModal(dent, field, label) {
   if (value !== undefined && value !== null && Number.isFinite(Number(value))) {
     dent[field] = Number(value);
     syncQuickDentSizeFromMm(dent);
+    return dent[field];
   }
+  return undefined;
 }
 
 async function openHistoryEditField(field, label, inputType) {
@@ -2326,6 +2523,17 @@ watch(
   { deep: true }
 );
 
+watch(
+  () => userSettings.showClientQuick,
+  (show) => {
+    if (calcMode.value !== 'standard') return;
+    // If client step is disabled while currently on it, skip forward to dents.
+    // When enabling again, keep current step (no surprise jump backwards).
+    if (!show && quickStep.value === 1) quickStep.value = 2;
+    nextTick(() => scrollMetricToTop());
+  }
+);
+
 watch(quickStep, (step) => {
   const onDentsStep = step === 2 || (step === 1 && !userSettings.showClientQuick);
   if (onDentsStep && estimateDraft.quickDents.length === 0) {
@@ -2333,6 +2541,7 @@ watch(quickStep, (step) => {
   }
   if (onDentsStep && estimateDraft.quickDents.length > 0) {
     estimateDraft.quickDents.forEach((dent) => normalizeQuickDentPanel(dent));
+    if (!activeQuickDentId.value) activeQuickDentId.value = estimateDraft.quickDents[0]?.id || null;
   }
 });
 
@@ -2378,6 +2587,15 @@ watch(
     if (isGraphics && btn) btn.hide();
   },
   { immediate: true }
+);
+
+watch(
+  () => [currentSection.value, calcMode.value],
+  () => {
+    if (currentSection.value !== 'metric') return;
+    if (calcMode.value === 'graphics') return;
+    nextTick(() => scrollMetricToTop());
+  }
 );
 
 onBeforeUnmount(() => {

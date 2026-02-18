@@ -11,7 +11,7 @@
     <img
       src="/logo.png"
       alt="DentMetric"
-      class="graphics-header-logo h-7 w-auto object-contain shrink-0"
+      class="graphics-header-logo h-7 w-auto max-w-full object-contain min-w-0"
       style="border:none;box-shadow:none"
       onerror="this.style.display='none'"
     >

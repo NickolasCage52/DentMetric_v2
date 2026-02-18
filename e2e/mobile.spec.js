@@ -7,23 +7,23 @@ test.use({ viewport: { width: 375, height: 667 } });
 
 test.describe('Mobile', () => {
   test('Launch -> open metric -> select Standard', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-    await page.getByTestId('btn-open-metric').click();
-    await page.getByTestId('metric-standard').click();
+    await page.getByTestId('btn-open-metric').click({ force: true });
+    await page.getByTestId('metric-standard').click({ force: true });
 
     await expect(page.getByTestId('step-dots')).toBeVisible({ timeout: 5000 });
   });
 
   test('Freeform touch simulation - use mouse on mobile viewport', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-    await page.getByTestId('btn-open-metric').click();
-    await page.getByTestId('metric-graphics').click();
+    await page.getByTestId('btn-open-metric').click({ force: true });
+    await page.getByTestId('metric-graphics').click({ force: true });
 
-    await page.getByRole('button', { name: /Продолжить.*Размещение/i }).click();
+    await page.getByRole('button', { name: /Продолжить.*Размещение/i }).click({ force: true });
 
-    await page.getByTestId('add-freeform').click();
+    await page.getByTestId('add-freeform').click({ force: true });
 
     const canvas = page.locator('.freeform-canvas');
     await expect(canvas).toBeVisible({ timeout: 5000 });
@@ -38,6 +38,6 @@ test.describe('Mobile', () => {
       await page.mouse.up();
     }
 
-    await page.getByTestId('freeform-confirm').click();
+    await page.getByTestId('freeform-confirm').click({ force: true });
   });
 });

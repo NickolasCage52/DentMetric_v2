@@ -7,133 +7,89 @@
           <span class="step3-hint-short">Параметры влияют на итог.</span>
         </p>
       </div>
-      <div class="step3-scroll-wrap">
-        <div class="rounded-2xl border border-metric-green/20 bg-[#0d0d0d]/80 p-4">
-          <div class="flex items-center gap-1.5 mb-3">
+      <div class="step3-scroll-wrap space-y-2">
+        <div class="rounded-2xl border border-metric-green/20 bg-[#0d0d0d]/80 p-4 space-y-3">
+          <div class="flex items-center gap-1.5">
             <span class="text-[10px] font-bold text-metric-green uppercase tracking-widest">ПАРАМЕТРЫ РАСЧЁТА</span>
-            <InfoIcon v-if="showInfoTooltips" tooltip-text="Технология ремонта, сложность, материал панели и класс авто влияют на итоговую стоимость. Материал ЛКП — тип лакокрасочного покрытия (глянец, мат, плёнка)." />
+            <InfoIcon
+              v-if="showInfoTooltips"
+              tooltip-text="Технология ремонта, сложность выполнения, материал панели и класс авто влияют на итоговую стоимость."
+            />
           </div>
+
           <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Технология ремонта</label>
-              <div class="relative">
-                <select
-                  :value="model.repairCode"
-                  @change="update('repairCode', $event.target.value)"
-                  :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', model.repairCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                >
-                  <option :value="null" disabled>Выберите</option>
-                  <option v-for="r in initialData.repairTypes" :key="r.code" :value="r.code">{{ r.name }}</option>
-                </select>
-                <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                  <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
-              </div>
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Сложность выполнения</label>
-              <div class="relative">
-                <select
-                  :value="model.riskCode"
-                  @change="update('riskCode', $event.target.value)"
-                  :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', model.riskCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                >
-                  <option :value="null" disabled>Выберите</option>
-                  <option v-for="risk in initialData.risks" :key="risk.code" :value="risk.code">{{ risk.name }}</option>
-                </select>
-                <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                  <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
-              </div>
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Материал панели</label>
-              <div class="relative">
-                <select
-                  :value="model.materialCode"
-                  @change="update('materialCode', $event.target.value)"
-                  :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', model.materialCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                >
-                  <option :value="null" disabled>Выберите</option>
-                  <option v-for="m in initialData.materials" :key="m.code" :value="m.code">{{ m.name }}</option>
-                </select>
-                <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                  <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
-              </div>
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Материал ЛКП</label>
-              <div class="relative">
-                <select
-                  :value="model.paintMaterialCode"
-                  @change="update('paintMaterialCode', $event.target.value)"
-                  :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', model.paintMaterialCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                >
-                  <option :value="null" disabled>Выберите</option>
-                  <option v-for="p in initialData.paintMaterials" :key="p.code" :value="p.code">{{ p.name }}</option>
-                </select>
-                <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                  <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
-              </div>
-              <p v-if="model.paintMaterialCode" class="text-[9px] text-gray-500 mt-1 ml-1">{{ (initialData.paintMaterials.find(p => p.code === model.paintMaterialCode))?.desc }}</p>
-            </div>
-            <div>
-              <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Класс автомобиля</label>
-              <div class="relative">
-                <select
-                  :value="model.carClassCode"
-                  @change="update('carClassCode', $event.target.value)"
-                  :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', model.carClassCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-                >
-                  <option :value="null" disabled>Выберите</option>
-                  <option v-for="c in initialData.carClasses" :key="c.code" :value="c.code">{{ c.name }}</option>
-                </select>
-                <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                  <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-                </div>
-              </div>
-            </div>
+            <SelectRow
+              data-testid="detail-param-repair"
+              label="ТЕХНОЛОГИЯ РЕМОНТА"
+              :value-text="getLabel(initialData.repairTypes, model.repairCode)"
+              :active="!!model.repairCode"
+              :show-check="true"
+              @click="openPicker('repairCode', 'Технология ремонта', (initialData.repairTypes || []).map((o) => ({ value: o.code, label: o.name })))"
+            />
+            <SelectRow
+              data-testid="detail-param-risk"
+              label="СЛОЖНОСТЬ ВЫПОЛНЕНИЯ"
+              :value-text="getLabel(initialData.risks, model.riskCode)"
+              :active="!!model.riskCode"
+              :show-check="true"
+              @click="openPicker('riskCode', 'Сложность выполнения', (initialData.risks || []).map((o) => ({ value: o.code, label: o.name })))"
+            />
+            <SelectRow
+              data-testid="detail-param-material"
+              label="МАТЕРИАЛ ПАНЕЛИ"
+              :value-text="getLabel(initialData.materials, model.materialCode)"
+              :active="!!model.materialCode"
+              :show-check="true"
+              @click="openPicker('materialCode', 'Материал панели', (initialData.materials || []).map((o) => ({ value: o.code, label: o.name })))"
+            />
+            <SelectRow
+              data-testid="detail-param-carclass"
+              label="КЛАСС АВТОМОБИЛЯ"
+              :value-text="getLabel(initialData.carClasses, model.carClassCode)"
+              :active="!!model.carClassCode"
+              :show-check="true"
+              @click="openPicker('carClassCode', 'Класс автомобиля', (initialData.carClasses || []).map((o) => ({ value: o.code, label: o.name })))"
+            />
           </div>
-          <div class="col-span-2 mt-2">
-            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Арматурные работы</label>
-            <p class="text-[9px] text-gray-500 mb-2 ml-1">Выберите вид работ. Стоимость учитывается в расчёте.</p>
-            <div class="relative">
-              <select
-                :value="model.disassemblyCode"
-                @change="update('disassemblyCode', $event.target.value)"
-                :class="['w-full rounded-xl px-4 py-3 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', model.disassemblyCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-              >
-                <option :value="null" disabled>Выберите арматурные работы</option>
-                <option v-for="work in disassemblyOptions" :key="work.code" :value="work.code">
-                  {{ work.name }}{{ work.price > 0 ? ' — ' + work.price.toLocaleString('ru-RU') + ' ₽' : '' }}
-                </option>
-              </select>
-              <div class="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none">
-                <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-              </div>
+
+          <div class="space-y-2">
+            <div class="flex items-center gap-1.5">
+              <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ</span>
             </div>
-          </div>
-          <div class="mt-2">
-            <label class="block text-[10px] font-bold text-gray-500 uppercase mb-1.5 ml-1">Шумоизоляция</label>
-            <div class="relative">
-              <select
-                :value="model.soundInsulationCode"
-                @change="update('soundInsulationCode', $event.target.value)"
-                :class="['w-full rounded-xl px-3 py-2.5 text-sm focus:border-metric-green/50 outline-none appearance-none transition-colors', model.soundInsulationCode ? 'bg-[#1a1a1a] border border-metric-green/40 text-white' : 'bg-[#151515] border border-[#333] text-gray-400']"
-              >
-                <option :value="null" disabled>Выберите</option>
-                <option v-for="s in initialData.soundInsulation" :key="s.code" :value="s.code" :title="s.desc">{{ s.name }}</option>
-              </select>
-              <div class="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-                <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7"></path></svg>
-              </div>
-            </div>
-            <p v-if="model.soundInsulationCode" class="text-[9px] text-gray-500 mt-1 ml-1">{{ (initialData.soundInsulation.find(s => s.code === model.soundInsulationCode))?.desc }}</p>
+            <SelectRow
+              data-testid="detail-armaturnaya"
+              label="АРМАТУРНЫЕ РАБОТЫ"
+              :value-text="getDisassemblyLabel(model.disassemblyCode)"
+              :active="!!model.disassemblyCode"
+              :show-check="true"
+              @click="openPicker('disassemblyCode', 'Арматурные работы', disassemblyModalOptions)"
+            />
           </div>
         </div>
-        <div class="rounded-lg bg-black/35 border border-white/10 p-2 space-y-0.5 mt-2">
+
+        <div v-if="showPaintMaterial || showSoundInsulation" class="card-metallic rounded-2xl p-4 space-y-3">
+          <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Дополнительно</div>
+          <SelectRow
+            v-if="showPaintMaterial"
+            data-testid="detail-param-paint"
+            label="МАТЕРИАЛ ЛКП"
+            :value-text="getLabel(initialData.paintMaterials, model.paintMaterialCode)"
+            :active="!!model.paintMaterialCode"
+            :show-check="true"
+            @click="openPicker('paintMaterialCode', 'Материал ЛКП', (initialData.paintMaterials || []).map((p) => ({ value: p.code, label: p.name, subtitle: p.desc })))"
+          />
+          <SelectRow
+            v-if="showSoundInsulation"
+            data-testid="detail-param-sound"
+            label="ШУМОИЗОЛЯЦИЯ"
+            :value-text="getLabel(initialData.soundInsulation, model.soundInsulationCode)"
+            :active="!!model.soundInsulationCode"
+            :show-check="true"
+            @click="openPicker('soundInsulationCode', 'Шумоизоляция', (initialData.soundInsulation || []).map((s) => ({ value: s.code, label: s.name, subtitle: s.desc })))"
+          />
+        </div>
+
+        <div class="rounded-lg bg-black/35 border border-white/10 p-2 space-y-0.5">
           <div class="flex justify-between text-[11px]">
             <span class="text-gray-400">Базовая стоимость:</span>
             <span class="text-white font-medium">{{ formatPrice(basePrice) }} ₽</span>
@@ -170,9 +126,10 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue';
+import { computed, watch, inject } from 'vue';
 import InfoIcon from '../InfoIcon.vue';
 import { getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks.js';
+import SelectRow from '../ui/SelectRow.vue';
 
 const props = defineProps({
   model: { type: Object, required: true },
@@ -180,7 +137,9 @@ const props = defineProps({
   selectedPartName: { type: String, default: null },
   basePrice: { type: Number, default: 0 },
   totalPrice: { type: Number, default: 0 },
-  showInfoTooltips: { type: Boolean, default: true }
+  showInfoTooltips: { type: Boolean, default: true },
+  showPaintMaterial: { type: Boolean, default: true },
+  showSoundInsulation: { type: Boolean, default: true }
 });
 
 const disassemblyOptions = computed(() =>
@@ -199,6 +158,8 @@ watch(disassemblyOptions, (options) => {
 
 defineEmits(['back', 'calculate']);
 
+const openSelectModal = inject('openSelectModal');
+
 const conditionsComplete = computed(() => {
   const m = props.model;
   if (!m) return false;
@@ -213,6 +174,37 @@ const conditionsComplete = computed(() => {
 
 function update(field, value) {
   if (props.model) props.model[field] = value;
+}
+
+function getLabel(list, code) {
+  if (!code) return '';
+  const found = (list || []).find((x) => x.code === code);
+  return found?.name || String(code);
+}
+
+const disassemblyModalOptions = computed(() =>
+  (disassemblyOptions.value || []).map((w) => ({
+    value: w.code,
+    label: w.name,
+    rightText: w.price > 0 ? `${w.price.toLocaleString('ru-RU')} ₽` : ''
+  }))
+);
+
+function getDisassemblyLabel(code) {
+  if (!code) return '';
+  const found = (disassemblyOptions.value || []).find((w) => w.code === code);
+  return found?.name || String(code);
+}
+
+async function openPicker(field, title, options) {
+  if (!openSelectModal) return;
+  const selected = await openSelectModal({
+    title,
+    options: options || [],
+    value: props.model?.[field] ?? null
+  });
+  if (selected === undefined) return;
+  update(field, selected || null);
 }
 
 const formatPrice = (v) => new Intl.NumberFormat('ru-RU').format(v);

@@ -1,3 +1,5 @@
+import { encodeStripeMatrixKey } from '../features/pricing/stripeCoefficients';
+
 export function ellipseAreaMm2(w, h) {
   return Math.PI * (w / 2) * (h / 2);
 }
@@ -53,6 +55,11 @@ export function getInterpolatedPriceByAreaMm2(areaMm2, sizes, prices) {
 }
 
 export function getSizeCodeForMatrix(shape, widthMm, heightMm, sizes) {
+  if (shape === 'strip') {
+    // Stripe/царапина: synthetic sizeCode encodes geometry for new coefficient lookup.
+    // (Do NOT rely on complexityMatrix.STRIP_DEFAULT anymore for stripe.)
+    return encodeStripeMatrixKey(widthMm, heightMm);
+  }
   if (shape !== 'circle') return 'STRIP_DEFAULT';
   const areaMm2 = getShapeAreaMm2('circle', widthMm, heightMm);
   return getClosestSizeCodeByAreaMm2(areaMm2, sizes) || 'S2';

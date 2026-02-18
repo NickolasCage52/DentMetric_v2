@@ -2,6 +2,28 @@
 
 Vue 3 + Vite + Konva. Приложение для оценки вмятин на кузове авто.
 
+## On‑prem MVP (monorepo)
+
+В этом репозитории добавлен каркас on‑prem MVP (микросервисы + Postgres) в папках:
+
+- `services/core-api`
+- `services/agent-orchestrator`
+- `services/model-server`
+- `services/rag-service`
+- `apps/ui`
+
+Запуск (нужен установленный Docker):
+
+```bash
+make up
+```
+
+Тесты:
+
+```bash
+make test
+```
+
 ## Как задеплоить
 
 1. `npm ci`

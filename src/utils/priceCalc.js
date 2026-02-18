@@ -1,4 +1,5 @@
 import { normalizeNumber } from './validation';
+import { getStripeCoefficient, parseStripeMatrixKey } from '../features/pricing/stripeCoefficients';
 
 /** Шаг округления цен: все цены кратны 100 (без десятков, единиц, копеек). */
 export const PRICE_ROUND_STEP = 100;
@@ -45,8 +46,7 @@ function calculateDentPrice(dent, conditions, initialData) {
   const riskObj = initialData.risks.find((r) => r.code === conditions.riskCode);
   const kKey = riskObj ? riskObj.matrixKey : 'K2';
   const sizeCode = dent?.sizeCode ?? (dent?.type === 'circle' ? 'S2' : 'STRIP_DEFAULT');
-  const matrixRow = initialData.complexityMatrix?.[sizeCode] ?? initialData.complexityMatrix?.['STRIP_DEFAULT'] ?? { [kKey]: 1.0 };
-  const compCoeff = matrixRow[kKey] ?? 1.0;
+  const compCoeff = getComplexityCoeff(initialData, kKey, sizeCode, dent);
 
   let price = basePrice;
   price *= repCoeff;
@@ -55,6 +55,37 @@ function calculateDentPrice(dent, conditions, initialData) {
   price *= carClassCoeff;
   price *= paintCoeff;
   return Math.max(0, price);
+}
+
+/**
+ * Returns complexity coefficient (K1..K4) for a given sizeCodeForMatrix.
+ * Stripe ("Полоса/Царапина") is handled via the new official 2cm table.
+ *
+ * @param {object} initialData
+ * @param {'K1'|'K2'|'K3'|'K4'} kKey
+ * @param {string} sizeCodeForMatrix
+ * @param {any} [dent] - optional dent object (used as fallback for stripe dims)
+ * @returns {number}
+ */
+function getComplexityCoeff(initialData, kKey, sizeCodeForMatrix, dent) {
+  const parsed = parseStripeMatrixKey(sizeCodeForMatrix);
+  if (parsed) {
+    return getStripeCoefficient({ lengthMm: parsed.lengthMm, heightMm: parsed.heightMm, kKey });
+  }
+  // Back-compat: if some legacy caller still passes STRIP_DEFAULT for strip dents,
+  // we try to derive geometry from bboxMm (if present) to avoid using old stripe coefficients.
+  if (dent?.type === 'strip' && dent?.bboxMm) {
+    const w = Number(dent.bboxMm.width) || 0;
+    const h = Number(dent.bboxMm.height) || 0;
+    if (w > 0 && h > 0) {
+      return getStripeCoefficient({ lengthMm: Math.max(w, h), heightMm: Math.min(w, h), kKey });
+    }
+  }
+  const matrixRow =
+    initialData.complexityMatrix?.[sizeCodeForMatrix] ??
+    initialData.complexityMatrix?.['STRIP_DEFAULT'] ??
+    { [kKey]: 1.0 };
+  return matrixRow[kKey] ?? 1.0;
 }
 
 /**
@@ -126,8 +157,7 @@ export function applyConditionsToBase(basePrice, conditions, initialData, sizeCo
     : 1.0;
   const riskObj = initialData.risks.find((r) => r.code === riskCode);
   const kKey = riskObj ? riskObj.matrixKey : 'K2';
-  const matrixRow = initialData.complexityMatrix?.[sizeCodeForMatrix] ?? initialData.complexityMatrix?.['STRIP_DEFAULT'] ?? { [kKey]: 1.0 };
-  const compCoeff = matrixRow[kKey] ?? 1.0;
+  const compCoeff = getComplexityCoeff(initialData, kKey, sizeCodeForMatrix);
   let disCost = 0;
   if (typeof conditions.disassemblyCost === 'number') {
     disCost = conditions.disassemblyCost;
@@ -170,8 +200,7 @@ export function buildBreakdown(basePrice, conditions, initialData, sizeCodeForMa
 
   const riskObj = initialData.risks.find((r) => r.code === riskCode);
   const kKey = riskObj ? riskObj.matrixKey : 'K2';
-  const matrixRow = initialData.complexityMatrix?.[sizeCodeForMatrix] ?? initialData.complexityMatrix?.['STRIP_DEFAULT'] ?? { [kKey]: 1.0 };
-  const compMult = matrixRow[kKey] ?? 1.0;
+  const compMult = getComplexityCoeff(initialData, kKey, sizeCodeForMatrix);
   const repObj = initialData.repairTypes.find((r) => r.code === repairCode);
   const repMult = repObj?.mult ?? 1.0;
   const matObj = initialData.materials.find((m) => m.code === materialCode);

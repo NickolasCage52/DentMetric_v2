@@ -7,7 +7,7 @@
         @click.self="handleCancel"
       >
         <div
-          class="input-modal-box w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-[#151F2E] border border-white/10 shadow-2xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-h-[85vh] flex flex-col"
+          class="input-modal-box w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-[#0b0f14] border border-white/10 shadow-2xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] max-h-[85vh] flex flex-col"
           role="dialog"
           aria-modal="true"
           :aria-label="config.title"
@@ -36,7 +36,7 @@
             :min="config.min"
             :max="config.max"
             :step="config.step"
-            inputmode="config.inputType === 'number' ? 'decimal' : (config.inputType === 'tel' ? 'tel' : 'text')"
+            :inputmode="config.inputType === 'number' ? 'decimal' : (config.inputType === 'tel' ? 'tel' : 'text')"
             class="input-modal-field w-full rounded-xl bg-[#151515] border border-[#333] px-4 py-3 text-white focus:border-metric-green/50 outline-none min-h-[48px] text-[16px]"
             @input="localValue = $event.target.value"
             @keydown.enter.prevent="handleConfirm"

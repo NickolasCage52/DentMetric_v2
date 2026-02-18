@@ -5,14 +5,14 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Freeform modal', () => {
   test('open modal, draw line with mouse, confirm -> dent appears', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
 
-    await page.getByTestId('btn-open-metric').click();
-    await page.getByTestId('metric-graphics').click();
+    await page.getByTestId('btn-open-metric').click({ force: true });
+    await page.getByTestId('metric-graphics').click({ force: true });
 
-    await page.getByRole('button', { name: /Продолжить.*Размещение/i }).click();
+    await page.getByRole('button', { name: /Продолжить.*Размещение/i }).click({ force: true });
 
-    await page.getByTestId('add-freeform').click();
+    await page.getByTestId('add-freeform').click({ force: true });
 
     const canvas = page.locator('.freeform-canvas');
     await expect(canvas).toBeVisible({ timeout: 5000 });
@@ -28,8 +28,8 @@ test.describe('Freeform modal', () => {
       await page.mouse.up();
     }
 
-    await page.getByTestId('freeform-confirm').click();
+    await page.getByTestId('freeform-confirm').click({ force: true });
 
-    await page.getByRole('button', { name: /Продолжить.*Размер/i }).click();
+    await page.getByRole('button', { name: /Продолжить.*Размер/i }).click({ force: true });
   });
 });

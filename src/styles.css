@@ -5,6 +5,11 @@
   box-sizing: border-box;
 }
 
+/* Prevent horizontal overflow from large intrinsic images before Tailwind-in-CDN finishes initializing. */
+img {
+  max-width: 100%;
+}
+
 :root {
   --metric-green: #88E523;
   --metric-green-glow: rgba(136, 229, 35, 0.4);
