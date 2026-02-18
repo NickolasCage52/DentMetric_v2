@@ -9,6 +9,8 @@ const modalConfig = ref({
   value: null,
   /** @type {boolean} */
   multiple: false,
+  /** @type {(current: any[], toggled: any) => any[] | null} */
+  toggleMultipleValue: null,
   /** @type {string} */
   confirmText: 'Готово'
 });
@@ -29,11 +31,15 @@ let resolvePromise = null;
  * @returns {Promise<any|any[]|undefined>}
  */
 export function openSelectModal(options = {}) {
+  const isMultiple = options.multiple === true;
+  const rawValue = options.value ?? (isMultiple ? [] : null);
+  const safeValue = isMultiple ? (Array.isArray(rawValue) ? [...rawValue] : []) : rawValue;
   modalConfig.value = {
     title: options.title ?? '',
     options: Array.isArray(options.options) ? options.options : [],
-    value: options.value ?? (options.multiple ? [] : null),
-    multiple: options.multiple === true,
+    value: safeValue,
+    multiple: isMultiple,
+    toggleMultipleValue: typeof options.toggleMultipleValue === 'function' ? options.toggleMultipleValue : null,
     confirmText: options.confirmText ?? 'Готово'
   };
   modalOpen.value = true;

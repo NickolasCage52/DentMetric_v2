@@ -1,93 +1,61 @@
 /**
  * Unit tests for shape classification by width/height ratio.
  * L = max(w,h), H = min(w,h), r = L/H
- * r ≤ 1.20 → round; r ≥ 2.40 and L ≥ 50mm → stripe; else → oval
+ * Boundaries:
+ * - 1.00 ≤ r < 1.40 → round
+ * - 1.40 ≤ r < 3.00 → oval
+ * - 3.00 ≤ r ≤ 6.00 → oval_long
+ * - r > 6.00 → stripe
  */
 import { describe, it, expect } from 'vitest';
-import { classifyShapeByRatio } from '../src/utils/shapeClassification';
+import { classifyDamageShapeByRatio, classifyShapeByRatio } from '../src/utils/shapeClassification';
 
 describe('classifyShapeByRatio', () => {
   describe('task examples', () => {
-    it('5×2 cm (50×20 mm) r=2.5 → stripe', () => {
-      expect(classifyShapeByRatio({ widthMm: 50, heightMm: 20 })).toBe('stripe');
+    it('120×300 (r=2.5) → oval (NOT stripe)', () => {
+      expect(classifyDamageShapeByRatio(120, 300)).toBe('oval');
+      expect(classifyShapeByRatio({ widthMm: 120, heightMm: 300 })).toBe('oval');
     });
-    it('6×4.5 cm (60×45 mm) → oval', () => {
-      expect(classifyShapeByRatio({ widthMm: 60, heightMm: 45 })).toBe('oval');
+    it('200×20 (r=10) → stripe', () => {
+      expect(classifyDamageShapeByRatio(200, 20)).toBe('stripe');
     });
-    it('18×8.5 cm → oval', () => {
-      expect(classifyShapeByRatio({ widthMm: 180, heightMm: 85 })).toBe('oval');
+    it('180×85 (r≈2.12) → oval', () => {
+      expect(classifyDamageShapeByRatio(180, 85)).toBe('oval');
     });
-    it('20×2 cm (200×20 mm) → stripe', () => {
-      expect(classifyShapeByRatio({ widthMm: 200, heightMm: 20 })).toBe('stripe');
+    it('30×10 (r=3) → oval_long', () => {
+      expect(classifyDamageShapeByRatio(30, 10)).toBe('oval_long');
     });
-    it('3×1 cm (30×10 mm) r=3 but L<50mm → oval', () => {
-      expect(classifyShapeByRatio({ widthMm: 30, heightMm: 10 })).toBe('oval');
-    });
-  });
-
-  describe('round (r ≤ 1.20)', () => {
-    it('square 30×30 → round', () => {
-      expect(classifyShapeByRatio({ widthMm: 30, heightMm: 30 })).toBe('round');
-    });
-    it('near-square 36×30 (r=1.2) → round', () => {
-      expect(classifyShapeByRatio({ widthMm: 36, heightMm: 30 })).toBe('round');
-    });
-    it('reversed 30×36 → round', () => {
-      expect(classifyShapeByRatio({ widthMm: 30, heightMm: 36 })).toBe('round');
-    });
-    it('r=1.19 → round', () => {
-      expect(classifyShapeByRatio({ widthMm: 119, heightMm: 100 })).toBe('round');
+    it('600×100 (r=6 exactly) → oval_long (stripe is strictly > 6)', () => {
+      expect(classifyDamageShapeByRatio(600, 100)).toBe('oval_long');
     });
   });
 
-  describe('stripe (r ≥ 2.4 and L ≥ 50mm)', () => {
-    it('50×20 r=2.5 exactly and L=50 → stripe', () => {
-      expect(classifyShapeByRatio({ widthMm: 50, heightMm: 20 })).toBe('stripe');
-    });
-    it('20×50 reversed → stripe', () => {
-      expect(classifyShapeByRatio({ widthMm: 20, heightMm: 50 })).toBe('stripe');
-    });
-    it('125×50 r=2.5 → stripe', () => {
-      expect(classifyShapeByRatio({ widthMm: 125, heightMm: 50 })).toBe('stripe');
-    });
-    it('120×50 r=2.4 exactly and L>=50 → stripe', () => {
-      expect(classifyShapeByRatio({ widthMm: 120, heightMm: 50 })).toBe('stripe');
-    });
-    it('60×24 r=2.5 and L>=50 → stripe', () => {
-      expect(classifyShapeByRatio({ widthMm: 60, heightMm: 24 })).toBe('stripe');
-    });
-    it('30×10 r=3 but L<50 → oval', () => {
-      expect(classifyShapeByRatio({ widthMm: 30, heightMm: 10 })).toBe('oval');
-    });
+  describe('round (1.00 ≤ r < 1.40)', () => {
+    it('square 30×30 → round', () => expect(classifyDamageShapeByRatio(30, 30)).toBe('round'));
+    it('r=1.39 → round', () => expect(classifyDamageShapeByRatio(139, 100)).toBe('round'));
+    it('r=1.40 → oval (boundary)', () => expect(classifyDamageShapeByRatio(140, 100)).toBe('oval'));
   });
 
-  describe('oval (1.2 < r < 2.4 OR L < 50mm)', () => {
-    it('r between 1.2 and 2.5 → oval', () => {
-      expect(classifyShapeByRatio({ widthMm: 60, heightMm: 45 })).toBe('oval');
-    });
-    it('r=2.39 → oval', () => {
-      expect(classifyShapeByRatio({ widthMm: 100, heightMm: 42 })).toBe('oval');
-    });
-    it('r=1.21 → oval', () => {
-      expect(classifyShapeByRatio({ widthMm: 121, heightMm: 100 })).toBe('oval');
-    });
-    it('r>=2.4 but L<50 → oval', () => {
-      expect(classifyShapeByRatio({ widthMm: 48, heightMm: 20 })).toBe('oval');
-    });
+  describe('oval (1.40 ≤ r < 3.00)', () => {
+    it('r=1.41 → oval', () => expect(classifyDamageShapeByRatio(141, 100)).toBe('oval'));
+    it('r=2.99 → oval', () => expect(classifyDamageShapeByRatio(299, 100)).toBe('oval'));
+    it('r=3.00 → oval_long (boundary)', () => expect(classifyDamageShapeByRatio(300, 100)).toBe('oval_long'));
+  });
+
+  describe('oval_long (3.00 ≤ r ≤ 6.00)', () => {
+    it('r=3.0 → oval_long', () => expect(classifyDamageShapeByRatio(30, 10)).toBe('oval_long'));
+    it('r=5.99 → oval_long', () => expect(classifyDamageShapeByRatio(599, 100)).toBe('oval_long'));
+    it('r=6.0 → oval_long', () => expect(classifyDamageShapeByRatio(600, 100)).toBe('oval_long'));
+  });
+
+  describe('stripe (r > 6.00)', () => {
+    it('r=6.01 → stripe', () => expect(classifyDamageShapeByRatio(601, 100)).toBe('stripe'));
+    it('reversed inputs still stripe', () => expect(classifyDamageShapeByRatio(10, 100)).toBe('stripe'));
   });
 
   describe('edge cases', () => {
-    it('zero width → oval (fallback)', () => {
-      expect(classifyShapeByRatio({ widthMm: 0, heightMm: 50 })).toBe('oval');
-    });
-    it('zero height → oval (fallback)', () => {
-      expect(classifyShapeByRatio({ widthMm: 50, heightMm: 0 })).toBe('oval');
-    });
-    it('negative treated as 0 → oval', () => {
-      expect(classifyShapeByRatio({ widthMm: -10, heightMm: 50 })).toBe('oval');
-    });
-    it('r=2.5 exactly and L>=50 → stripe', () => {
-      expect(classifyShapeByRatio({ widthMm: 50, heightMm: 20 })).toBe('stripe');
-    });
+    it('zero width → round (safe default)', () => expect(classifyDamageShapeByRatio(0, 50)).toBe('round'));
+    it('zero height → round (safe default)', () => expect(classifyDamageShapeByRatio(50, 0)).toBe('round'));
+    it('NaN → round', () => expect(classifyDamageShapeByRatio(Number.NaN, 10)).toBe('round'));
   });
 });

@@ -1240,13 +1240,14 @@ import { ref, reactive, computed, watch, onMounted, nextTick, onBeforeUnmount, p
 import { deleteSelected } from './graphics/konvaEditor';
 import { initialData } from './data/initialData';
 import { getArmaturnayaWorksForElement, getArmaturnayaTotalPrice } from './data/armaturnayaWorks';
+import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from './utils/armatureSelection';
 import { CAR_PARTS } from './data/carParts';
 import { getPartsByClass } from './data/partsCatalog';
 import { circleSizesMm, stripSizesMm, circleSizesWithArea, stripSizesWithArea } from './data/dentSizes';
 import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown } from './utils/priceCalc';
 import { calculateDentPrice as calcDentViaAdapter, normalizeGraphicsDentsForPricing, normalizeDimensions } from './features/pricing/pricingAdapter';
 import { applyPriceRoundingCeil, PRICE_ROUND_OPTIONS } from './utils/priceRounding';
-import { classifyShapeByRatio } from './utils/shapeClassification';
+import { classifyDamageShapeByRatio } from './utils/shapeClassification';
 import GraphicsWizard from './components/graphics/GraphicsWizard.vue';
 import StepDots from './components/graphics/StepDots.vue';
 import InfoIcon from './components/InfoIcon.vue';
@@ -1319,7 +1320,7 @@ const form = reactive({
   riskCode: null,
   materialCode: null,
   carClassCode: null,
-  disassemblyCode: null,
+  disassemblyCodes: ['Z0'],
   paintMaterialCode: null,
   soundInsulationCode: null
 });
@@ -1500,17 +1501,15 @@ function onQuickDentElementChange(dent) {
   if (dent?.conditions?.disassemblyCodes && dent.panelElement) {
     const works = getArmaturnayaWorksForElement(dent.panelElement);
     const validCodes = new Set(works.map((w) => w.code));
-    const cur = Array.isArray(dent.conditions.disassemblyCodes) ? dent.conditions.disassemblyCodes : ['Z0'];
-    let next = cur.filter((c) => validCodes.has(c));
-    if (next.length === 0) next = ['Z0'];
-    if (next.includes('Z0') && next.length > 1) next = next.filter((c) => c !== 'Z0');
+    const cur = normalizeArmatureWorkIds(dent.conditions.disassemblyCodes);
+    const next = normalizeArmatureWorkIds(cur.filter((c) => validCodes.has(c)));
     dent.conditions.disassemblyCodes = next;
   }
   haptic('selection');
 }
 
 function onArmaturnayaSelect(dent, code) {
-  dent.conditions.disassemblyCodes = code ? [code] : ['Z0'];
+  dent.conditions.disassemblyCodes = normalizeArmatureWorkIds(code ? [code] : []);
   haptic('selection');
 }
 
@@ -1553,7 +1552,7 @@ function syncQuickDentSizeFromMm(dent) {
   const l = Number(dent.sizeLengthMm) || 0;
   const w = Number(dent.sizeWidthMm) || 0;
   if (l > 0 && w > 0) {
-    const classified = classifyShapeByRatio({ widthMm: l, heightMm: w });
+    const classified = classifyDamageShapeByRatio(l, w);
     const targetShape = classified === 'stripe' ? 'strip' : 'circle';
     if (dent.shape !== targetShape) dent.shape = targetShape;
   }
@@ -1768,8 +1767,12 @@ const graphicsBasePrice = computed(() => calcBasePriceFromDents(graphicsDentsFor
 /** Условия для графика: подставляем disassemblyCost из арматурных работ по выбранному элементу. */
 const graphicsConditions = computed(() => {
   const base = { ...form };
-  if (form.disassemblyCode && graphicsState.selectedPart?.name) {
-    base.disassemblyCost = getArmaturnayaTotalPrice([form.disassemblyCode], graphicsState.selectedPart.name);
+  const codes = Array.isArray(form.disassemblyCodes) ? form.disassemblyCodes.filter(Boolean) : [];
+  if (codes.length && graphicsState.selectedPart?.name) {
+    let normalized = codes.length ? [...new Set(codes)] : ['Z0'];
+    if (normalized.length === 0) normalized = ['Z0'];
+    if (normalized.includes('Z0') && normalized.length > 1) normalized = normalized.filter((c) => c !== 'Z0');
+    base.disassemblyCost = getArmaturnayaTotalPrice(normalized, graphicsState.selectedPart.name);
   }
   return base;
 });
@@ -1931,10 +1934,11 @@ function formatArmaturnayaSummary(codes, panelElement) {
 async function openQuickArmaturnayaPicker(dent) {
   if (!dent?.conditions) return;
   const works = getArmaturnayaWorksForElement(dent.panelElement);
-  const cur = Array.isArray(dent.conditions.disassemblyCodes) ? dent.conditions.disassemblyCodes : ['Z0'];
+  const cur = normalizeArmatureWorkIds(dent.conditions.disassemblyCodes);
   const selected = await openSelectModal({
     title: 'Арматурные работы',
     multiple: true,
+    toggleMultipleValue: (current, toggled) => toggleArmatureWorkIds(current, toggled),
     options: works.map((w) => ({
       value: w.code,
       label: w.name,
@@ -1943,13 +1947,7 @@ async function openQuickArmaturnayaPicker(dent) {
     value: cur
   });
   if (selected === undefined) return;
-  // Defensive: handle both multi-select (array) and accidental single-select (string).
-  let next = Array.isArray(selected)
-    ? selected.filter(Boolean)
-    : (selected ? [selected] : []);
-  if (next.length === 0) next = ['Z0'];
-  if (next.includes('Z0') && next.length > 1) next = next.filter((c) => c !== 'Z0');
-  dent.conditions.disassemblyCodes = next.length ? next : ['Z0'];
+  dent.conditions.disassemblyCodes = normalizeArmatureWorkIds(selected);
   haptic('selection');
 }
 
@@ -1977,9 +1975,10 @@ function getQuickDetectedShapeLabel(dent) {
   const w = Number(dent?.sizeLengthMm) || 0;
   const h = Number(dent?.sizeWidthMm) || 0;
   if (w <= 0 || h <= 0) return '—';
-  const classified = classifyShapeByRatio({ widthMm: w, heightMm: h });
+  const classified = classifyDamageShapeByRatio(w, h);
   if (classified === 'stripe') return 'Полоса';
   if (classified === 'round') return 'Круг';
+  if (classified === 'oval_long') return 'Вытянутый овал';
   return 'Овал';
 }
 const formatDateTime = (iso) => {
@@ -2097,7 +2096,7 @@ function resetDentsOnly() {
   form.riskCode = null;
   form.materialCode = null;
   form.carClassCode = null;
-  form.disassemblyCode = null;
+  form.disassemblyCodes = ['Z0'];
   form.paintMaterialCode = null;
   form.soundInsulationCode = null;
   estimateDraft.element = null;
@@ -2138,7 +2137,7 @@ function buildEstimatePayload(mode) {
     riskCode: form.riskCode,
     materialCode: form.materialCode,
     carClassCode: form.carClassCode,
-    disassemblyCode: form.disassemblyCode,
+    disassemblyCodes: Array.isArray(form.disassemblyCodes) ? [...form.disassemblyCodes] : ['Z0'],
     paintMaterialCode: form.paintMaterialCode,
     soundInsulationCode: form.soundInsulationCode
   };

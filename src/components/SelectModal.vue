@@ -19,7 +19,6 @@
               type="button"
               class="text-gray-400 p-2 -mr-2 text-xl leading-none touch-manipulation"
               aria-label="Закрыть"
-              @pointerdown.stop.prevent="handleCancel"
               @click.stop.prevent="handleCancel"
             >
               ✕
@@ -35,7 +34,6 @@
               :class="rowClass(opt)"
               :data-testid="`select-option-${idx}`"
               :disabled="opt.disabled"
-              @pointerdown.stop.prevent="toggle(opt)"
               @click.stop.prevent="toggle(opt)"
             >
               <div class="min-w-0">
@@ -75,7 +73,6 @@
               data-testid="select-cancel"
               type="button"
               class="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/15 rounded-xl min-h-[44px] touch-manipulation"
-              @pointerdown.stop.prevent="handleCancel"
               @click.stop.prevent="handleCancel"
             >
               Отмена
@@ -85,7 +82,6 @@
               data-testid="select-confirm"
               type="button"
               class="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[44px] touch-manipulation"
-              @pointerdown.stop.prevent="handleConfirm"
               @click.stop.prevent="handleConfirm"
             >
               {{ config.confirmText || 'Готово' }}
@@ -102,7 +98,7 @@ import { ref, watch, computed, onUnmounted } from 'vue';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  config: { type: Object, default: () => ({ title: '', options: [], value: null, multiple: false, confirmText: 'Готово' }) }
+  config: { type: Object, default: () => ({ title: '', options: [], value: null, multiple: false, confirmText: 'Готово', toggleMultipleValue: null }) }
 });
 const emit = defineEmits(['update:modelValue', 'confirm', 'cancel']);
 
@@ -152,6 +148,11 @@ function toggle(opt) {
   if (!opt || opt.disabled) return;
   if (isMultiple.value) {
     const cur = Array.isArray(localValue.value) ? [...localValue.value] : [];
+    const custom = props.config?.toggleMultipleValue;
+    if (typeof custom === 'function') {
+      localValue.value = custom(cur, opt.value);
+      return;
+    }
     const idx = cur.indexOf(opt.value);
     if (idx >= 0) cur.splice(idx, 1);
     else cur.push(opt.value);

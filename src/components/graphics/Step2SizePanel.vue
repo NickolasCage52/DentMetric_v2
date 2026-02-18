@@ -156,7 +156,7 @@
 
 <script setup>
 import { computed, ref, inject } from 'vue';
-import { classifyShapeByRatio } from '../../utils/shapeClassification';
+import { classifyDamageShapeByRatio } from '../../utils/shapeClassification';
 
 const openInputModal = inject('openInputModal');
 
@@ -205,8 +205,11 @@ const freeformBboxHint = computed(() => {
   const w = Number(props.sizeWidthMm) || 0;
   const h = Number(props.sizeHeightMm) || 0;
   if (w <= 0 || h <= 0) return '';
-  const classified = classifyShapeByRatio({ widthMm: w, heightMm: h });
-  return classified === 'stripe' ? 'Полоса' : classified === 'round' ? 'Круг' : 'Овал';
+  const classified = classifyDamageShapeByRatio(w, h);
+  if (classified === 'stripe') return 'Полоса';
+  if (classified === 'round') return 'Круг';
+  if (classified === 'oval_long') return 'Вытянутый овал';
+  return 'Овал';
 });
 
 async function openWidthModal() {

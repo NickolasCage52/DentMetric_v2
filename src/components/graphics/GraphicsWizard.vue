@@ -241,7 +241,7 @@ import {
   convertSelectedDentToType,
   setDisplayUnit
 } from '../../graphics/konvaEditor';
-import { classifyShapeByRatio } from '../../utils/shapeClassification';
+import { classifyDamageShapeByRatio } from '../../utils/shapeClassification';
 import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown, roundPrice } from '../../utils/priceCalc';
 import { normalizeGraphicsDentsForPricing } from '../../features/pricing/pricingAdapter';
 import { applyPriceRoundingCeil } from '../../utils/priceRounding';
@@ -502,7 +502,7 @@ watch([sizeWidthMm, sizeHeightMm], () => {
     const curType = cur?.type;
     setSelectedDentSizeMm(w, h);
     if (curType && curType !== 'freeform') {
-      const classified = classifyShapeByRatio({ widthMm: w, heightMm: h });
+      const classified = classifyDamageShapeByRatio(w, h);
       const targetType = classified === 'stripe' ? 'strip' : 'circle';
       if (curType !== targetType) convertSelectedDentToType(targetType);
     }
@@ -586,7 +586,7 @@ function resetDentsOnly() {
   props.form.riskCode = null;
   props.form.materialCode = null;
   props.form.carClassCode = null;
-  props.form.disassemblyCode = null;
+  props.form.disassemblyCodes = ['Z0'];
   props.form.paintMaterialCode = null;
   props.form.soundInsulationCode = null;
   initWizardStep();

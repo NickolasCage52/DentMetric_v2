@@ -59,10 +59,10 @@
             <SelectRow
               data-testid="detail-armaturnaya"
               label="АРМАТУРНЫЕ РАБОТЫ"
-              :value-text="getDisassemblyLabel(model.disassemblyCode)"
-              :active="!!model.disassemblyCode"
+              :value-text="getDisassemblyLabel(model.disassemblyCodes)"
+              :active="(model.disassemblyCodes?.length ?? 0) > 0"
               :show-check="true"
-              @click="openPicker('disassemblyCode', 'Арматурные работы', disassemblyModalOptions)"
+              @click="openDisassemblyPicker()"
             />
           </div>
         </div>
@@ -129,6 +129,7 @@
 import { computed, watch, inject } from 'vue';
 import InfoIcon from '../InfoIcon.vue';
 import { getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks.js';
+import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from '../../utils/armatureSelection.js';
 import SelectRow from '../ui/SelectRow.vue';
 
 const props = defineProps({
@@ -149,11 +150,11 @@ const disassemblyOptions = computed(() =>
 );
 
 watch(disassemblyOptions, (options) => {
-  if (!props.model?.disassemblyCode) return;
-  const codes = options.map((w) => w.code);
-  if (!codes.includes(props.model.disassemblyCode)) {
-    props.model.disassemblyCode = null;
-  }
+  if (!props.model) return;
+  const validCodes = new Set((options || []).map((w) => w.code));
+  const cur = normalizeArmatureWorkIds(props.model.disassemblyCodes);
+  const next = normalizeArmatureWorkIds(cur.filter((c) => validCodes.has(c)));
+  props.model.disassemblyCodes = next;
 }, { immediate: true });
 
 defineEmits(['back', 'calculate']);
@@ -168,7 +169,7 @@ const conditionsComplete = computed(() => {
     m.riskCode &&
     m.materialCode &&
     m.carClassCode &&
-    m.disassemblyCode
+    (m.disassemblyCodes?.length ?? 0) > 0
   );
 });
 
@@ -190,10 +191,15 @@ const disassemblyModalOptions = computed(() =>
   }))
 );
 
-function getDisassemblyLabel(code) {
-  if (!code) return '';
-  const found = (disassemblyOptions.value || []).find((w) => w.code === code);
-  return found?.name || String(code);
+function getDisassemblyLabel(codes) {
+  const arr = normalizeArmatureWorkIds(codes);
+  if (arr.length === 0) return '';
+  const works = disassemblyOptions.value || [];
+  const byCode = new Map(works.map((w) => [w.code, w]));
+  const normalized = normalizeArmatureWorkIds(arr).filter((c) => byCode.has(c));
+  if (normalized.length === 1) return byCode.get(normalized[0])?.name || String(normalized[0]);
+  const sum = normalized.reduce((acc, c) => acc + (byCode.get(c)?.price ?? 0), 0);
+  return sum > 0 ? `${normalized.length} выбрано · +${sum.toLocaleString('ru-RU')} ₽` : `${normalized.length} выбрано`;
 }
 
 async function openPicker(field, title, options) {
@@ -205,6 +211,21 @@ async function openPicker(field, title, options) {
   });
   if (selected === undefined) return;
   update(field, selected || null);
+}
+
+async function openDisassemblyPicker() {
+  if (!openSelectModal || !props.model) return;
+  const cur = normalizeArmatureWorkIds(props.model.disassemblyCodes);
+  const selected = await openSelectModal({
+    title: 'Арматурные работы',
+    multiple: true,
+    toggleMultipleValue: (current, toggled) => toggleArmatureWorkIds(current, toggled),
+    options: disassemblyModalOptions.value || [],
+    value: cur,
+    confirmText: 'Готово'
+  });
+  if (selected === undefined) return;
+  props.model.disassemblyCodes = normalizeArmatureWorkIds(selected);
 }
 
 const formatPrice = (v) => new Intl.NumberFormat('ru-RU').format(v);
