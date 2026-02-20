@@ -113,9 +113,9 @@
       </WowScreenShell>
 
       <template v-else>
-      <div v-if="calcMode !== 'graphics'" class="p-4 space-y-3 shrink-0 z-20 bg-black">
+      <div v-if="calcMode !== 'graphics'" class="shrink-0 z-20 bg-black" :class="(calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))) ? 'px-4 pt-2 pb-1' : 'p-4 space-y-3'">
         <div class="flex items-center justify-center">
-          <img src="/dm-small.png" alt="DentMetric" class="h-7 w-auto max-w-full object-contain drop-shadow-2xl" onerror="this.style.display='none'">
+          <img src="/dm-small.png" alt="DentMetric" :class="(calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))) ? 'h-5' : 'h-7'" class="w-auto max-w-full object-contain drop-shadow-2xl" onerror="this.style.display='none'">
         </div>
       </div>
 
@@ -127,26 +127,11 @@
       >
         <!-- Standard mode -->
         <div v-if="calcMode === 'standard'" class="flex flex-col min-h-full">
-          <div data-testid="step-dots" class="flex items-center justify-center pb-2">
+          <div data-testid="step-dots" class="flex items-center justify-center" :class="(quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)) ? 'pb-1' : 'pb-2'">
             <StepDots :current-step="quickLogicalStep" :total-steps="quickTotalSteps" />
           </div>
 
-          <!-- Quick reset actions (moved from bottom bar into screen content) -->
-          <div
-            v-if="!(quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))"
-            class="flex flex-wrap items-center justify-center gap-2 pb-2"
-          >
-            <button
-              type="button"
-              @click="resetClientDataOnly"
-              class="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 rounded-lg px-3 py-2 transition-colors min-h-[36px] touch-manipulation"
-              aria-label="Сбросить только данные клиента"
-            >
-              Сброс клиента
-            </button>
-          </div>
-
-          <div class="space-y-4 pb-40">
+          <div :class="(quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)) ? 'space-y-0 pb-4' : (quickStep === 3 ? 'pb-20' : 'space-y-4 pb-40')">
             <div v-if="quickStep === 1 && userSettings.showClientQuick" class="space-y-4">
               <div class="card-metallic rounded-2xl p-5 space-y-3">
                 <div class="flex items-center justify-between">
@@ -157,22 +142,46 @@
                   <span v-if="userSettings.clientRequired" class="text-[10px] text-red-400 uppercase tracking-widest">обязательно</span>
                   <span v-else class="text-[10px] text-gray-500">опционально</span>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  @click="resetClientDataOnly"
+                  class="w-full text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 rounded-lg px-3 py-2 transition-colors min-h-[36px] touch-manipulation"
+                  aria-label="Сбросить данные клиента и автомобиля, кроме даты и времени"
+                >
+                  СБРОС
+                </button>
+              </div>
+              <div class="card-metallic rounded-2xl p-5 space-y-3">
+                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Данные клиента</div>
+                <div class="grid grid-cols-1 gap-2">
                   <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('clientName', 'Имя клиента', 'text', 'Имя клиента')">
                     <span class="truncate">{{ estimateDraft.clientName || 'Имя клиента' }}</span><span class="text-gray-500 shrink-0">✎</span>
-                  </button>
-                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('clientCompany', 'Компания / Юр. лицо', 'text', 'Компания')">
-                    <span class="truncate">{{ estimateDraft.clientCompany || 'Компания' }}</span><span class="text-gray-500 shrink-0">✎</span>
                   </button>
                   <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('clientPhone', 'Телефон', 'tel', 'Телефон')">
                     <span class="truncate">{{ estimateDraft.clientPhone || 'Телефон' }}</span><span class="text-gray-500 shrink-0">✎</span>
                   </button>
+                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('clientCompany', 'Компания (необязательно)', 'text', 'Компания')">
+                    <span class="truncate">{{ estimateDraft.clientCompany || 'Компания (необязательно)' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  </button>
+                </div>
+              </div>
+              <div class="card-metallic rounded-2xl p-5 space-y-3">
+                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Автомобиль</div>
+                <div class="grid grid-cols-1 gap-2">
                   <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('carBrand', 'Марка автомобиля', 'text', 'Марка')">
                     <span class="truncate">{{ estimateDraft.carBrand || 'Марка' }}</span><span class="text-gray-500 shrink-0">✎</span>
                   </button>
                   <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('carModel', 'Модель автомобиля', 'text', 'Модель')">
                     <span class="truncate">{{ estimateDraft.carModel || 'Модель' }}</span><span class="text-gray-500 shrink-0">✎</span>
                   </button>
+                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('carPlate', 'Гос.номер', 'text', 'Гос.номер')">
+                    <span class="truncate">{{ estimateDraft.carPlate || 'Гос.номер' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  </button>
+                </div>
+              </div>
+              <div class="card-metallic rounded-2xl p-5 space-y-3">
+                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Дата и время</div>
+                <div class="grid grid-cols-2 gap-2">
                   <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('inspectDate', 'Дата осмотра', 'date', 'Дата')">
                     <span class="truncate">{{ estimateDraft.inspectDate || 'Дата' }}</span><span class="text-gray-500 shrink-0">✎</span>
                   </button>
@@ -184,40 +193,14 @@
               </div>
             </div>
 
-            <div v-else-if="quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)" class="space-y-4">
+            <div v-else-if="quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)" class="qc-compact" style="display:flex;flex-direction:column;gap:var(--qc-section-gap)">
               <div v-if="!activeQuickDent" class="card-metallic rounded-2xl p-5 text-center text-gray-400">
                 Повреждение не выбрано
               </div>
-              <div v-else class="card-metallic rounded-2xl p-4 space-y-4" data-testid="quick-step2">
-                <div class="flex items-center justify-between">
-                  <div class="text-[11px] font-bold text-gray-300 uppercase tracking-widest">
-                    Быстрый расчёт
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <button
-                      type="button"
-                      @click="resetDentsOnly"
-                      class="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-red-400 border border-white/10 hover:border-red-500/30 rounded-lg px-2.5 py-1.5 transition-colors min-h-[32px] touch-manipulation"
-                      aria-label="Сбросить вмятины и расчёт, данные клиента сохраняются"
-                    >
-                      Сброс вмятин
-                    </button>
-                    <button
-                      v-if="estimateDraft.quickDents.length > 1"
-                      type="button"
-                      class="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-white border border-white/10 hover:border-white/20 rounded-lg px-2.5 py-1.5 transition-colors min-h-[32px] touch-manipulation"
-                      @click="removeQuickDent(activeQuickDent.id)"
-                    >
-                      Удалить
-                    </button>
-                  </div>
-                </div>
-
-                <div class="space-y-2">
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">СТОРОНА АВТОМОБИЛЯ</span>
-                    <InfoIcon v-if="userSettings.showInfoTooltips" tooltip-text="Выберите сторону автомобиля. Список элементов зависит от стороны." />
-                  </div>
+              <template v-else>
+                <!-- 1. СТОРОНА АВТОМОБИЛЯ -->
+                <div style="padding:0 2px">
+                  <div class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">СТОРОНА АВТОМОБИЛЯ</div>
                   <SegmentedControl
                     :model-value="activeQuickDent.panelSide"
                     :options="[{ value: 'left', label: 'ЛЕВАЯ' }, { value: 'right', label: 'ПРАВАЯ' }]"
@@ -225,275 +208,249 @@
                   />
                 </div>
 
-                <SelectRow
-                  data-testid="quick-panel-element"
-                  label="ПОВРЕЖДЕННЫЙ ЭЛЕМЕНТ"
-                  :value-text="activeQuickDent.panelElement || ''"
-                  :active="!!activeQuickDent.panelElement"
-                  :show-check="true"
-                  @click="openQuickPanelElementPicker(activeQuickDent)"
-                >
-                  <template #right>
-                    <svg v-if="activeQuickDent.panelElement" class="w-5 h-5 shrink-0 text-metric-green/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path :d="getElementIconPath(activeQuickDent.panelElement)" />
-                    </svg>
-                  </template>
-                </SelectRow>
+                <!-- 2. ПОВРЕЖДЕННЫЙ ЭЛЕМЕНТ -->
+                <div style="padding:0 2px">
+                  <div class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">ПОВРЕЖДЕННЫЙ ЭЛЕМЕНТ</div>
+                  <button
+                    type="button"
+                    data-testid="quick-panel-element"
+                    class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
+                    :class="activeQuickDent.panelElement ? 'bg-[#1a1a1a] border-metric-green/40 text-white' : 'bg-[#151515] border-white/10 text-gray-200 hover:border-white/15'"
+                    @click="openQuickPanelElementPicker(activeQuickDent)"
+                  >
+                    <span class="qc-sr-value text-[13px] font-semibold truncate">{{ activeQuickDent.panelElement || 'Выбрать элемент' }}</span>
+                    <div class="shrink-0 flex items-center gap-1.5">
+                      <svg v-if="activeQuickDent.panelElement" class="w-4 h-4 text-metric-green/90" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path :d="getElementIconPath(activeQuickDent.panelElement)" /></svg>
+                      <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
+                    </div>
+                  </button>
+                </div>
 
-                <div class="space-y-2">
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ГЕОМЕТРИЯ ПОВРЕЖДЕНИЯ</span>
-                    <InfoIcon v-if="userSettings.showInfoTooltips" tooltip-text="Выберите стандартный размер или укажите произвольные длину и ширину. Форма повреждения определяется автоматически по соотношению сторон." />
+                <!-- 3. ГЕОМЕТРИЯ ПОВРЕЖДЕНИЯ -->
+                <div class="card-metallic rounded-xl" style="padding:var(--qc-card-py) var(--qc-card-px)">
+                  <div class="flex items-center justify-between mb-1.5">
+                    <span class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest">ГЕОМЕТРИЯ ПОВРЕЖДЕНИЯ</span>
+                    <button type="button" class="qc-preset-chip" @click="quickGeometryTab = 'standard'; openQuickManualSize(activeQuickDent)">пресеты</button>
                   </div>
-                  <SegmentedControl
-                    v-model="quickGeometryTab"
-                    :options="[{ value: 'standard', label: 'СТАНДАРТНЫЕ РАЗМЕРЫ' }, { value: 'custom', label: 'ПРОИЗВОЛЬНЫЙ РАЗМЕР' }]"
-                  />
-
-                  <div v-if="quickGeometryTab === 'standard'" class="grid grid-cols-4 gap-2">
+                  <div class="grid grid-cols-2 gap-1.5">
                     <button
-                      v-for="pill in quickStandardSizePills"
-                      :key="pill.code"
                       type="button"
-                      :data-testid="`quick-size-pill-${pill.code}`"
-                      class="rounded-xl px-2 py-2.5 min-h-[44px] text-[11px] font-bold uppercase tracking-widest border transition-all touch-manipulation"
-                      :class="(activeQuickDent.sizeInputMode !== 'manual' && activeQuickDent.sizeCode === pill.code) ? 'bg-metric-green text-black border-metric-green shadow-[0_0_12px_rgba(136,229,35,0.25)]' : 'bg-[#151515] border-white/10 text-gray-300 hover:border-white/20'"
-                      @click="activeQuickDent.sizeInputMode = 'preset'; activeQuickDent.sizeCode = pill.code; onQuickDentSizeCodeChange(activeQuickDent)"
+                      class="qc-geo-btn border transition-colors touch-manipulation text-left"
+                      :class="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      @click="activeQuickDent.sizeInputMode = 'manual'; openQuickDentSizeModal(activeQuickDent, 'sizeLengthMm', 'Длина (мм)')"
                     >
-                      {{ pill.label }}
+                      <div class="qc-geo-label">длина</div>
+                      <div class="qc-geo-value" :class="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 ? 'text-metric-green' : 'text-gray-500'">
+                        {{ (Number(activeQuickDent.sizeLengthMm) || 0) > 0 ? Number(activeQuickDent.sizeLengthMm).toFixed(0) + 'мм' : '—' }}
+                      </div>
                     </button>
                     <button
                       type="button"
-                      data-testid="quick-size-pill-manual"
-                      class="rounded-xl px-2 py-2.5 min-h-[44px] text-[11px] font-bold uppercase tracking-widest border transition-all touch-manipulation"
-                      :class="activeQuickDent.sizeInputMode === 'manual' ? 'bg-metric-green text-black border-metric-green shadow-[0_0_12px_rgba(136,229,35,0.25)]' : 'bg-[#151515] border-white/10 text-gray-300 hover:border-white/20'"
-                      @click="openQuickManualSize(activeQuickDent)"
+                      class="qc-geo-btn border transition-colors touch-manipulation text-left"
+                      :class="(Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      @click="activeQuickDent.sizeInputMode = 'manual'; openQuickDentSizeModal(activeQuickDent, 'sizeWidthMm', 'Высота (мм)')"
                     >
-                      ВВЕСТИ
+                      <div class="qc-geo-label">ширина</div>
+                      <div class="qc-geo-value" :class="(Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? 'text-metric-green' : 'text-gray-500'">
+                        {{ (Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? Number(activeQuickDent.sizeWidthMm).toFixed(0) + 'мм' : '—' }}
+                      </div>
                     </button>
                   </div>
                   <div
-                    v-if="quickGeometryTab === 'standard' && activeQuickDent.sizeInputMode === 'manual' && (Number(activeQuickDent.sizeLengthMm) || 0) > 0 && (Number(activeQuickDent.sizeWidthMm) || 0) > 0"
-                    class="text-[11px] text-gray-500 mt-2"
+                    v-if="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 && (Number(activeQuickDent.sizeWidthMm) || 0) > 0"
+                    class="qc-info-rows"
                   >
-                    Введено: <span class="text-white font-medium">{{ formatSizeDisplay(activeQuickDent.sizeLengthMm, activeQuickDent.sizeWidthMm) }}</span>
-                  </div>
-                  <div v-else>
-                    <div class="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        class="rounded-xl px-3 py-3 min-h-[52px] border transition-colors touch-manipulation text-left"
-                        :class="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
-                        @click="activeQuickDent.sizeInputMode = 'manual'; openQuickDentSizeModal(activeQuickDent, 'sizeLengthMm', 'Ширина (мм)')"
-                      >
-                        <div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Ширина (мм)</div>
-                        <div class="text-[14px] font-semibold mt-0.5" :class="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 ? 'text-white' : 'text-gray-500'">
-                          {{ (Number(activeQuickDent.sizeLengthMm) || 0) > 0 ? Number(activeQuickDent.sizeLengthMm).toFixed(1) : '—' }}
-                        </div>
-                      </button>
-                      <button
-                        type="button"
-                        class="rounded-xl px-3 py-3 min-h-[52px] border transition-colors touch-manipulation text-left"
-                        :class="(Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
-                        @click="activeQuickDent.sizeInputMode = 'manual'; openQuickDentSizeModal(activeQuickDent, 'sizeWidthMm', 'Высота (мм)')"
-                      >
-                        <div class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Высота (мм)</div>
-                        <div class="text-[14px] font-semibold mt-0.5" :class="(Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? 'text-white' : 'text-gray-500'">
-                          {{ (Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? Number(activeQuickDent.sizeWidthMm).toFixed(1) : '—' }}
-                        </div>
-                      </button>
-                    </div>
-                    <div
-                      v-if="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 && (Number(activeQuickDent.sizeWidthMm) || 0) > 0"
-                      class="text-[11px] text-gray-500 mt-2"
-                    >
-                      Определено: <span class="text-white font-medium">{{ getQuickDetectedShapeLabel(activeQuickDent) }}</span>
-                    </div>
+                    <div>Площадь: <span>{{ ((Number(activeQuickDent.sizeLengthMm) || 0) * (Number(activeQuickDent.sizeWidthMm) || 0)).toFixed(1) }} мм²</span></div>
+                    <div>Соотношение сторон: <span>{{ (Number(activeQuickDent.sizeLengthMm) > 0 && Number(activeQuickDent.sizeWidthMm) > 0) ? (Math.max(Number(activeQuickDent.sizeLengthMm), Number(activeQuickDent.sizeWidthMm)) / Math.min(Number(activeQuickDent.sizeLengthMm), Number(activeQuickDent.sizeWidthMm))).toFixed(1) : '—' }}</span></div>
+                    <div>Тип формы: <span>{{ getQuickDetectedShapeLabel(activeQuickDent) }}</span></div>
                   </div>
                 </div>
 
-                <div class="rounded-2xl border border-metric-green/20 bg-[#0d0d0d]/80 p-4 space-y-3">
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] font-bold text-metric-green uppercase tracking-widest">ПАРАМЕТРЫ РАСЧЁТА</span>
-                    <InfoIcon v-if="userSettings.showInfoTooltips" tooltip-text="Технология ремонта, сложность выполнения, материал панели и класс автомобиля влияют на итоговую стоимость." />
-                  </div>
-                  <div class="grid grid-cols-2 gap-2">
-                    <SelectRow
+                <!-- 4. ПАРАМЕТРЫ РАСЧЁТА -->
+                <div class="card-metallic rounded-xl" style="padding:var(--qc-card-py) var(--qc-card-px)">
+                  <div class="qc-section-title text-[9px] font-bold text-metric-green uppercase tracking-widest mb-1.5">ПАРАМЕТРЫ РАСЧЁТА</div>
+                  <div style="display:flex;flex-direction:column;gap:4px">
+                    <button
+                      type="button"
                       data-testid="quick-param-repair"
-                      label="ТЕХНОЛОГИЯ РЕМОНТА"
-                      :value-text="getRepairLabel(activeQuickDent.conditions?.repairCode)"
-                      :active="!!activeQuickDent.conditions?.repairCode"
-                      :show-check="true"
+                      class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
+                      :class="activeQuickDent.conditions?.repairCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
                       @click="openQuickParamPicker(activeQuickDent, 'repairCode', 'Технология ремонта', initialData.repairTypes)"
-                    />
-                    <SelectRow
-                      data-testid="quick-param-risk"
-                      label="СЛОЖНОСТЬ ВЫПОЛНЕНИЯ"
-                      :value-text="getRiskLabel(activeQuickDent.conditions?.riskCode)"
-                      :active="!!activeQuickDent.conditions?.riskCode"
-                      :show-check="true"
-                      @click="openQuickParamPicker(activeQuickDent, 'riskCode', 'Сложность выполнения', initialData.risks)"
-                    />
-                    <SelectRow
-                      data-testid="quick-param-material"
-                      label="МАТЕРИАЛ ПАНЕЛИ"
-                      :value-text="getMaterialLabel(activeQuickDent.conditions?.materialCode)"
-                      :active="!!activeQuickDent.conditions?.materialCode"
-                      :show-check="true"
-                      @click="openQuickParamPicker(activeQuickDent, 'materialCode', 'Материал панели', initialData.materials)"
-                    />
-                    <SelectRow
-                      data-testid="quick-param-carclass"
-                      label="КЛАСС АВТОМОБИЛЯ"
-                      :value-text="getCarClassLabel(activeQuickDent.conditions?.carClassCode)"
-                      :active="!!activeQuickDent.conditions?.carClassCode"
-                      :show-check="true"
-                      @click="openQuickParamPicker(activeQuickDent, 'carClassCode', 'Класс автомобиля', initialData.carClasses)"
-                    />
-                  </div>
-                </div>
-
-                <div class="space-y-2">
-                  <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ДОПОЛНИТЕЛЬНЫЕ РАБОТЫ</span>
-                  </div>
-                  <SelectRow
-                    data-testid="quick-armaturnaya"
-                    label="АРМАТУРНЫЕ РАБОТЫ"
-                    :value-text="formatArmaturnayaSummary(activeQuickDent.conditions?.disassemblyCodes, activeQuickDent.panelElement)"
-                    :active="(activeQuickDent.conditions?.disassemblyCodes?.length ?? 0) > 0"
-                    :show-check="true"
-                    @click="openQuickArmaturnayaPicker(activeQuickDent)"
-                  />
-                </div>
-              </div>
-
-              <div class="card-metallic rounded-2xl p-4 space-y-3">
-                <div class="flex items-center justify-between">
-                  <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Дополнительно</span>
-                </div>
-                <SelectRow
-                  v-if="userSettings.showPaintMaterial"
-                  label="МАТЕРИАЛ ЛКП"
-                  :value-text="getPaintMaterialLabel(activeQuickDent?.conditions?.paintMaterialCode)"
-                  :active="!!activeQuickDent?.conditions?.paintMaterialCode"
-                  :show-check="true"
-                  @click="openQuickPaintPicker(activeQuickDent)"
-                />
-                <SelectRow
-                  v-if="userSettings.showSoundInsulation"
-                  label="ШУМОИЗОЛЯЦИЯ"
-                  :value-text="getSoundInsulationLabel(activeQuickDent?.conditions?.soundInsulationCode)"
-                  :active="!!activeQuickDent?.conditions?.soundInsulationCode"
-                  :show-check="true"
-                  @click="openQuickSoundPicker(activeQuickDent)"
-                />
-
-                <div class="pt-3 border-t border-white/10">
-                  <div class="flex items-center justify-between">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-                      Повреждения ({{ estimateDraft.quickDents.length }})
-                    </span>
-                    <button
-                      type="button"
-                      class="text-[10px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-lg px-2.5 py-1.5 hover:bg-metric-green/10 transition-colors"
-                      @click="addQuickDent"
                     >
-                      + Добавить
-                    </button>
-                  </div>
-                  <div class="mt-2 space-y-2">
-                    <button
-                      v-for="(dent, idx) in estimateDraft.quickDents"
-                      :key="dent.id"
-                      type="button"
-                      class="w-full rounded-xl px-3 py-2.5 min-h-[44px] flex items-center justify-between gap-2 border transition-colors"
-                      :class="dent.id === activeQuickDentId ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
-                      @click="setActiveQuickDent(dent.id)"
-                    >
-                      <div class="min-w-0 text-left">
-                        <div class="text-[12px] font-semibold truncate text-white">Повреждение {{ idx + 1 }}</div>
-                        <div class="text-[10px] text-gray-500 truncate">
-                          {{ dent.panelElement || 'Без элемента' }} · {{ dent.sizeLengthMm && dent.sizeWidthMm ? formatSizeDisplay(dent.sizeLengthMm, dent.sizeWidthMm) : '—' }}
-                        </div>
+                      <div class="min-w-0 flex-1">
+                        <div class="qc-sr-value text-[12px] font-semibold truncate" :class="activeQuickDent.conditions?.repairCode ? 'text-white' : 'text-gray-400'">{{ getRepairLabel(activeQuickDent.conditions?.repairCode) || 'Без покраски' }}</div>
                       </div>
-                      <span class="text-metric-green font-bold text-[12px] shrink-0">
-                        {{ formatRoundedPrice(getQuickDentTotal(dent.id)) }} ₽
-                      </span>
+                      <div class="shrink-0 flex items-center gap-1.5">
+                        <div v-if="activeQuickDent.conditions?.repairCode" class="w-3 h-3 rounded-full bg-metric-green/80" aria-hidden="true"></div>
+                        <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
+                      </div>
                     </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div v-else-if="quickStep === 3" class="space-y-4">
-              <div class="card-metallic rounded-2xl p-5 space-y-3" v-if="quickLineItems.length">
-                <div class="text-xs font-bold text-metric-green uppercase tracking-widest">Вмятины</div>
-                <div v-for="(item, idx) in quickLineItems" :key="item.dent.id" class="border-b border-white/10 pb-3 mb-3 last:mb-0 last:pb-0 last:border-0">
-                  <div class="flex justify-between text-sm">
-                    <span class="text-gray-400">Вмятина {{ idx + 1 }} · {{ getQuickDentLabel(item.dent) }}</span>
-                    <span class="text-white font-semibold text-base">{{ formatRoundedPrice(item.appliedTotal) }} ₽</span>
-                  </div>
-                  <div class="text-sm text-gray-500">
-                    <span class="text-lg font-semibold text-gray-300">Размер повреждения: {{ formatSizeDisplay(item.dent.sizeLengthMm, item.dent.sizeWidthMm) }}</span>
-                    <span v-if="item.discount" class="text-sm"> · -50% доп. вмятина</span>
-                  </div>
-                </div>
-                <div class="border-t border-white/10 pt-3 mt-3 flex justify-between items-baseline">
-                  <span class="text-metric-green font-bold text-base">Итог:</span>
-                  <span data-testid="total-price" class="text-metric-green font-bold text-2xl">{{ formatCurrency(displayTotal) }} ₽</span>
-                </div>
-                <div v-if="userSettings.showRepairTime" class="border-t border-white/10 pt-3 mt-3 space-y-2">
-                  <div class="flex justify-between items-center">
-                    <span class="text-gray-400 text-base">Время ремонта (ориентир):</span>
-                    <span class="text-white font-semibold text-lg">{{ estimatedRepairTime }}</span>
-                  </div>
-                  <div class="flex items-center gap-2">
-                    <label class="text-[10px] font-bold text-gray-500 uppercase tracking-widest shrink-0">Ввод часов вручную:</label>
                     <button
                       type="button"
-                      class="input-row min-w-[5rem] flex items-center justify-between gap-1 rounded-lg px-3 py-2 min-h-[44px] bg-[#151515] border border-[#333] text-[16px] text-white"
-                      @click="openRepairHoursModal"
+                      data-testid="quick-param-risk"
+                      class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
+                      :class="activeQuickDent.conditions?.riskCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      @click="openQuickParamPicker(activeQuickDent, 'riskCode', 'Сложность выполнения', initialData.risks)"
                     >
-                      <span>{{ estimateDraft.repairTimeHours != null && estimateDraft.repairTimeHours !== '' ? estimateDraft.repairTimeHours : 'ч' }}</span>
-                      <span class="text-gray-500 shrink-0 text-sm">✎</span>
+                      <div class="min-w-0 flex-1">
+                        <div class="qc-sr-value text-[12px] font-semibold truncate" :class="activeQuickDent.conditions?.riskCode ? 'text-white' : 'text-gray-400'">{{ getRiskLabel(activeQuickDent.conditions?.riskCode) || 'Сложность выполнения' }}</div>
+                      </div>
+                      <div class="shrink-0 flex items-center gap-1.5">
+                        <div v-if="activeQuickDent.conditions?.riskCode" class="w-3 h-3 rounded-full bg-metric-green/80" aria-hidden="true"></div>
+                        <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
+                      </div>
                     </button>
-                    <span class="text-gray-500 text-sm">ч</span>
+                    <button
+                      type="button"
+                      data-testid="quick-param-material"
+                      class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
+                      :class="activeQuickDent.conditions?.materialCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      @click="openQuickParamPicker(activeQuickDent, 'materialCode', 'Материал панели', initialData.materials)"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <div class="qc-sr-value text-[12px] font-semibold truncate" :class="activeQuickDent.conditions?.materialCode ? 'text-white' : 'text-gray-400'">{{ getMaterialLabel(activeQuickDent.conditions?.materialCode) || 'Материал панели' }}</div>
+                      </div>
+                      <div class="shrink-0 flex items-center gap-1.5">
+                        <div v-if="activeQuickDent.conditions?.materialCode" class="w-3 h-3 rounded-full bg-metric-green/80" aria-hidden="true"></div>
+                        <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="quick-param-carclass"
+                      class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
+                      :class="activeQuickDent.conditions?.carClassCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      @click="openQuickParamPicker(activeQuickDent, 'carClassCode', 'Класс автомобиля', initialData.carClasses)"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <div class="qc-sr-value text-[12px] font-semibold truncate" :class="activeQuickDent.conditions?.carClassCode ? 'text-white' : 'text-gray-400'">{{ getCarClassLabel(activeQuickDent.conditions?.carClassCode) || 'Класс автомобиля' }}</div>
+                      </div>
+                      <div class="shrink-0 flex items-center gap-1.5">
+                        <div v-if="activeQuickDent.conditions?.carClassCode" class="w-3 h-3 rounded-full bg-metric-green/80" aria-hidden="true"></div>
+                        <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              <div v-if="quickLineItems.length" class="space-y-3">
-                <div
-                  v-for="(dentItem, idx) in quickLineItems"
-                  :key="dentItem.dent.id"
-                  class="card-metallic rounded-2xl p-5 space-y-2"
-                >
-                  <div class="text-xs font-bold text-metric-green uppercase tracking-widest">Расчёт стоимости · Вмятина {{ idx + 1 }}</div>
-                  <div v-for="(line, lineIdx) in dentItem.breakdown" :key="lineIdx" class="flex justify-between text-sm">
-                    <span class="text-gray-400">{{ line.name }}:</span>
-                    <span class="text-white font-medium text-base">{{ line.value }}</span>
-                  </div>
-                  <div class="border-t border-white/10 pt-2 mt-2 flex justify-between text-sm">
-                    <span class="text-gray-400">Итог по вмятине:</span>
-                    <span class="text-white font-semibold text-base">{{ formatRoundedPrice(dentItem.total) }} ₽</span>
-                  </div>
-                  <div v-if="dentItem.discount" class="flex justify-between text-sm">
-                    <span class="text-gray-400">Итог с 50%:</span>
-                    <span class="text-white font-semibold text-base">{{ formatRoundedPrice(dentItem.appliedTotal) }} ₽</span>
+                <!-- 5. ДОПОЛНИТЕЛЬНО -->
+                <div class="card-metallic rounded-xl" style="padding:var(--qc-card-py) var(--qc-card-px)">
+                  <div class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">ДОПОЛНИТЕЛЬНО…</div>
+                  <div style="display:flex;flex-direction:column;gap:4px">
+                    <button
+                      type="button"
+                      data-testid="quick-armaturnaya"
+                      class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
+                      :class="(activeQuickDent.conditions?.disassemblyCodes?.length ?? 0) > 0 ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      @click="openQuickArmaturnayaPicker(activeQuickDent)"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <div class="qc-sr-value text-[12px] font-semibold truncate" :class="(activeQuickDent.conditions?.disassemblyCodes?.length ?? 0) > 0 ? 'text-white' : 'text-gray-400'">{{ formatArmaturnayaSummary(activeQuickDent.conditions?.disassemblyCodes, activeQuickDent.panelElement) || 'Арматурные работы' }}</div>
+                      </div>
+                      <div class="shrink-0 flex items-center gap-1.5">
+                        <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
+                    <button
+                      v-if="userSettings.showSoundInsulation"
+                      type="button"
+                      class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
+                      :class="activeQuickDent?.conditions?.soundInsulationCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      @click="openQuickSoundPicker(activeQuickDent)"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <div class="qc-sr-value text-[12px] font-semibold truncate" :class="activeQuickDent?.conditions?.soundInsulationCode ? 'text-white' : 'text-gray-400'">{{ getSoundInsulationLabel(activeQuickDent?.conditions?.soundInsulationCode) || 'Шумоизоляция' }}</div>
+                      </div>
+                      <div class="shrink-0 flex items-center gap-1.5">
+                        <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
                   </div>
                 </div>
-              </div>
 
-              <div class="card-metallic rounded-2xl p-5 space-y-2">
-                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Комментарий</div>
+                <!-- 6. ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ + CTA -->
+                <div class="qc-price-block">
+                  <div class="qc-price-label">ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ</div>
+                  <div class="qc-price-value">{{ formatCurrency(displayTotal) }} ₽</div>
+                </div>
                 <button
                   type="button"
-                  class="input-row w-full flex items-center justify-between gap-2 rounded-xl px-4 py-3 min-h-[48px] bg-[#151515] border border-[#333] text-left text-[16px] text-white"
+                  class="qc-cta w-full touch-manipulation"
+                  :disabled="!quickStep2Valid"
+                  @click="goQuickNext"
+                >
+                  РАССЧИТАТЬ СТОИМОСТЬ
+                </button>
+              </template>
+            </div>
+
+            <div v-else-if="quickStep === 3" class="qc-step3 space-y-2">
+              <template v-for="(dentItem, idx) in quickLineItems" :key="dentItem.dent.id">
+                <!-- Header: dent title + shape/size + repair time -->
+                <div class="px-1">
+                  <div class="flex items-baseline gap-2 mb-0.5">
+                    <span class="text-white font-bold text-[15px]">Вмятина ‑{{ idx + 1 }}</span>
+                    <span class="text-gray-300 font-semibold text-[14px] truncate">{{ dentItem.dent.panelElement || '—' }}</span>
+                  </div>
+                  <div class="text-[11px] text-gray-400 leading-snug">
+                    {{ getQuickDentLabel(dentItem.dent) }}&ensp;длина: {{ formatSingleDim(dentItem.dent.sizeLengthMm) }}, Высота: {{ formatSingleDim(dentItem.dent.sizeWidthMm) }}
+                  </div>
+                  <div v-if="userSettings.showRepairTime" class="text-[11px] text-gray-500">
+                    Ориентировочное время ремонта: {{ estimatedRepairTime }}
+                  </div>
+                </div>
+
+                <!-- Breakdown card -->
+                <div class="card-metallic rounded-xl qc-breakdown-card">
+                  <!-- Base price -->
+                  <div class="qc-bk-row qc-bk-row--base">
+                    <span class="qc-bk-label font-semibold text-white">Базовая стоимость:</span>
+                    <span class="qc-bk-delta text-metric-green font-bold">{{ formatRoundedPrice(dentItem.base) }} ₽</span>
+                  </div>
+                  <div class="qc-bk-sep"></div>
+                  <!-- Detailed param rows -->
+                  <div
+                    v-for="(row, ri) in buildDetailedBreakdown(dentItem)"
+                    :key="ri"
+                    class="qc-bk-row"
+                  >
+                    <span class="qc-bk-label">{{ row.label }}</span>
+                    <span class="qc-bk-value">{{ row.value }}</span>
+                    <span class="qc-bk-delta" :class="deltaClass(row.delta)">{{ formatDelta(row.delta) }}</span>
+                  </div>
+                  <div class="qc-bk-sep"></div>
+                  <!-- Discount row -->
+                  <div class="qc-bk-row">
+                    <span class="qc-bk-label">Скидка:</span>
+                    <button
+                      type="button"
+                      class="qc-discount-input"
+                      @click="openDiscountModal()"
+                    >
+                      <span>{{ estimateDraft.discountPercent ? estimateDraft.discountPercent : '—' }}</span>
+                    </button>
+                    <span class="text-gray-500 text-[11px]">%</span>
+                    <span v-if="dentItem.discountPercent > 0" class="qc-bk-delta text-amber-400 text-[11px]">−{{ formatCurrency(dentItem.preDiscountTotal - dentItem.appliedTotal) }} ₽</span>
+                  </div>
+                  <div class="qc-bk-sep qc-bk-sep--strong"></div>
+                  <!-- Total -->
+                  <div class="qc-bk-row qc-bk-row--total">
+                    <span class="font-bold text-white text-[13px]">Итог по вмятине:</span>
+                    <span class="text-metric-green font-bold text-[18px] tabular-nums">{{ formatRoundedPrice(dentItem.appliedTotal) }} ₽</span>
+                  </div>
+                </div>
+              </template>
+
+              <!-- Comment card -->
+              <div class="card-metallic rounded-xl" style="padding:10px 12px">
+                <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Комментарий</div>
+                <button
+                  type="button"
+                  class="w-full rounded-lg bg-[#0a0a0a] border border-white/10 text-left text-[13px] text-gray-300 touch-manipulation"
+                  style="padding:10px 12px;min-height:48px"
                   @click="openCommentModal"
                 >
-                  <span class="truncate flex-1">{{ estimateDraft.comment || 'Комментарий к оценке (необязательно)' }}</span>
-                  <span class="text-gray-500 shrink-0">✎</span>
+                  <span class="block truncate">{{ estimateDraft.comment || '—' }}</span>
                 </button>
               </div>
             </div>
@@ -536,268 +493,132 @@
         />
       </div>
 
-      <!-- CTA for quick calc (Step 2) — pinned above bottom nav -->
-      <div
-        v-if="calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))"
-        class="quick-cta-bar fixed left-0 right-0 max-w-md mx-auto px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] z-[215]"
-        style="bottom: var(--app-footer-height, calc(64px + env(safe-area-inset-bottom, 0px)));"
-      >
-        <button
-          data-testid="btn-go-next"
-          type="button"
-          @click="goQuickNext"
-          :disabled="!quickStep2Valid"
-          class="w-full py-4 rounded-2xl font-bold text-sm uppercase tracking-widest min-h-[56px] transition-all touch-manipulation"
-          :class="quickStep2Valid ? 'bg-metric-green text-black shadow-[0_0_18px_rgba(136,229,35,0.35)] active:scale-[0.99]' : 'bg-white/10 text-gray-500 cursor-not-allowed'"
-        >
-          РАССЧИТАТЬ СТОИМОСТЬ
-        </button>
-      </div>
-
       <!-- Панель Назад/Вперёд быстрого расчёта — вне скролла, всегда видна внизу -->
       <div
-        v-if="calcMode === 'standard' && !(quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))"
-        class="quick-nav-bar fixed left-0 right-0 max-w-md mx-auto px-4 pt-2 pb-3 bg-black border-t border-white/10 shrink-0 z-[210]"
+        v-if="calcMode === 'standard'"
+        class="quick-nav-bar fixed left-0 right-0 max-w-md mx-auto px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] bg-black/95 border-t border-white/10 shrink-0 z-[230]"
         style="bottom: var(--app-footer-height, calc(64px + env(safe-area-inset-bottom, 0px)));"
       >
         <div v-if="quickStep < 3" class="quick-nav-buttons flex">
           <button
             type="button"
             @click="goQuickBack"
-            class="quick-nav-btn quick-nav-btn-back flex-1 py-3 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[44px]"
+            class="quick-nav-btn quick-nav-btn-back flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[40px]"
           >
-            Назад
+            <span class="inline-flex items-center gap-1"><span aria-hidden="true">&lsaquo;</span> Назад</span>
           </button>
           <button
             data-testid="btn-go-next"
             type="button"
             @click="goQuickNext"
             :disabled="(quickStep === 1 && userSettings.showClientQuick && !clientDataValid) || ((quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)) && !quickStep2Valid)"
-            class="quick-nav-btn quick-nav-btn-next flex-1 py-3 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 transition-all hover:bg-metric-green/10 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
+            class="quick-nav-btn quick-nav-btn-next flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 transition-all hover:bg-metric-green/10 min-h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Вперёд
+            <span class="inline-flex items-center gap-1">Вперёд <span aria-hidden="true">&rsaquo;</span></span>
           </button>
         </div>
-        <div v-else class="space-y-2">
-          <div class="quick-nav-buttons flex">
-            <button
-              type="button"
-              @click="goQuickBack"
-              class="quick-nav-btn quick-nav-btn-back flex-1 py-3 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[44px]"
-            >
-              Назад
-            </button>
-            <button
-              data-testid="btn-save-estimate"
-              type="button"
-              @click="saveCurrentEstimate('quick')"
-              class="quick-nav-btn quick-nav-btn-next flex-1 py-3 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 transition-all hover:bg-metric-green/10 min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="isSavingHistory || !quickStep3Ready"
-            >
-              {{ isSavingHistory ? 'Сохранение...' : 'Сохранить в историю' }}
-            </button>
-          </div>
+        <div v-else class="qc-step3-actions flex gap-0">
           <button
             type="button"
-            @click="showLockedStub('Раздел в разработке 🔒')"
-            class="cta-primary w-full py-3 text-xs font-bold uppercase tracking-widest text-black bg-metric-green rounded-xl active:opacity-90 shadow-[0_0_15px_rgba(136,229,35,0.4)]"
-            :disabled="!quickStep3Ready"
+            @click="goQuickBack"
+            class="qc-s3-btn qc-s3-btn--left flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[40px]"
           >
-            Записать на ремонт
+            Назад
+          </button>
+          <button
+            data-testid="btn-save-estimate"
+            type="button"
+            @click="saveCurrentEstimate('quick')"
+            class="qc-s3-btn qc-s3-btn--mid flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white border border-white/15 min-h-[40px] transition-colors hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="isSavingHistory || !quickStep3Ready"
+          >
+            {{ isSavingHistory ? '...' : 'Сохранить' }}
+          </button>
+          <button
+            type="button"
+            @click="saveAndBookEstimate('quick')"
+            class="qc-s3-btn qc-s3-btn--right flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 min-h-[40px] transition-colors hover:bg-metric-green/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            :disabled="isSavingHistory || !quickStep3Ready"
+          >
+            {{ isSavingHistory ? '...' : 'Записать' }}
           </button>
         </div>
       </div>
       </template>
     </div>
 
-    <!-- Section: Settings -->
-    <div ref="historyScrollRef" v-else-if="currentSection === 'history'" class="content-padding-bottom p-4 space-y-4 overflow-y-auto">
-      <div class="flex items-center justify-between">
-        <button
-          type="button"
-          @click="goHome"
-          class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
-        >
-          <span>←</span>
-          <span>Домой</span>
-        </button>
-        <img src="/dm-small.png" alt="DentMetric" class="h-8 w-auto max-w-full object-contain" onerror="this.style.display='none'">
-        <button
-          type="button"
-          @click="clearHistoryConfirm"
-          class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px]"
-          :disabled="historyItems.length === 0"
-        >
-          Очистить
-        </button>
+    <!-- Section: History -->
+    <HistoryScreen
+      v-if="currentSection === 'history' && !selectedHistory"
+      :history-items="historyItems"
+      :footer-height="'var(--app-footer-height, 64px)'"
+      @back="goHome"
+      @select="selectedHistoryId = $event"
+      @update-status="handleHistoryStatusUpdate"
+    />
+    <!-- History Detail overlay -->
+    <div v-if="currentSection === 'history' && selectedHistory" class="content-padding-bottom p-4 space-y-3 overflow-y-auto" style="flex:1">
+      <div class="card-metallic rounded-2xl p-4 space-y-2">
+        <div class="text-xs text-gray-400 uppercase tracking-widest">Сохранённая оценка</div>
+        <div class="flex justify-between text-sm"><span class="text-gray-400">Дата:</span><span class="text-white font-medium">{{ formatDateTime(selectedHistory.createdAt) }}</span></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-400">Режим:</span><span class="text-white font-medium">{{ selectedHistory.mode === 'detail' ? 'Детализация' : 'Быстрый расчёт' }}</span></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-400">Элемент:</span><span class="text-white font-medium">{{ selectedHistory.element || '—' }}</span></div>
+        <div v-if="selectedHistory.discountPercent > 0" class="flex justify-between text-sm"><span class="text-amber-400">Скидка:</span><span class="text-amber-400 font-medium">−{{ selectedHistory.discountPercent }}%</span></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-400">Итог:</span><span class="text-metric-green font-bold">{{ formatCurrency(selectedHistory.total || 0) }} ₽</span></div>
       </div>
-
-      <div v-if="selectedHistory" class="space-y-3">
-        <div class="card-metallic rounded-2xl p-4 space-y-2">
-          <div class="text-xs text-gray-400 uppercase tracking-widest">Сохранённая оценка</div>
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-400">Дата:</span>
-            <span class="text-white font-medium">{{ formatDateTime(selectedHistory.createdAt) }}</span>
-          </div>
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-400">Режим:</span>
-            <span class="text-white font-medium">{{ selectedHistory.mode === 'detail' ? 'Детализация' : 'Быстрый расчёт' }}</span>
-          </div>
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-400">Поврежденный элемент:</span>
-            <span class="text-white font-medium">{{ selectedHistory.element || '—' }}</span>
-          </div>
-          <div class="flex justify-between text-sm">
-            <span class="text-gray-400">Итог:</span>
-            <span class="text-metric-green font-bold">{{ formatCurrency(selectedHistory.total || 0) }} ₽</span>
-          </div>
+      <div v-if="!isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-2">
+        <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Клиент</div>
+        <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-400">
+          <div>Имя: <span class="text-white">{{ selectedHistory.client?.name || '—' }}</span></div>
+          <div>Тел: <span class="text-white">{{ selectedHistory.client?.phone || '—' }}</span></div>
+          <div>Марка: <span class="text-white">{{ selectedHistory.client?.brand || '—' }}</span></div>
+          <div>Модель: <span class="text-white">{{ selectedHistory.client?.model || '—' }}</span></div>
         </div>
-
-        <div v-if="!isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-2">
-          <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Клиент</div>
-          <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-400">
-            <div>Имя: <span class="text-white">{{ selectedHistory.client?.name || '—' }}</span></div>
-            <div>Компания: <span class="text-white">{{ selectedHistory.client?.company || '—' }}</span></div>
-            <div>Тел: <span class="text-white">{{ selectedHistory.client?.phone || '—' }}</span></div>
-            <div>Марка: <span class="text-white">{{ selectedHistory.client?.brand || '—' }}</span></div>
-            <div>Модель: <span class="text-white">{{ selectedHistory.client?.model || '—' }}</span></div>
-            <div>Дата: <span class="text-white">{{ selectedHistory.client?.date || '—' }}</span></div>
-            <div>Время: <span class="text-white">{{ selectedHistory.client?.time || '—' }}</span></div>
-          </div>
+      </div>
+      <div v-else class="card-metallic rounded-2xl p-4 space-y-3">
+        <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Редактирование</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[14px] text-white min-h-[42px]" @click="openHistoryEditField('clientName', 'Имя', 'text')"><span class="truncate">{{ historyEditDraft.clientName || 'Имя' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
+          <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[14px] text-white min-h-[42px]" @click="openHistoryEditField('clientPhone', 'Тел', 'tel')"><span class="truncate">{{ historyEditDraft.clientPhone || 'Тел' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
+          <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[14px] text-white min-h-[42px]" @click="openHistoryEditField('carBrand', 'Марка', 'text')"><span class="truncate">{{ historyEditDraft.carBrand || 'Марка' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
+          <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[14px] text-white min-h-[42px]" @click="openHistoryEditField('carModel', 'Модель', 'text')"><span class="truncate">{{ historyEditDraft.carModel || 'Модель' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
         </div>
-
-        <div v-else class="card-metallic rounded-2xl p-4 space-y-3">
-          <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Редактирование</div>
-          <div class="grid grid-cols-2 gap-2">
-            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('clientName', 'Имя', 'text')">
-              <span class="truncate">{{ historyEditDraft.clientName || 'Имя' }}</span><span class="text-gray-500 shrink-0">✎</span>
-            </button>
-            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('clientCompany', 'Компания', 'text')">
-              <span class="truncate">{{ historyEditDraft.clientCompany || 'Компания' }}</span><span class="text-gray-500 shrink-0">✎</span>
-            </button>
-            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('clientPhone', 'Тел', 'tel')">
-              <span class="truncate">{{ historyEditDraft.clientPhone || 'Тел' }}</span><span class="text-gray-500 shrink-0">✎</span>
-            </button>
-            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('carBrand', 'Марка', 'text')">
-              <span class="truncate">{{ historyEditDraft.carBrand || 'Марка' }}</span><span class="text-gray-500 shrink-0">✎</span>
-            </button>
-            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('carModel', 'Модель', 'text')">
-              <span class="truncate">{{ historyEditDraft.carModel || 'Модель' }}</span><span class="text-gray-500 shrink-0">✎</span>
-            </button>
-            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('inspectDate', 'Дата', 'date')">
-              <span class="truncate">{{ historyEditDraft.inspectDate || 'Дата' }}</span><span class="text-gray-500 shrink-0">✎</span>
-            </button>
-            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openHistoryEditField('inspectTime', 'Время', 'time')">
-              <span class="truncate">{{ historyEditDraft.inspectTime || 'Время' }}</span><span class="text-gray-500 shrink-0">✎</span>
-            </button>
-          </div>
-          <button
-            type="button"
-            class="input-row w-full flex items-center justify-between gap-2 rounded-xl px-3 py-3 min-h-[48px] bg-[#151515] border border-[#333] text-left text-[16px] text-white"
-            @click="openHistoryCommentModal"
-          >
-            <span class="truncate flex-1">{{ historyEditDraft.comment || 'Комментарий (необязательно)' }}</span>
-            <span class="text-gray-500 shrink-0">✎</span>
-          </button>
-          <div class="flex gap-2">
-            <button
-              type="button"
-              @click="cancelHistoryEdit"
-              class="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[44px]"
-            >
-              Отмена
-            </button>
-            <button
-              type="button"
-              @click="saveHistoryEdit"
-              class="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
-              :disabled="isUpdatingHistory"
-            >
-              {{ isUpdatingHistory ? 'Сохранение...' : 'Сохранить' }}
-            </button>
-          </div>
-        </div>
-
-        <div v-if="selectedHistoryDentItems.length" class="card-metallic rounded-2xl p-4 space-y-2">
-          <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Вмятины</div>
-          <div v-for="dent in selectedHistoryDentItems" :key="dent.id" class="text-[11px] text-gray-400 flex justify-between">
-            <span>
-              {{ dent.type }} · {{ dent.bboxMm?.width?.toFixed?.(1) || '—' }}×{{ dent.bboxMm?.height?.toFixed?.(1) || '—' }} мм
-              <span v-if="dent.panelElement">· {{ (dent.panelSide || 'left') + ':' }}{{ dent.panelElement }}</span>
-            </span>
-            <span v-if="dent.areaMm2" class="text-white">{{ Math.round(dent.areaMm2) }} мм²</span>
-          </div>
-        </div>
-
-        <div v-if="selectedHistory.breakdown?.length" class="card-metallic rounded-2xl p-4 space-y-2">
-          <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Расчёт</div>
-          <div v-for="(item, idx) in selectedHistory.breakdown" :key="idx" class="flex justify-between text-[11px]">
-            <span class="text-gray-400">{{ item.name }}:</span>
-            <span class="text-white font-medium">{{ item.value }}</span>
-          </div>
-        </div>
-
-        <div v-if="selectedHistory.comment && !isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-2">
-          <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Комментарий</div>
-          <div class="text-sm text-gray-300">{{ selectedHistory.comment }}</div>
-        </div>
-
+        <button type="button" class="input-row w-full flex items-center justify-between gap-2 rounded-xl px-3 py-3 min-h-[42px] bg-[#151515] border border-[#333] text-left text-[14px] text-white" @click="openHistoryCommentModal"><span class="truncate flex-1">{{ historyEditDraft.comment || 'Комментарий' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
         <div class="flex gap-2">
-          <button
-            type="button"
-            @click="selectedHistoryId = null"
-            class="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[44px]"
-          >
-            Назад к списку
-          </button>
-          <button
-            v-if="!isEditingHistory"
-            type="button"
-            @click="startHistoryEdit"
-            class="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[44px]"
-          >
-            Редактировать
-          </button>
-          <button
-            type="button"
-            @click="deleteHistoryConfirm(selectedHistory.id)"
-            class="flex-1 py-3 text-xs font-bold uppercase tracking-widest text-red-400 border border-red-500/40 rounded-xl min-h-[44px]"
-          >
-            Удалить
-          </button>
+          <button type="button" @click="cancelHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[40px]">Отмена</button>
+          <button type="button" @click="saveHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[40px] disabled:opacity-50" :disabled="isUpdatingHistory">{{ isUpdatingHistory ? '...' : 'Сохранить' }}</button>
         </div>
       </div>
-
-      <div v-else class="space-y-3">
-        <div v-if="historyItems.length === 0" class="card-metallic rounded-2xl p-6 text-center text-gray-400 w-full">
-          <div class="text-2xl mb-2">🗂️</div>
-          <div class="text-sm">История пуста</div>
+      <div v-if="!isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-3">
+        <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Статус</div>
+        <div class="flex gap-2 flex-wrap">
+          <button
+            v-for="st in historyDetailStatuses"
+            :key="st.key"
+            type="button"
+            class="px-3 py-2 rounded-lg text-[11px] font-bold uppercase tracking-wider border min-h-[36px] transition-all"
+            :class="selectedHistory.status === st.key ? st.activeClass : 'border-white/10 text-gray-500'"
+            @click="changeDetailStatus(st.key)"
+          >{{ st.label }}</button>
         </div>
-        <button
-          v-for="item in historyItems"
-          :key="item.id"
-          :data-testid="`history-item-${item.id}`"
-          @click="selectedHistoryId = item.id"
-          class="card-metallic rounded-2xl p-4 text-left border border-white/10 hover:border-metric-green/40 transition-colors w-full"
-        >
-          <div class="flex justify-between items-center">
-            <div>
-              <div class="text-sm font-bold text-white">{{ item.element || 'Без элемента' }}</div>
-              <div class="text-[10px] text-gray-500">
-                {{ formatDateTime(item.createdAt) }} · {{ item.mode === 'detail' ? 'Детализация' : 'Быстрый' }}<span v-if="(item.dents?.count ?? item.quickDents?.length)"> · {{ item.dents?.count ?? item.quickDents?.length }} вмят.</span>
-              </div>
-            </div>
-            <div class="text-metric-green font-bold">{{ formatCurrency(item.total || 0) }} ₽</div>
-          </div>
-          <div class="mt-2 text-[11px] text-gray-400">
-            {{ item.client?.phone || item.client?.name || 'Без клиента' }}
-          </div>
-        </button>
+      </div>
+      <div v-if="selectedHistory.breakdown?.length" class="card-metallic rounded-2xl p-4 space-y-2">
+        <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Расчёт</div>
+        <div v-for="(item, idx) in selectedHistory.breakdown" :key="idx" class="flex justify-between text-[11px]"><span class="text-gray-400">{{ item.name }}:</span><span class="text-white font-medium">{{ item.value }}</span></div>
+      </div>
+      <div v-if="selectedHistory.comment && !isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-2">
+        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Комментарий</div>
+        <div class="text-sm text-gray-300">{{ selectedHistory.comment }}</div>
+      </div>
+      <div class="flex gap-2">
+        <button type="button" @click="selectedHistoryId = null" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[40px]">Назад</button>
+        <button v-if="!isEditingHistory" type="button" @click="startHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[40px]">Редакт.</button>
+        <button type="button" @click="deleteHistoryConfirm(selectedHistory.id)" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-red-400 border border-red-500/40 rounded-xl min-h-[40px]">Удалить</button>
       </div>
     </div>
 
     <!-- Section: Settings -->
-    <div ref="settingsScrollRef" v-else-if="currentSection === 'settings'" class="content-padding-bottom p-4 space-y-5 overflow-y-auto">
+    <div ref="settingsScrollRef" v-if="currentSection === 'settings'" class="content-padding-bottom p-4 space-y-5 overflow-y-auto">
       <div class="flex items-center justify-between">
         <button
           type="button"
@@ -1014,7 +835,7 @@
     </div>
 
     <!-- Section: Info -->
-    <div ref="infoScrollRef" v-else-if="currentSection === 'info'" class="content-padding-bottom p-4 space-y-3 overflow-y-auto">
+    <div ref="infoScrollRef" v-if="currentSection === 'info'" class="content-padding-bottom p-4 space-y-3 overflow-y-auto">
       <div class="flex items-center justify-between">
         <button
           type="button"
@@ -1135,8 +956,8 @@
       </div>
     </div>
 
-    <!-- Locked sections -->
-    <div v-else class="p-4 flex flex-col h-full pb-24">
+    <!-- Locked sections (analytics, journal) -->
+    <div v-if="currentSection === 'analytics' || currentSection === 'journal'" class="p-4 flex flex-col h-full pb-24">
       <div class="flex items-center justify-between">
         <button
           type="button"
@@ -1247,6 +1068,7 @@ import { circleSizesMm, stripSizesMm, circleSizesWithArea, stripSizesWithArea } 
 import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown } from './utils/priceCalc';
 import { calculateDentPrice as calcDentViaAdapter, normalizeGraphicsDentsForPricing, normalizeDimensions } from './features/pricing/pricingAdapter';
 import { applyPriceRoundingCeil, PRICE_ROUND_OPTIONS } from './utils/priceRounding';
+import { applyDiscount, clampDiscount } from './utils/discount';
 import { classifyDamageShapeByRatio } from './utils/shapeClassification';
 import GraphicsWizard from './components/graphics/GraphicsWizard.vue';
 import StepDots from './components/graphics/StepDots.vue';
@@ -1262,6 +1084,8 @@ import SelectModal from './components/SelectModal.vue';
 import { useSelectModal } from './composables/useSelectModal';
 import SegmentedControl from './components/ui/SegmentedControl.vue';
 import SelectRow from './components/ui/SelectRow.vue';
+import { hideTelegramButtons } from './utils/telegramButtons';
+import HistoryScreen from './components/HistoryScreen.vue';
 
 // DEV-only QA overlay (?qa=1). Must not ship in production bundles.
 const qaEnabled = computed(() => {
@@ -1331,6 +1155,7 @@ const estimateDraft = reactive({
   clientPhone: '',
   carBrand: '',
   carModel: '',
+  carPlate: '',
   inspectDate: '',
   inspectTime: '',
   element: null,
@@ -1339,7 +1164,8 @@ const estimateDraft = reactive({
   comment: '',
   breakdown: [],
   quickDents: [],
-  repairTimeHours: null
+  repairTimeHours: null,
+  discountPercent: null
 });
 
 const { historyItems, loadHistory, saveEstimate, updateEstimate, deleteEstimate, clearHistory } = useHistoryStore();
@@ -1376,6 +1202,7 @@ const historyEditDraft = reactive({
   clientPhone: '',
   carBrand: '',
   carModel: '',
+  carPlate: '',
   inspectDate: '',
   inspectTime: '',
   comment: ''
@@ -1407,6 +1234,7 @@ const activeQuickDent = computed(() => {
 function setActiveQuickDent(id) {
   if (!id) return;
   activeQuickDentId.value = id;
+  nextTick(() => scrollMetricToTop());
 }
 
 const quickGeometryTab = ref('standard'); // 'standard' | 'custom'
@@ -1475,6 +1303,12 @@ function addQuickDent() {
 function removeQuickDent(id) {
   estimateDraft.quickDents = estimateDraft.quickDents.filter((d) => d.id !== id);
   haptic('selection');
+}
+
+function removeActiveQuickDent() {
+  if (!activeQuickDent.value?.id) return;
+  if (estimateDraft.quickDents.length <= 1) return;
+  removeQuickDent(activeQuickDent.value.id);
 }
 
 function setQuickDentShape(dent, shape) {
@@ -1630,13 +1464,14 @@ function loadUserSettings() {
 loadUserSettings();
 
 const metricScrollPaddingBottom = computed(() => {
-  // Keep content clear of bottom nav + either quick CTA (Step 2) or quick nav bar (Steps 1/3).
   const footer = 'var(--app-footer-height,64px)';
   const safe = 'env(safe-area-inset-bottom,0px)';
-  const onQuickDentsStep = calcMode.value === 'standard' && (quickStep.value === 2 || (quickStep.value === 1 && !userSettings.showClientQuick));
-  const onQuickNav = calcMode.value === 'standard' && !onQuickDentsStep;
-  if (onQuickDentsStep) return `calc(${footer} + ${safe} + 96px)`;
-  if (onQuickNav) return `calc(${footer} + ${safe} + 96px)`;
+  if (calcMode.value === 'standard') {
+    const isStep2 = quickStep.value === 2 || (quickStep.value === 1 && !userSettings.showClientQuick);
+    return isStep2
+      ? `calc(${footer} + ${safe} + 56px)`
+      : `calc(${footer} + ${safe} + 100px)`;
+  }
   return `calc(${footer} + ${safe} + 1rem)`;
 });
 
@@ -1736,18 +1571,20 @@ const quickDentTotals = computed(() => estimateDraft.quickDents.map((dent) => {
 const quickLineItems = computed(() => {
   const list = quickDentTotals.value.filter((d) => d.total > 0).sort((a, b) => b.total - a.total);
   const roundStep = userSettings.priceRoundStep;
+  const discPct = clampDiscount(estimateDraft.discountPercent);
   return list.map((item, idx) => {
     const rawApplied = idx === 0 ? item.total : item.total * 0.5;
+    const afterDiscount = applyDiscount(rawApplied, discPct);
     const applied = roundStep > 0
-      ? applyPriceRoundingCeil(rawApplied, roundStep)
-      : Math.round(rawApplied);
-    return { ...item, appliedTotal: applied, discount: idx > 0 };
+      ? applyPriceRoundingCeil(afterDiscount, roundStep)
+      : Math.round(afterDiscount);
+    return { ...item, appliedTotal: applied, rawDiscounted: afterDiscount, preDiscountTotal: Math.round(rawApplied), discount: idx > 0, discountPercent: discPct };
   });
 });
 
 const quickTotal = computed(() => {
   if (quickLineItems.value.length === 0) return 0;
-  return quickLineItems.value.reduce((acc, item, idx) => acc + (idx === 0 ? item.total : item.total * 0.5), 0);
+  return quickLineItems.value.reduce((acc, item) => acc + item.rawDiscounted, 0);
 });
 
 /** Нормализованные вмятины для расчёта (устраняет расхождения Quick vs Detail). */
@@ -1778,8 +1615,11 @@ const graphicsConditions = computed(() => {
 });
 
 /** Итоговая цена в Графике: каждая вмятина отдельно, затем сумма. Единый источник: priceCalc.calcTotalPrice. */
-const graphicsPrice = computed(() =>
+const graphicsRawPrice = computed(() =>
   calcTotalPrice(graphicsDentsForPricing.value, graphicsConditions.value, initialData, userSettings.priceRoundStep ?? 0)
+);
+const graphicsPrice = computed(() =>
+  applyDiscount(graphicsRawPrice.value, clampDiscount(estimateDraft.discountPercent))
 );
 
 const totalPrice = computed(() => {
@@ -1817,6 +1657,12 @@ const quickBreakdownItems = computed(() => {
     lines.forEach((line) => {
       result.push({ name: `${dentLabel} · ${line.name}`, value: line.value });
     });
+    if (item.discountPercent > 0) {
+      result.push({
+        name: `${dentLabel} · Скидка`,
+        value: `−${item.discountPercent}% (−${formatCurrency(item.preDiscountTotal - item.appliedTotal)} ₽)`
+      });
+    }
     result.push({
       name: `${dentLabel} · Итог`,
       value: `${formatCurrency(item.appliedTotal)} ₽`
@@ -1851,6 +1697,11 @@ const getQuickDentLabel = (dent) => (dent.shape === 'circle' ? 'Круг/Ова�
 const formatCurrency = (v) => new Intl.NumberFormat('ru-RU').format(v);
 const formatRoundedPrice = (raw) =>
   formatCurrency(applyPriceRoundingCeil(raw, userSettings.priceRoundStep));
+const formatSingleDim = (mm) => {
+  const v = Number(mm) || 0;
+  if (userSettings.sizeUnit === 'cm') return `${(v / 10).toFixed(1)}см`;
+  return `${v.toFixed(0)}мм`;
+};
 const formatSizeDisplay = (lengthMm, widthMm) => {
   const l = Number(lengthMm) || 0;
   const w = Number(widthMm) || 0;
@@ -1866,6 +1717,83 @@ const getMaterialLabel = (code) => initialData.materials.find((m) => m.code === 
 const getCarClassLabel = (code) => initialData.carClasses.find((c) => c.code === code)?.name || '';
 const getPaintMaterialLabel = (code) => initialData.paintMaterials?.find((p) => p.code === code)?.name || '';
 const getSoundInsulationLabel = (code) => initialData.soundInsulation?.find((s) => s.code === code)?.name || '';
+
+function buildDetailedBreakdown(dentItem) {
+  const dent = dentItem.dent;
+  const c = dent.conditions || {};
+  const base = dentItem.base || 0;
+  const pipeBreakdown = dentItem.breakdown || [];
+  const rows = [];
+
+  const categoryMap = [
+    { key: 'repairCode', label: 'Технология ремонта:', lookup: initialData.repairTypes },
+    { key: 'materialCode', label: 'Материал панели:', lookup: initialData.materials },
+    { key: 'riskCode', label: 'Сложность выполнения:', lookup: initialData.risks },
+    { key: 'carClassCode', label: 'Класс автомобиля:', lookup: initialData.carClasses },
+  ];
+
+  for (const cat of categoryMap) {
+    const code = c[cat.key];
+    const obj = code ? cat.lookup?.find((o) => o.code === code) : null;
+    const valueName = obj?.name || '—';
+    const pipeLine = pipeBreakdown.find((l) => l.name === valueName);
+    let delta = 0;
+    if (pipeLine) {
+      const v = pipeLine.value || '';
+      if (v.startsWith('×')) {
+        const mult = parseFloat(v.replace('×', ''));
+        delta = Math.round(base * ((mult || 1) - 1));
+      }
+    }
+    rows.push({ label: cat.label, value: valueName, delta });
+  }
+
+  const disCodes = Array.isArray(c.disassemblyCodes) ? c.disassemblyCodes : [];
+  const disLine = pipeBreakdown.find((l) => l.value?.includes('₽') && !l.name.toLowerCase().includes('баз') && !l.name.toLowerCase().includes('шумо'));
+  const disCost = disLine ? parseInt(disLine.value.replace(/[^\d-]/g, ''), 10) || 0 : 0;
+  const disLabel = disCodes.length > 0
+    ? formatArmaturnayaSummary(disCodes, dent.panelElement) || 'Без арматурных работ'
+    : 'Без арматурных работ';
+  rows.push({ label: 'Арматурные работы:', value: disLabel, delta: disCost });
+
+  const soundObj = c.soundInsulationCode
+    ? initialData.soundInsulation?.find((s) => s.code === c.soundInsulationCode)
+    : null;
+  const soundLine = pipeBreakdown.find((l) => l.name?.toLowerCase().includes('шумо'));
+  const soundCost = soundLine ? parseInt(soundLine.value.replace(/[^\d-]/g, ''), 10) || 0 : (soundObj?.price ?? 0);
+  rows.push({ label: 'Дополнительная шумоизоляция:', value: soundObj?.name || '—', delta: soundCost });
+
+  return rows;
+}
+
+function formatDelta(delta) {
+  if (!delta || delta === 0) return '0 ₽';
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${new Intl.NumberFormat('ru-RU').format(delta)} ₽`;
+}
+
+function deltaClass(delta) {
+  if (delta > 0) return 'text-white';
+  return 'text-gray-500';
+}
+
+async function openDiscountModal() {
+  const value = await openInputModal({
+    title: 'Скидка',
+    label: 'Скидка (%)',
+    value: estimateDraft.discountPercent ?? '',
+    inputType: 'number',
+    placeholder: '0',
+    min: 0,
+    max: 100
+  });
+  if (value === undefined) return;
+  if (value === '' || value === null) {
+    estimateDraft.discountPercent = null;
+    return;
+  }
+  estimateDraft.discountPercent = clampDiscount(value);
+}
 
 async function openQuickPanelElementPicker(dent) {
   if (!dent) return;
@@ -1954,7 +1882,7 @@ async function openQuickArmaturnayaPicker(dent) {
 async function openQuickCustomSize(dent) {
   if (!dent) return;
   dent.sizeInputMode = 'manual';
-  const l = await openQuickDentSizeModal(dent, 'sizeLengthMm', 'Ширина (мм)');
+  const l = await openQuickDentSizeModal(dent, 'sizeLengthMm', 'Длина (мм)');
   if (l === undefined) return;
   const w = await openQuickDentSizeModal(dent, 'sizeWidthMm', 'Высота (мм)');
   if (w === undefined) return;
@@ -1965,7 +1893,7 @@ async function openQuickManualSize(dent) {
   dent.sizeInputMode = 'manual';
   // Keep preset pills unselected when user inputs dimensions.
   dent.sizeCode = null;
-  const w = await openQuickDentSizeModal(dent, 'sizeLengthMm', 'Ширина (мм)');
+  const w = await openQuickDentSizeModal(dent, 'sizeLengthMm', 'Длина (мм)');
   if (w === undefined) return;
   const h = await openQuickDentSizeModal(dent, 'sizeWidthMm', 'Высота (мм)');
   if (h === undefined) return;
@@ -2041,6 +1969,7 @@ function startHistoryEdit() {
   historyEditDraft.clientPhone = client.phone || '';
   historyEditDraft.carBrand = client.brand || '';
   historyEditDraft.carModel = client.model || '';
+  historyEditDraft.carPlate = client.plate || '';
   historyEditDraft.inspectDate = client.date || '';
   historyEditDraft.inspectTime = client.time || '';
   historyEditDraft.comment = selectedHistory.value.comment || '';
@@ -2062,6 +1991,7 @@ async function saveHistoryEdit() {
         phone: historyEditDraft.clientPhone,
         brand: historyEditDraft.carBrand,
         model: historyEditDraft.carModel,
+        plate: historyEditDraft.carPlate,
         date: historyEditDraft.inspectDate,
         time: historyEditDraft.inspectTime
       },
@@ -2083,8 +2013,7 @@ function resetClientDataOnly() {
   estimateDraft.clientPhone = '';
   estimateDraft.carBrand = '';
   estimateDraft.carModel = '';
-  estimateDraft.inspectDate = '';
-  estimateDraft.inspectTime = '';
+  estimateDraft.carPlate = '';
   skipNextAutoFill.value = true;
 }
 
@@ -2106,7 +2035,7 @@ function resetDentsOnly() {
   estimateDraft.breakdown = [];
   estimateDraft.quickDents = [];
   estimateDraft.repairTimeHours = null;
-  quickStep.value = userSettings.showClientQuick ? 1 : 2;
+  estimateDraft.discountPercent = null;
   graphicsState.dents = [];
   graphicsState.selectedClass = null;
   graphicsState.selectedPart = null;
@@ -2129,6 +2058,7 @@ function buildEstimatePayload(mode) {
     phone: estimateDraft.clientPhone,
     brand: estimateDraft.carBrand,
     model: estimateDraft.carModel,
+    plate: estimateDraft.carPlate,
     date: estimateDraft.inspectDate,
     time: estimateDraft.inspectTime
   };
@@ -2145,6 +2075,7 @@ function buildEstimatePayload(mode) {
   const quickElement = firstQuick?.panelElement ? `${firstQuick.panelSide || 'left'}:${firstQuick.panelElement}` : null;
   const element = quickElement || graphicsState.selectedPart?.name || null;
   const vehicleClass = graphicsState.selectedClass?.name || null;
+  const discPct = clampDiscount(estimateDraft.discountPercent);
   if (mode === 'detail') {
     const normDents = graphicsDentsForPricing.value;
     const dentItems = (graphicsState.dents || []).map((d, i) => {
@@ -2169,6 +2100,7 @@ function buildEstimatePayload(mode) {
       breakdown: estimateDraft.breakdown || [],
       total: displayTotal.value,
       rawTotal: totalPrice.value,
+      discountPercent: discPct || 0,
       comment: estimateDraft.comment || ''
     };
   }
@@ -2193,6 +2125,7 @@ function buildEstimatePayload(mode) {
     breakdown: estimateDraft.breakdown || [],
     total: displayTotal.value,
     rawTotal: totalPrice.value,
+    discountPercent: discPct || 0,
     comment: estimateDraft.comment || ''
   };
 }
@@ -2205,14 +2138,39 @@ async function saveCurrentEstimate(modeOverride) {
   try {
     const payload = buildEstimatePayload(mode);
     saveEstimate(payload);
-    showToast('Сохранено в историю ✅', 'success', 1800);
+    showToast('Сохранено', 'success', 1800);
     resetDraftState();
     if (calcMode.value === 'graphics') closeEditor();
     setTimeout(() => {
+      selectedHistoryId.value = null;
       currentSection.value = 'history';
     }, 400);
   } catch (e) {
     showToast('Не удалось сохранить в историю', 'error', 2200);
+  } finally {
+    isSavingHistory.value = false;
+  }
+}
+
+async function saveAndBookEstimate(modeOverride) {
+  if (isSavingHistory.value) return;
+  const mode = modeOverride || (calcMode.value === 'graphics' ? 'detail' : 'quick');
+  if (totalPrice.value <= 0) return;
+  isSavingHistory.value = true;
+  try {
+    const payload = buildEstimatePayload(mode);
+    payload.status = 'booked';
+    payload.bookingAt = new Date().toISOString();
+    saveEstimate(payload);
+    showToast('Записан на ремонт', 'success', 1800);
+    resetDraftState();
+    if (calcMode.value === 'graphics') closeEditor();
+    setTimeout(() => {
+      selectedHistoryId.value = null;
+      currentSection.value = 'history';
+    }, 400);
+  } catch (e) {
+    showToast('Не удалось сохранить', 'error', 2200);
   } finally {
     isSavingHistory.value = false;
   }
@@ -2229,6 +2187,23 @@ function deleteHistoryConfirm(id) {
     deleteEstimate(id);
     if (selectedHistoryId.value === id) selectedHistoryId.value = null;
   }
+}
+
+function handleHistoryStatusUpdate({ id, status, bookingAt }) {
+  if (!id) return;
+  updateEstimate(id, { status, bookingAt: bookingAt || null });
+}
+
+const historyDetailStatuses = [
+  { key: 'no_booking', label: 'Без записи', activeClass: 'border-gray-500 bg-gray-800/50 text-gray-300' },
+  { key: 'booked', label: 'Записан', activeClass: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400' },
+  { key: 'done', label: 'Выполнено', activeClass: 'border-blue-500/40 bg-blue-500/10 text-blue-400' }
+];
+
+function changeDetailStatus(status) {
+  if (!selectedHistory.value) return;
+  const bookingAt = status === 'booked' ? new Date().toISOString() : null;
+  updateEstimate(selectedHistory.value.id, { status, bookingAt });
 }
 
 const setMode = (mode) => {
@@ -2277,9 +2252,14 @@ const switchSection = (section) => {
   }
   if (section !== 'metric' && calcMode.value === 'graphics') closeEditor();
   currentSection.value = section;
+  if (section === 'history') {
+    selectedHistoryId.value = null;
+    isEditingHistory.value = false;
+    loadHistory(true);
+  }
   haptic('selection');
   nextTick(() => {
-    const container = section === 'metric' ? metricScrollRef.value : section === 'history' ? historyScrollRef.value : section === 'settings' ? settingsScrollRef.value : section === 'info' ? infoScrollRef.value : null;
+    const container = section === 'metric' ? metricScrollRef.value : section === 'settings' ? settingsScrollRef.value : section === 'info' ? infoScrollRef.value : null;
     if (container?.scrollTo) container.scrollTo({ top: 0, behavior: 'auto' });
   });
   if (section === 'metric') {
@@ -2475,21 +2455,7 @@ const closeEditor = () => {
   haptic('selection');
 };
 
-// Telegram Main Button
-watch(displayTotal, (val) => {
-  const btn = window.Telegram?.WebApp?.MainButton;
-  if (!btn) return;
-  if (calcMode.value === 'graphics') {
-    btn.hide();
-    return;
-  }
-  if (val > 0) {
-    btn.setText(`ИТОГО: ${formatCurrency(val)} ₽`);
-    btn.show();
-  } else {
-    btn.hide();
-  }
-});
+// Telegram Main Button — globally disabled; app uses its own CTA buttons.
 
 watch(selectedHistoryId, () => {
   isEditingHistory.value = false;
@@ -2565,8 +2531,8 @@ onMounted(() => {
   if (window.Telegram?.WebApp) {
     window.Telegram.WebApp.ready();
     window.Telegram.WebApp.expand();
-    window.Telegram.WebApp.MainButton.setParams({ color: '#88E523', text_color: '#000000' });
   }
+  hideTelegramButtons();
   window.addEventListener('keydown', handleKeyDown);
   updateFooterHeight();
   footerResizeObserver = new ResizeObserver(() => updateFooterHeight());
@@ -2582,8 +2548,6 @@ watch(
     if (typeof document === 'undefined') return;
     document.body.classList.toggle('graphics-fullscreen-active', isGraphics);
     if (isGraphics && window.Telegram?.WebApp?.expand) window.Telegram.WebApp.expand();
-    const btn = window.Telegram?.WebApp?.MainButton;
-    if (isGraphics && btn) btn.hide();
   },
   { immediate: true }
 );
@@ -2817,6 +2781,202 @@ onBeforeUnmount(() => {
     border-top-left-radius: 0.75rem;
     border-bottom-left-radius: 0.75rem;
   }
+}
+
+/* ── Compact Quick-Calc Step 2 overrides (fit on 375×667) ── */
+.qc-compact {
+  --qc-section-gap: 6px;
+  --qc-card-px: 10px;
+  --qc-card-py: 8px;
+  --qc-row-min-h: 36px;
+  --qc-seg-min-h: 36px;
+  --qc-label-fs: 9px;
+  --qc-value-fs: 12px;
+  --qc-title-fs: 9px;
+}
+.qc-compact .segmented-wrap {
+  padding: 2px;
+  gap: 2px;
+}
+.qc-compact .segmented-btn {
+  min-height: var(--qc-seg-min-h);
+  padding: 6px 8px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+.qc-compact .qc-select-row {
+  min-height: var(--qc-row-min-h);
+  padding: 6px 10px;
+  border-radius: 0.625rem;
+}
+.qc-compact .qc-select-row .qc-sr-label {
+  font-size: var(--qc-label-fs);
+  margin-bottom: 0;
+}
+.qc-compact .qc-select-row .qc-sr-value {
+  font-size: var(--qc-value-fs);
+}
+.qc-compact .qc-section-title {
+  font-size: var(--qc-title-fs);
+}
+.qc-compact .qc-geo-btn {
+  min-height: 42px;
+  padding: 6px 10px;
+  border-radius: 0.625rem;
+}
+.qc-compact .qc-geo-btn .qc-geo-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+.qc-compact .qc-geo-btn .qc-geo-value {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 1px;
+}
+.qc-compact .qc-info-rows {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #6b7280;
+  margin-top: 4px;
+}
+.qc-compact .qc-info-rows span {
+  color: #88e523;
+}
+.qc-compact .qc-price-block {
+  text-align: center;
+  padding: 6px 0 2px;
+}
+.qc-compact .qc-price-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #6b7280;
+}
+.qc-compact .qc-price-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #88e523;
+  line-height: 1.15;
+}
+.qc-compact .qc-cta {
+  min-height: 42px;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: 0.75rem;
+  color: #000;
+  background: #88e523;
+  box-shadow: 0 0 15px rgba(136,229,35,0.35);
+}
+.qc-compact .qc-cta:active { opacity: 0.9; }
+.qc-compact .qc-cta:disabled { opacity: 0.45; cursor: not-allowed; }
+.qc-compact .qc-preset-chip {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(136,229,35,0.25);
+  color: #88e523;
+  background: rgba(136,229,35,0.08);
+  cursor: pointer;
+}
+
+/* ── Step 3: breakdown detail card ── */
+.qc-breakdown-card {
+  padding: 10px 12px;
+}
+.qc-bk-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 3px 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
+.qc-bk-row--base {
+  padding: 4px 0 6px;
+}
+.qc-bk-label {
+  color: #9ca3af;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.qc-bk-value {
+  flex: 1 1 auto;
+  text-align: left;
+  color: #e5e7eb;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qc-bk-delta {
+  flex-shrink: 0;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  min-width: 58px;
+}
+.qc-bk-sep {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 2px 0;
+}
+.qc-bk-sep--strong {
+  background: rgba(255,255,255,0.12);
+  margin: 4px 0;
+}
+.qc-bk-row--total {
+  padding: 6px 0 4px;
+  justify-content: space-between;
+}
+.qc-discount-input {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 38px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: #0a0a0a;
+  color: #e5e7eb;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.qc-discount-input:active { border-color: rgba(136,229,35,0.4); }
+
+/* Step 3: 3-button action row */
+.qc-step3-actions {
+  gap: 0 !important;
+}
+.qc-s3-btn {
+  background: transparent;
+}
+.qc-s3-btn--left {
+  border-top-left-radius: 0.75rem;
+  border-bottom-left-radius: 0.75rem;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+.qc-s3-btn--mid {
+  border-radius: 0;
+  border-right: none;
+}
+.qc-s3-btn--right {
+  border-top-right-radius: 0.75rem;
+  border-bottom-right-radius: 0.75rem;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
 }
 
 /* A) Тёмный фон редактора: перебить любые bg-white/konva-bg (Konva bgRect — страховка в konvaEditor.js) */

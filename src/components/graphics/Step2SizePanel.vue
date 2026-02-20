@@ -97,7 +97,7 @@
           <div class="grid grid-cols-2 gap-2">
             <div>
               <label class="block text-[10px] text-gray-500 mb-0.5">
-                {{ selectedDentSize?.type === 'circle' ? 'Ширина' : 'Длина' }}
+                Длина
               </label>
               <button
                 type="button"
@@ -111,7 +111,7 @@
             </div>
             <div>
               <label class="block text-[10px] text-gray-500 mb-0.5">
-                {{ selectedDentSize?.type === 'circle' ? 'Высота' : 'Ширина' }}
+                Высота
               </label>
               <button
                 type="button"
@@ -214,7 +214,7 @@ const freeformBboxHint = computed(() => {
 
 async function openWidthModal() {
   if (inputsDisabled.value) return;
-  const label = props.selectedDentSize?.type === 'circle' ? 'Ширина (мм)' : 'Длина (мм)';
+  const label = 'Длина (мм)';
   const value = await openInputModal({
     title: 'Размер повреждения',
     label,
@@ -230,7 +230,7 @@ async function openWidthModal() {
 
 async function openHeightModal() {
   if (inputsDisabled.value) return;
-  const label = props.selectedDentSize?.type === 'circle' ? 'Высота (мм)' : 'Ширина (мм)';
+  const label = 'Высота (мм)';
   const value = await openInputModal({
     title: 'Размер повреждения',
     label,
@@ -249,11 +249,6 @@ const formatArea = (v) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits
 </script>
 
 <style scoped>
-@media (max-width: 480px) {
-  .wizard-step-controls {
-    transform: translateY(-5px);
-  }
-}
 .step2-row {
   display: flex;
   gap: 0.5rem;

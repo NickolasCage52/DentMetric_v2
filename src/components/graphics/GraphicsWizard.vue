@@ -133,11 +133,14 @@
         v-else-if="wizardStep === 5"
         :breakdown="breakdown"
         :total-price="displayTotal"
+        :pre-discount-total="preDiscountTotal"
+        :discount-percent="clampDiscount(estimateDraft.discountPercent)"
         :freeform-used="freeformUsed"
         :freeform-area-mm2="freeformAreaMm2"
         :history-saving="historySaving"
         :comment="estimateDraft.comment"
         @update:comment="estimateDraft.comment = $event"
+        @update:discount-percent="estimateDraft.discountPercent = $event"
         @back="goBack"
         @back-to-edit="() => goToStep(3)"
         @save="emit('save-history')"
@@ -200,6 +203,9 @@
             <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('carModel', 'Модель', 'text')">
               <span class="truncate">{{ estimateDraft.carModel || 'Модель' }}</span><span class="text-gray-500 shrink-0">✎</span>
             </button>
+            <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('carPlate', 'Гос.номер', 'text')">
+              <span class="truncate">{{ estimateDraft.carPlate || 'Гос.номер' }}</span><span class="text-gray-500 shrink-0">✎</span>
+            </button>
             <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('inspectDate', 'Дата', 'date')">
               <span class="truncate">{{ estimateDraft.inspectDate || 'Дата' }}</span><span class="text-gray-500 shrink-0">✎</span>
             </button>
@@ -245,6 +251,7 @@ import { classifyDamageShapeByRatio } from '../../utils/shapeClassification';
 import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown, roundPrice } from '../../utils/priceCalc';
 import { normalizeGraphicsDentsForPricing } from '../../features/pricing/pricingAdapter';
 import { applyPriceRoundingCeil } from '../../utils/priceRounding';
+import { applyDiscount, clampDiscount } from '../../utils/discount';
 import StepHeader from './StepHeader.vue';
 import Step0ClientPanel from './Step0ClientPanel.vue';
 import Step1PlacementPanel from './Step1PlacementPanel.vue';
@@ -412,8 +419,14 @@ const dentsForPricing = computed(() => {
 });
 const basePrice = computed(() => calcBasePriceFromDents(dentsForPricing.value));
 const conditionsForCalc = computed(() => props.conditionsForCalc || props.form);
-const totalPrice = computed(() =>
+const totalPriceRaw = computed(() =>
   calcTotalPrice(dentsForPricing.value, conditionsForCalc.value, props.initialData, props.userSettings?.priceRoundStep ?? 0)
+);
+const totalPrice = computed(() =>
+  applyDiscount(totalPriceRaw.value, clampDiscount(props.estimateDraft?.discountPercent))
+);
+const preDiscountTotal = computed(() =>
+  applyPriceRoundingCeil(totalPriceRaw.value, props.userSettings?.priceRoundStep ?? 0)
 );
 const displayTotal = computed(() =>
   applyPriceRoundingCeil(totalPrice.value, props.userSettings?.priceRoundStep ?? 0)

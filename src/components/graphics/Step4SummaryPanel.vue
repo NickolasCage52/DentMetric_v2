@@ -14,10 +14,26 @@
           <span class="text-gray-400">{{ item.name }}:</span>
           <span class="text-white font-medium">{{ item.value }}</span>
         </div>
+        <div v-if="discountPercent > 0" class="summary-row flex justify-between text-[11px]">
+          <span class="text-amber-400">Скидка:</span>
+          <span class="text-amber-400 font-medium">−{{ discountPercent }}% (−{{ formatPrice(Math.round(preDiscountTotal - totalPrice)) }} ₽)</span>
+        </div>
         <div class="border-t border-white/10 pt-2 mt-2 flex justify-between">
           <span class="text-metric-green font-bold text-sm">Итог:</span>
           <span data-testid="total-price-graphics" class="text-metric-green font-bold text-lg">{{ formatPrice(totalPrice) }} ₽</span>
         </div>
+      </div>
+
+      <div class="rounded-xl bg-black/35 border border-white/10 p-3 mt-2">
+        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Скидка</div>
+        <button
+          type="button"
+          class="input-row w-full flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]"
+          @click="openDiscountModal"
+        >
+          <span class="truncate flex-1">{{ discountPercent > 0 ? discountPercent + '%' : 'Без скидки' }}</span>
+          <span class="text-gray-500 shrink-0">✎</span>
+        </button>
       </div>
 
       <div class="summary-comment-card rounded-xl bg-black/35 border border-white/10 p-3 mt-2">
@@ -69,15 +85,32 @@ import { inject } from 'vue';
 const props = defineProps({
   breakdown: { type: Array, default: () => [] },
   totalPrice: { type: Number, default: 0 },
+  preDiscountTotal: { type: Number, default: 0 },
+  discountPercent: { type: Number, default: 0 },
   freeformUsed: { type: Boolean, default: false },
   freeformAreaMm2: { type: Number, default: 0 },
   comment: { type: String, default: '' },
   historySaving: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(['back', 'back-to-edit', 'reset', 'update:comment', 'save']);
+const emit = defineEmits(['back', 'back-to-edit', 'reset', 'update:comment', 'update:discountPercent', 'save']);
 
 const openInputModal = inject('openInputModal');
+
+async function openDiscountModal() {
+  const value = await openInputModal({
+    title: 'Скидка',
+    label: 'Скидка (%)',
+    value: props.discountPercent || '',
+    inputType: 'number',
+    placeholder: '0',
+    min: 0,
+    max: 100
+  });
+  if (value === undefined) return;
+  const n = value === '' || value === null ? 0 : Math.min(100, Math.max(0, Number(value) || 0));
+  emit('update:discountPercent', n);
+}
 
 async function openCommentModal() {
   const value = await openInputModal({

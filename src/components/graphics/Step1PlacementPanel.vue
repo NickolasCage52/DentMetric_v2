@@ -76,10 +76,3 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
 
 </script>
 
-<style scoped>
-@media (max-width: 480px) {
-  .wizard-step-controls {
-    transform: translateY(-5px);
-  }
-}
-</style>
