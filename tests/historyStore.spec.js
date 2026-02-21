@@ -1,5 +1,5 @@
 /**
- * Unit tests for history save/reset flow.
+ * Unit tests for history save/reset flow, normalization, and robustness.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
@@ -8,6 +8,8 @@ import {
   deleteEstimate,
   updateEstimate,
   clearHistory,
+  normalizeHistoryRecord,
+  STORAGE_KEY,
 } from '../src/features/history/historyStore';
 
 // Mock localStorage
@@ -82,5 +84,73 @@ describe('historyStore', () => {
 
     const items = loadHistory();
     expect(items).toEqual([]);
+  });
+
+  describe('normalizeHistoryRecord', () => {
+    it('returns null for null or non-object', () => {
+      expect(normalizeHistoryRecord(null)).toBeNull();
+      expect(normalizeHistoryRecord(undefined)).toBeNull();
+      expect(normalizeHistoryRecord('')).toBeNull();
+      expect(normalizeHistoryRecord(123)).toBeNull();
+    });
+
+    it('guarantees id, createdAt, total, status, client', () => {
+      const out = normalizeHistoryRecord({});
+      expect(out).not.toBeNull();
+      expect(typeof out.id).toBe('string');
+      expect(out.id.length).toBeGreaterThan(0);
+      expect(typeof out.createdAt).toBe('string');
+      expect(new Date(out.createdAt).getTime()).not.toBeNaN();
+      expect(typeof out.total).toBe('number');
+      expect(out.status).toBe('no_booking');
+      expect(out.client).toBeDefined();
+      expect(out.client.name).toBe('Клиент без имени');
+      expect(out.client.phone).toBe('');
+    });
+
+    it('repairs invalid createdAt to valid ISO string', () => {
+      const out = normalizeHistoryRecord({ createdAt: 'not-a-date' });
+      expect(out).not.toBeNull();
+      expect(new Date(out.createdAt).getTime()).not.toBeNaN();
+    });
+
+    it('maps unknown status to no_booking', () => {
+      expect(normalizeHistoryRecord({ status: 'invalid' }).status).toBe('no_booking');
+      expect(normalizeHistoryRecord({ status: 'booked' }).status).toBe('booked');
+      expect(normalizeHistoryRecord({ status: 'done' }).status).toBe('done');
+    });
+
+    it('ensures dents has items array', () => {
+      const out = normalizeHistoryRecord({ dents: {} });
+      expect(Array.isArray(out.dents.items)).toBe(true);
+    });
+  });
+
+  it('loadHistory dedupes duplicate ids', () => {
+    const payload = {
+      version: 1,
+      items: [
+        { id: 'same', total: 100, client: { name: 'A', phone: '' } },
+        { id: 'same', total: 200, client: { name: 'B', phone: '' } },
+      ],
+    };
+    localStorageMock.setItem(STORAGE_KEY, JSON.stringify(payload));
+    const items = loadHistory(true);
+    expect(items.length).toBe(2);
+    expect(items[0].id).not.toBe(items[1].id);
+  });
+
+  it('loadHistory skips malformed records and keeps valid ones', () => {
+    const payload = {
+      version: 1,
+      items: [
+        { total: 100, client: { name: 'Good', phone: '' } },
+        null,
+        { total: 200, client: { name: 'Also good', phone: '' } },
+      ],
+    };
+    localStorageMock.setItem(STORAGE_KEY, JSON.stringify(payload));
+    const items = loadHistory(true);
+    expect(items.length).toBe(2);
   });
 });

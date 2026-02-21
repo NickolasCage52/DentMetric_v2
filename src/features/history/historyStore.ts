@@ -31,42 +31,81 @@ function migrateHistory(payload: any) {
   return { version: HISTORY_SCHEMA_VERSION, items: [] };
 }
 
+const KNOWN_STATUSES = ['no_booking', 'booked', 'done'] as const;
+
 /**
  * Normalize a raw history record for backward compatibility and required fields.
- * Converts legacy single-dent records to damages array; ensures id, createdAt, totalPrice, status.
+ * Guarantees: id (string), createdAt (valid ISO string), total (number), status (known enum),
+ * client.name/phone (string), dents (object with items array). Never throws.
  */
 export function normalizeHistoryRecord(raw: any): any | null {
-  if (!raw || typeof raw !== 'object') return null;
-  const normalized = { ...raw };
-  if (!normalized.id) normalized.id = `legacy_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  const createdAt = raw.createdAt != null ? raw.createdAt : new Date().toISOString();
-  normalized.createdAt = typeof createdAt === 'number' ? new Date(createdAt).toISOString() : String(createdAt);
-  const total = raw.total ?? raw.totalPrice;
-  normalized.total = typeof total === 'string' ? parseFloat(total) || 0 : (Number(total) || 0);
-  if (normalized.rawTotal == null) normalized.rawTotal = normalized.total;
-  if (typeof normalized.rawTotal === 'string') normalized.rawTotal = parseFloat(normalized.rawTotal) || 0;
-  if (normalized.status == null) normalized.status = 'no_booking';
-  if (!normalized.client && (raw.clientName != null || raw.clientPhone != null || raw.carBrand != null)) {
-    normalized.client = {
-      name: raw.clientName ?? raw.client?.name,
-      phone: raw.clientPhone ?? raw.client?.phone,
-      company: raw.clientCompany ?? raw.client?.company,
-      brand: raw.carBrand ?? raw.client?.brand,
-      model: raw.carModel ?? raw.client?.model,
-      plate: raw.carPlate ?? raw.client?.plate,
-      date: raw.inspectDate ?? raw.client?.date,
-      time: raw.inspectTime ?? raw.client?.time
-    };
+  try {
+    if (!raw || typeof raw !== 'object') return null;
+    const normalized: Record<string, unknown> = { ...raw };
+    if (!normalized.id || typeof normalized.id !== 'string') {
+      normalized.id = `legacy_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    }
+    let createdAt: string;
+    const rawCreated = raw.createdAt != null ? raw.createdAt : new Date().toISOString();
+    if (typeof rawCreated === 'number') {
+      const d = new Date(rawCreated);
+      createdAt = Number.isFinite(d.getTime()) ? d.toISOString() : new Date().toISOString();
+    } else {
+      const d = new Date(String(rawCreated));
+      createdAt = Number.isFinite(d.getTime()) ? d.toISOString() : new Date().toISOString();
+    }
+    normalized.createdAt = createdAt;
+    const total = raw.total ?? raw.totalPrice;
+    normalized.total = typeof total === 'string' ? parseFloat(total) || 0 : (Number(total) || 0);
+    if (normalized.rawTotal == null) normalized.rawTotal = normalized.total;
+    if (typeof normalized.rawTotal === 'string') normalized.rawTotal = parseFloat(normalized.rawTotal as string) || 0;
+    const status = normalized.status == null ? 'no_booking' : String(normalized.status);
+    normalized.status = KNOWN_STATUSES.includes(status as any) ? status : 'no_booking';
+    if (!normalized.client || typeof normalized.client !== 'object') {
+      normalized.client = {
+        name: raw.clientName ?? (raw.client && (raw.client as any).name) ?? 'Клиент без имени',
+        phone: raw.clientPhone ?? (raw.client && (raw.client as any).phone) ?? '',
+        company: raw.clientCompany ?? (raw.client && (raw.client as any).company) ?? '',
+        brand: raw.carBrand ?? (raw.client && (raw.client as any).brand) ?? '',
+        model: raw.carModel ?? (raw.client && (raw.client as any).model) ?? '',
+        plate: raw.carPlate ?? (raw.client && (raw.client as any).plate) ?? '',
+        date: raw.inspectDate ?? (raw.client && (raw.client as any).date) ?? '',
+        time: raw.inspectTime ?? (raw.client && (raw.client as any).time) ?? ''
+      };
+    } else {
+      const c = normalized.client as Record<string, unknown>;
+      if (c.name == null || typeof c.name !== 'string') c.name = 'Клиент без имени';
+      if (c.phone == null) c.phone = '';
+      else if (typeof c.phone !== 'string') c.phone = String(c.phone);
+    }
+    if (normalized.comment == null) normalized.comment = '';
+    if (!normalized.dents || typeof normalized.dents !== 'object') {
+      const legacyDents = raw.dent != null ? [raw.dent] : (Array.isArray(raw.quickDents) ? raw.quickDents : []);
+      normalized.dents = { count: legacyDents.length, items: Array.isArray(legacyDents) ? legacyDents : [] };
+    } else {
+      const d = normalized.dents as Record<string, unknown>;
+      if (!Array.isArray(d.items)) d.items = [];
+    }
+    if (normalized.mode == null) normalized.mode = 'quick';
+    if (normalized.discountPercent == null) normalized.discountPercent = 0;
+    else normalized.discountPercent = Number(normalized.discountPercent) || 0;
+    return normalized as any;
+  } catch (_e) {
+    if (import.meta.env?.DEV) console.warn('[history] normalizeHistoryRecord threw', _e);
+    return null;
   }
-  if (normalized.comment == null) normalized.comment = '';
-  if (!normalized.dents && (raw.dent != null || raw.quickDents != null)) {
-    const legacyDents = raw.dent != null ? [raw.dent] : (Array.isArray(raw.quickDents) ? raw.quickDents : []);
-    normalized.dents = { count: legacyDents.length, items: legacyDents };
-  }
-  if (normalized.mode == null) normalized.mode = 'quick';
-  if (normalized.discountPercent == null) normalized.discountPercent = 0;
-  else normalized.discountPercent = Number(normalized.discountPercent) || 0;
-  return normalized;
+}
+
+/** Ensure all items have unique ids (dedupe by appending -index when duplicate). */
+function dedupeIds(items: any[]): any[] {
+  const seen = new Set<string>();
+  return items.map((item, index) => {
+    if (!item || typeof item !== 'object') return item;
+    let id = item.id != null ? String(item.id) : `unknown_${index}`;
+    if (seen.has(id)) id = `${id}-${index}`;
+    seen.add(id);
+    return { ...item, id };
+  });
 }
 
 function persist(items: any[]) {
@@ -94,12 +133,13 @@ export function loadHistory(forceReload = false) {
   const raw = localStorage.getItem(STORAGE_KEY);
   const parsed = migrateHistory(safeParse(raw));
   const items: any[] = [];
-  for (const item of parsed.items || []) {
+  const rawItems = Array.isArray(parsed?.items) ? parsed.items : [];
+  for (const item of rawItems) {
     const norm = normalizeHistoryRecord(item);
     if (norm) items.push(norm);
     else if (import.meta.env?.DEV) console.warn('[history] skipping malformed record', item);
   }
-  historyItems.value = items;
+  historyItems.value = dedupeIds(items);
   historyLoaded.value = true;
   return historyItems.value;
 }

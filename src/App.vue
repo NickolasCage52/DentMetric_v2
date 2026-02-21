@@ -556,6 +556,19 @@
       @select="selectedHistoryId = $event"
       @update-status="handleHistoryStatusUpdate"
     />
+    <!-- DEV-only: QA history generator -->
+    <div
+      v-if="isDev && qaEnabled && currentSection === 'history' && !selectedHistory"
+      class="fixed left-4 bottom-[calc(var(--app-footer-height,64px)+80px)] z-[220] flex flex-col gap-2"
+    >
+      <button
+        type="button"
+        class="px-3 py-2 rounded-lg text-xs font-bold bg-amber-500/90 text-black border border-amber-400"
+        @click="generateQaHistoryRecords"
+      >
+        Generate 20 records
+      </button>
+    </div>
     <!-- History Detail overlay -->
     <div v-if="currentSection === 'history' && selectedHistory" class="content-padding-bottom p-4 space-y-3 overflow-y-auto" style="flex:1">
       <div class="card-metallic rounded-2xl p-4 space-y-2">
@@ -1087,6 +1100,7 @@ import SelectRow from './components/ui/SelectRow.vue';
 import { hideTelegramButtons } from './utils/telegramButtons';
 import HistoryScreen from './components/HistoryScreen.vue';
 
+const isDev = import.meta.env?.DEV === true;
 // DEV-only QA overlay (?qa=1). Must not ship in production bundles.
 const qaEnabled = computed(() => {
   if (typeof window === 'undefined') return false;
@@ -2179,6 +2193,36 @@ async function saveAndBookEstimate(modeOverride) {
 function clearHistoryConfirm() {
   if (historyItems.value.length === 0) return;
   if (confirm('Очистить всю историю?')) clearHistory();
+}
+
+function generateQaHistoryRecords() {
+  if (!import.meta.env?.DEV) return;
+  const statuses = ['no_booking', 'no_booking', 'booked', 'done'];
+  const names = ['Иван', '', 'Мария Петрова', 'Алексей', 'ООО Рога'];
+  const phones = ['+79001234567', '', '89001234568', '+7 900 111 22 33'];
+  const cars = [{ b: 'Toyota', m: 'Camry' }, { b: '', m: '' }, { b: 'BMW', m: 'X5' }];
+  const now = Date.now();
+  const day = 86400000;
+  for (let i = 0; i < 20; i++) {
+    const d = new Date(now - i * day * (i % 4 === 0 ? 0 : i % 4 === 1 ? 1 : i % 4 === 2 ? 7 : 40));
+    const draft = {
+      client: {
+        name: names[i % names.length],
+        phone: phones[i % phones.length],
+        brand: cars[i % 3].b,
+        model: cars[i % 3].m
+      },
+      dents: { count: i % 2 + 1, items: [{ panelElement: 'Капот', sizeCode: 'S2' }] },
+      total: 5000 + i * 500,
+      rawTotal: 5000 + i * 500,
+      createdAt: d.toISOString(),
+      status: statuses[i % 4],
+      element: 'Капот',
+      comment: i % 3 === 0 ? 'Тест' : ''
+    };
+    saveEstimate(draft);
+  }
+  loadHistory(true);
 }
 
 function deleteHistoryConfirm(id) {

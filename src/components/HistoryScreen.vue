@@ -58,8 +58,8 @@
         </div>
       </div>
       <div
-        v-for="item in displayItems"
-        :key="item.id"
+        v-for="(item, idx) in displayItems"
+        :key="item.id + '-' + idx"
         class="hs-card"
         @click="$emit('select', item.id)"
       >
@@ -109,8 +109,8 @@
             <div class="hs-search-results">
               <div v-if="searchResults.length === 0 && searchQuery.length > 0" class="hs-search-empty">Ничего не найдено</div>
               <button
-                v-for="r in searchResults"
-                :key="r.id"
+                v-for="(r, sIdx) in searchResults"
+                :key="(r.id || 's') + '-' + sIdx"
                 type="button"
                 class="hs-search-item"
                 @click="searchOpen = false; $emit('select', r.id)"
@@ -191,18 +191,37 @@ const fabBottom = computed(() => `calc(${props.footerHeight} + 16px)`);
 function dayStart(d) { const r = new Date(d); r.setHours(0,0,0,0); return r; }
 function dayEnd(d) { const r = new Date(d); r.setHours(23,59,59,999); return r; }
 
-function normalizeItem(item) {
+function normalizeItem(item, index) {
   if (!item || typeof item !== 'object') return null;
-  const normalized = { ...item };
-  if (!normalized.id) normalized.id = `legacy_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-  if (!normalized.createdAt) normalized.createdAt = new Date().toISOString();
-  if (typeof normalized.total === 'string') normalized.total = parseFloat(normalized.total) || 0;
-  if (typeof normalized.rawTotal === 'string') normalized.rawTotal = parseFloat(normalized.rawTotal) || 0;
-  return normalized;
+  try {
+    const normalized = { ...item };
+    if (!normalized.id || typeof normalized.id !== 'string') normalized.id = `hs_${index}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    if (!normalized.createdAt) normalized.createdAt = new Date().toISOString();
+    const d = new Date(normalized.createdAt);
+    if (!Number.isFinite(d.getTime())) normalized.createdAt = new Date().toISOString();
+    if (typeof normalized.total === 'string') normalized.total = parseFloat(normalized.total) || 0;
+    if (typeof normalized.rawTotal === 'string') normalized.rawTotal = parseFloat(normalized.rawTotal) || 0;
+    if (normalized.total == null || Number.isNaN(normalized.total)) normalized.total = 0;
+    if (!normalized.client || typeof normalized.client !== 'object') normalized.client = { name: 'Клиент без имени', phone: '' };
+    if (normalized.client && (normalized.client.name == null || typeof normalized.client.name !== 'string')) normalized.client = { ...normalized.client, name: 'Клиент без имени' };
+    if (normalized.client && normalized.client.phone == null) normalized.client = { ...normalized.client, phone: '' };
+    return normalized;
+  } catch (_e) {
+    return null;
+  }
 }
 
 const normalizedItems = computed(() => {
-  return props.historyItems.map(normalizeItem).filter(Boolean);
+  const list = Array.isArray(props.historyItems) ? props.historyItems : [];
+  const seen = new Set();
+  return list.map((item, index) => {
+    const n = normalizeItem(item, index);
+    if (!n) return null;
+    let id = n.id;
+    if (seen.has(id)) id = `${id}-${index}`;
+    seen.add(id);
+    return { ...n, id };
+  }).filter(Boolean);
 });
 
 const dateFilter = computed(() => {
@@ -224,9 +243,12 @@ const dateFilter = computed(() => {
 
 const filteredItems = computed(() => {
   const { from, to } = dateFilter.value;
+  const fromTime = Number.isFinite(from?.getTime?.()) ? from.getTime() : 0;
+  const toTime = Number.isFinite(to?.getTime?.()) ? to.getTime() : Date.now();
   return normalizedItems.value.filter((item) => {
     const d = new Date(item.createdAt);
-    return d >= from && d <= to;
+    const t = Number.isFinite(d.getTime()) ? d.getTime() : 0;
+    return t >= fromTime && t <= toTime;
   });
 });
 
@@ -242,7 +264,8 @@ const summary = computed(() => {
   const s = { noBooking: { count: 0, sum: 0 }, booked: { count: 0, sum: 0 }, done: { count: 0, sum: 0 }, all: { count: 0, sum: 0 } };
   for (const item of filteredItems.value) {
     const st = itemStatus(item);
-    const t = item.total || 0;
+    const t = Number(item?.total) || 0;
+    if (!Number.isFinite(t)) continue;
     s.all.count++; s.all.sum += t;
     if (st === 'booked') { s.booked.count++; s.booked.sum += t; }
     else if (st === 'done') { s.done.count++; s.done.sum += t; }
@@ -312,14 +335,19 @@ function maskedPhone(item) {
 }
 
 function relativeTime(item) {
-  const d = new Date(item.createdAt);
-  const now = new Date();
-  const today = dayStart(now);
-  const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
-  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-  if (d >= today) return `Сегодня ${time}`;
-  if (d >= yesterday) return `Вчера ${time}`;
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' ' + time;
+  try {
+    const d = new Date(item?.createdAt);
+    if (!Number.isFinite(d.getTime())) return '—';
+    const now = new Date();
+    const today = dayStart(now);
+    const yesterday = new Date(today); yesterday.setDate(yesterday.getDate() - 1);
+    const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+    if (d >= today) return `Сегодня ${time}`;
+    if (d >= yesterday) return `Вчера ${time}`;
+    return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' }) + ' ' + time;
+  } catch (_e) {
+    return '—';
+  }
 }
 
 function carLine(item) {
@@ -333,18 +361,22 @@ function carLine(item) {
 }
 
 function extractElement(item) {
-  if (item.element) {
-    const e = item.element;
-    return e.includes(':') ? e.split(':').pop() : e;
+  try {
+    const elVal = item?.element;
+    if (elVal != null && typeof elVal === 'string') {
+      return elVal.includes(':') ? elVal.split(':').pop() : elVal;
+    }
+    const dents = Array.isArray(item?.dents?.items) ? item.dents.items : (Array.isArray(item?.quickDents) ? item.quickDents : []);
+    if (dents.length > 0) {
+      const first = dents[0];
+      const el = first && typeof first === 'object' && first.panelElement != null ? String(first.panelElement) : '';
+      if (dents.length > 1) return `${el} +${dents.length - 1}`;
+      return el;
+    }
+    return '';
+  } catch (_e) {
+    return '';
   }
-  const dents = item.dents?.items || item.quickDents || [];
-  if (dents.length > 0) {
-    const first = dents[0];
-    const el = first.panelElement || '';
-    if (dents.length > 1) return `${el} +${dents.length - 1}`;
-    return el;
-  }
-  return '';
 }
 
 function badgeText(item) {
@@ -361,11 +393,17 @@ function badgeClass(item) {
   return 'hs-badge--none';
 }
 
-const fmtPrice = (v) => new Intl.NumberFormat('ru-RU').format(Math.round(v));
-const fmtK = (v) => {
-  if (v >= 1000) return new Intl.NumberFormat('ru-RU').format(Math.round(v));
-  return String(Math.round(v));
-};
+function fmtPrice(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '0';
+  return new Intl.NumberFormat('ru-RU').format(Math.round(n));
+}
+function fmtK(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return '0';
+  if (n >= 1000) return new Intl.NumberFormat('ru-RU').format(Math.round(n));
+  return String(Math.round(n));
+}
 </script>
 
 <style scoped>
