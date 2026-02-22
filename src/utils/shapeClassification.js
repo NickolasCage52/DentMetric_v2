@@ -1,16 +1,16 @@
 /**
- * Automatic damage shape classification by aspect ratio (SOURCE OF TRUTH: spec screenshots).
+ * Automatic damage shape classification by aspect ratio (SOURCE OF TRUTH).
  *
  * Compute R = L/H, where L = max(w,h), H = min(w,h).
  * Boundaries:
- * - 1.00 ≤ R < 1.40 → round (Круг)
+ * - R < 1.40 → round (Круг)
  * - 1.40 ≤ R < 3.00 → oval (Овал)
- * - 3.00 ≤ R ≤ 6.00 → oval_long (Вытянутый овал)
- * - R > 6.00 → stripe (Полоса)
+ * - R ≥ 3.00 → stripe (Полоса)
+ * (Вытянутый овал removed; R ≥ 3 uses stripe pipeline.)
  *
  * @param {number} widthMm
  * @param {number} heightMm
- * @returns {'round' | 'oval' | 'oval_long' | 'stripe'}
+ * @returns {'round' | 'oval' | 'stripe'}
  */
 export function classifyDamageShapeByRatio(widthMm, heightMm) {
   const w = Number(widthMm);
@@ -28,14 +28,13 @@ export function classifyDamageShapeByRatio(widthMm, heightMm) {
 
   if (R < 1.4) return 'round';
   if (R < 3.0) return 'oval';
-  if (R <= 6.0) return 'oval_long';
   return 'stripe';
 }
 
 /**
  * Back-compat alias: previous name used across the app.
  * @param {{ widthMm: number, heightMm: number }} size
- * @returns {'round' | 'oval' | 'oval_long' | 'stripe'}
+ * @returns {'round' | 'oval' | 'stripe'}
  */
 export function classifyShapeByRatio(size) {
   const w = size?.widthMm;
@@ -46,7 +45,7 @@ export function classifyShapeByRatio(size) {
 /**
  * Back-compat alias: older name used across the app.
  * @param {{ widthMm: number, heightMm: number }} size
- * @returns {'round' | 'oval' | 'oval_long' | 'stripe'}
+ * @returns {'round' | 'oval' | 'stripe'}
  */
 export function classifyShapeByAspectRatio({ widthMm, heightMm }) {
   return classifyDamageShapeByRatio(widthMm, heightMm);

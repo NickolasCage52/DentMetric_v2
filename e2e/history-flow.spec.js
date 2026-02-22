@@ -5,12 +5,24 @@ import { test, expect } from '@playwright/test';
 
 async function selectFirstOptionInModal(page) {
   const overlay = page.locator('.select-modal-overlay');
-  await overlay.waitFor({ state: 'visible', timeout: 5000 });
+  await overlay.waitFor({ state: 'visible', timeout: 8000 });
   const opt = page.getByTestId('select-option-0');
   await opt.waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(250);
   await opt.scrollIntoViewIfNeeded();
   await opt.click();
+  await overlay.waitFor({ state: 'hidden', timeout: 5000 });
+}
+
+async function selectInMultiSelectModal(page) {
+  const overlay = page.locator('.select-modal-overlay');
+  await overlay.waitFor({ state: 'visible', timeout: 8000 });
+  const opt = page.getByTestId('select-option-0');
+  await opt.waitFor({ state: 'visible', timeout: 5000 });
+  await page.waitForTimeout(250);
+  await opt.scrollIntoViewIfNeeded();
+  await opt.click();
+  await page.getByTestId('select-confirm').click();
   await overlay.waitFor({ state: 'hidden', timeout: 5000 });
 }
 
@@ -50,12 +62,22 @@ async function fillQuickDentAndConditions(page) {
   await page.getByTestId('quick-panel-element').click({ force: true });
   await selectFirstOptionInModal(page);
 
-  await page.getByTestId('quick-size-pill-S6').click({ force: true });
+  await page.getByTestId('quick-presets').click({ force: true });
+  const presetS6 = page.getByTestId('preset-S6');
+  await presetS6.scrollIntoViewIfNeeded();
+  await presetS6.click({ force: true });
+  await page.locator('.presets-modal-overlay').waitFor({ state: 'hidden', timeout: 3000 });
 
   for (const tid of ['quick-param-repair', 'quick-param-risk', 'quick-param-material', 'quick-param-carclass']) {
-    await page.getByTestId(tid).click({ force: true });
+    const row = page.getByTestId(tid);
+    await row.scrollIntoViewIfNeeded();
+    await row.click({ force: true });
     await selectFirstOptionInModal(page);
   }
+  const armatureRow = page.getByTestId('quick-armaturnaya');
+  await armatureRow.scrollIntoViewIfNeeded();
+  await armatureRow.click({ force: true });
+  await selectInMultiSelectModal(page);
 }
 
 test.describe('History flow', () => {

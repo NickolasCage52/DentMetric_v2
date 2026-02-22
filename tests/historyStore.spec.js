@@ -124,6 +124,24 @@ describe('historyStore', () => {
       const out = normalizeHistoryRecord({ dents: {} });
       expect(Array.isArray(out.dents.items)).toBe(true);
     });
+
+    it('normalizes old oval_long dimensions (R>=3) to stripe type', () => {
+      const raw = {
+        total: 5000,
+        client: { name: 'Test', phone: '' },
+        dents: {
+          items: [
+            { id: '1', type: 'circle', shape: 'circle', bboxMm: { width: 100, height: 300 } },
+            { id: '2', type: 'circle', sizeLengthMm: 50, sizeWidthMm: 400 },
+          ],
+        },
+      };
+      const out = normalizeHistoryRecord(raw);
+      expect(out.dents.items[0].type).toBe('strip');
+      expect(out.dents.items[0].shape).toBe('strip');
+      expect(out.dents.items[1].type).toBe('strip');
+      expect(out.dents.items[1].shape).toBe('strip');
+    });
   });
 
   it('loadHistory dedupes duplicate ids', () => {

@@ -75,10 +75,11 @@ test.describe('Settings toggles', () => {
   test('optional fields toggles hide corresponding rows in quick and detail', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.getByRole('navigation').getByRole('button', { name: /Настройки/i }).click({ force: true });
+    await page.getByTestId('settings-show-client-quick').setChecked(false);
     await page.getByTestId('settings-show-paint-material').setChecked(false);
     await page.getByTestId('settings-show-sound-insulation').setChecked(false);
 
-    // Quick: go to step 2 and ensure rows not present
+    // Quick: go to step 2 (client step skipped) and ensure rows not present
     await page.getByTestId('nav-metric').click({ force: true });
     await page.getByTestId('metric-standard').click({ force: true });
     // If client step exists, skip it

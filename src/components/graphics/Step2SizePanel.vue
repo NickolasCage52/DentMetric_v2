@@ -208,7 +208,6 @@ const freeformBboxHint = computed(() => {
   const classified = classifyDamageShapeByRatio(w, h);
   if (classified === 'stripe') return 'Полоса';
   if (classified === 'round') return 'Круг';
-  if (classified === 'oval_long') return 'Вытянутый овал';
   return 'Овал';
 });
 

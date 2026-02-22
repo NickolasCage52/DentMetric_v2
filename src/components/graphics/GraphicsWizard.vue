@@ -82,9 +82,20 @@
       class="graphics-controls-area shrink-0 border-t border-white/10 bg-black/80 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[env(safe-area-inset-bottom,0px)]"
       :style="controlsAreaKeyboardStyle"
     >
+      <QuickStyleClientSection
+        v-if="props.useQuickUiInDetail && wizardStep === 1 && props.showClientStep"
+        :model="props.estimateDraft"
+        :client-required="clientRequired"
+        :can-next="clientValid"
+        :show-info-tooltips="userSettings?.showInfoTooltips !== false"
+        @next="() => goToStep(2)"
+        @back="goBack"
+        @open-field="onQuickStyleOpenField"
+        @reset-client="resetClientFields"
+      />
       <Step0ClientPanel
-        v-if="wizardStep === 1 && props.showClientStep"
-        :model="estimateDraft"
+        v-else-if="!props.useQuickUiInDetail && wizardStep === 1 && props.showClientStep"
+        :model="props.estimateDraft"
         :client-required="clientRequired"
         :can-next="clientValid"
         @next="() => goToStep(2)"
@@ -116,8 +127,22 @@
         @next="() => goToStep(4)"
         @back="goBack"
       />
+      <QuickStyleConditionsSection
+        v-else-if="props.useQuickUiInDetail && wizardStep === 4"
+        :model="form"
+        :initial-data="initialData"
+        :selected-part-name="selectedPart?.name"
+        :total-price="displayTotal"
+        :show-paint-material="userSettings?.showPaintMaterial !== false"
+        :show-sound-insulation="userSettings?.showSoundInsulation !== false"
+        :armature-summary="detailArmatureSummary"
+        @back="goBack"
+        @calculate="() => goToStep(5)"
+        @pick="onQuickStylePickParam"
+        @pick-armature="onQuickStylePickArmature"
+      />
       <Step3ConditionsPanel
-        v-else-if="wizardStep === 4"
+        v-else-if="!props.useQuickUiInDetail && wizardStep === 4"
         :model="form"
         :initial-data="initialData"
         :selected-part-name="selectedPart?.name"
@@ -129,8 +154,22 @@
         @back="goBack"
         @calculate="() => goToStep(5)"
       />
+      <QuickStyleFinalSection
+        v-else-if="props.useQuickUiInDetail && wizardStep === 5"
+        :line-items="detailLineItems"
+        :initial-data="initialData"
+        :format-armaturnaya-summary="formatArmaturnayaSummary"
+        :comment="estimateDraft.comment"
+        :discount-percent="clampDiscount(estimateDraft.discountPercent)"
+        :history-saving="historySaving"
+        @back="goBack"
+        @save="emit('save-history')"
+        @book="emit('save-history')"
+        @open-discount="openDetailDiscountModal"
+        @open-comment="openDetailCommentModal"
+      />
       <Step4SummaryPanel
-        v-else-if="wizardStep === 5"
+        v-else-if="!props.useQuickUiInDetail && wizardStep === 5"
         :breakdown="breakdown"
         :total-price="displayTotal"
         :pre-discount-total="preDiscountTotal"
@@ -248,10 +287,11 @@ import {
   setDisplayUnit
 } from '../../graphics/konvaEditor';
 import { classifyDamageShapeByRatio } from '../../utils/shapeClassification';
-import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown, roundPrice } from '../../utils/priceCalc';
+import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown, roundPrice, getPerDentCoresAndAddons } from '../../utils/priceCalc';
 import { normalizeGraphicsDentsForPricing } from '../../features/pricing/pricingAdapter';
 import { applyPriceRoundingCeil } from '../../utils/priceRounding';
 import { applyDiscount, clampDiscount } from '../../utils/discount';
+import { calculateSessionTotalWithMultiDentRule } from '../../utils/multiDentAggregation';
 import StepHeader from './StepHeader.vue';
 import Step0ClientPanel from './Step0ClientPanel.vue';
 import Step1PlacementPanel from './Step1PlacementPanel.vue';
@@ -260,6 +300,12 @@ import Step3ConditionsPanel from './Step3ConditionsPanel.vue';
 import Step4SummaryPanel from './Step4SummaryPanel.vue';
 import StepDots from './StepDots.vue';
 import FreeformDrawModal from './FreeformDrawModal.vue';
+import QuickStyleClientSection from '../quickStyle/QuickStyleClientSection.vue';
+import QuickStyleConditionsSection from '../quickStyle/QuickStyleConditionsSection.vue';
+import QuickStyleFinalSection from '../quickStyle/QuickStyleFinalSection.vue';
+import { calculateDentPrice as calcDentViaAdapter } from '../../features/pricing/pricingAdapter';
+import { formatArmaturnayaSummary, getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks';
+import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from '../../utils/armatureSelection';
 
 const props = defineProps({
   form: { type: Object, required: true },
@@ -278,10 +324,12 @@ const props = defineProps({
   clientRequired: { type: Boolean, default: false },
   clientValid: { type: Boolean, default: true },
   showClientStep: { type: Boolean, default: true },
-  autoSave: { type: Boolean, default: false }
+  autoSave: { type: Boolean, default: false },
+  useQuickUiInDetail: { type: Boolean, default: true }
 });
 
 const openInputModal = inject('openInputModal');
+const openSelectModal = inject('openSelectModal');
 
 async function openClientField(field, label, inputType) {
   const value = await openInputModal({
@@ -419,9 +467,20 @@ const dentsForPricing = computed(() => {
 });
 const basePrice = computed(() => calcBasePriceFromDents(dentsForPricing.value));
 const conditionsForCalc = computed(() => props.conditionsForCalc || props.form);
-const totalPriceRaw = computed(() =>
-  calcTotalPrice(dentsForPricing.value, conditionsForCalc.value, props.initialData, props.userSettings?.priceRoundStep ?? 0)
-);
+const totalPriceRaw = computed(() => {
+  const dents = dentsForPricing.value;
+  const cond = conditionsForCalc.value;
+  if (!dents?.length) return 0;
+  const { perDentCores, disCost, soundCost } = getPerDentCoresAndAddons(dents, cond, props.initialData);
+  if (perDentCores.length <= 1) {
+    return Math.max(0, (perDentCores[0] ?? 0) + disCost + soundCost);
+  }
+  const { total: aggregated } = calculateSessionTotalWithMultiDentRule(perDentCores, {
+    enableSecondDentDiscount: props.userSettings?.enableSecondDentDiscount,
+    secondDentDiscountPercent: props.userSettings?.secondDentDiscountPercent
+  });
+  return Math.max(0, aggregated + disCost + soundCost);
+});
 const totalPrice = computed(() =>
   applyDiscount(totalPriceRaw.value, clampDiscount(props.estimateDraft?.discountPercent))
 );
@@ -437,6 +496,138 @@ const breakdown = computed(() => {
   props.estimateDraft.breakdown = items;
   return items;
 });
+
+/** Per-dent line items for Quick-style final (Detail mode) */
+const detailLineItems = computed(() => {
+  const dents = dentsForPricing.value;
+  const cond = conditionsForCalc.value;
+  if (!dents?.length || !cond) return [];
+  const ctx = {
+    sizesWithArea: null,
+    prices: props.userSettings?.prices ?? {},
+    initialData: props.initialData,
+    roundStep: props.userSettings?.priceRoundStep ?? 0
+  };
+  const list = dents.map((dent) => {
+    const bbox = dent?.bboxMm || {};
+    const w = Number(bbox.width) || 0;
+    const h = Number(bbox.height) || 0;
+    const shape = dent?.type === 'strip' ? 'strip' : 'circle';
+    const sizes = shape === 'circle' ? props.circleSizes : props.stripSizes;
+    ctx.sizesWithArea = sizes && sizes.length ? sizes : [];
+    const conditions = props.userSettings?.showPaintMaterial !== false ? cond : { ...cond, paintMaterialCode: null };
+    const result = calcDentViaAdapter(
+      { shape, widthMm: w, heightMm: h, conditions, panelElement: props.selectedPart?.name },
+      ctx
+    );
+    const dentDisplay = {
+      ...dent,
+      conditions,
+      panelElement: props.selectedPart?.name,
+      bboxMm: dent.bboxMm,
+      sizeLengthMm: w,
+      sizeWidthMm: h
+    };
+    return { dent: dentDisplay, sizeCode: result.sizeCode, base: result.base, total: result.total, breakdown: result.breakdown };
+  });
+  const filtered = list.filter((d) => d.total > 0).sort((a, b) => b.total - a.total);
+  if (filtered.length === 0) return [];
+  const totals = filtered.map((d) => d.total);
+  const { weightedTotals } = calculateSessionTotalWithMultiDentRule(totals, {
+    enableSecondDentDiscount: props.userSettings?.enableSecondDentDiscount,
+    secondDentDiscountPercent: props.userSettings?.secondDentDiscountPercent
+  });
+  const roundStep = props.userSettings?.priceRoundStep ?? 0;
+  const discPct = clampDiscount(props.estimateDraft?.discountPercent);
+  return filtered.map((item, idx) => {
+    const rawApplied = weightedTotals[idx] ?? item.total;
+    const afterDiscount = applyDiscount(rawApplied, discPct);
+    const applied = roundStep > 0
+      ? applyPriceRoundingCeil(afterDiscount, roundStep)
+      : Math.round(afterDiscount);
+    return { ...item, appliedTotal: applied, rawDiscounted: afterDiscount, preDiscountTotal: Math.round(rawApplied), discount: idx > 0, discountPercent: discPct };
+  });
+});
+
+const detailArmatureSummary = computed(() =>
+  formatArmaturnayaSummary(props.form?.disassemblyCodes, props.selectedPart?.name) || ''
+);
+
+function resetClientFields() {
+  props.estimateDraft.clientName = '';
+  props.estimateDraft.clientCompany = '';
+  props.estimateDraft.clientPhone = '';
+  props.estimateDraft.carBrand = '';
+  props.estimateDraft.carModel = '';
+  props.estimateDraft.carPlate = '';
+}
+
+async function onQuickStyleOpenField(field, label, inputType, placeholder) {
+  const value = await openInputModal({
+    title: 'Данные клиента',
+    label,
+    value: props.estimateDraft[field] ?? '',
+    inputType,
+    placeholder: placeholder || label
+  });
+  if (value !== undefined && value !== null) props.estimateDraft[field] = value;
+}
+
+async function onQuickStylePickParam(field, title, options) {
+  if (!openSelectModal || !props.form) return;
+  const selected = await openSelectModal({
+    title,
+    options: options || [],
+    value: props.form[field] ?? null
+  });
+  if (selected === undefined) return;
+  props.form[field] = selected || null;
+}
+
+async function onQuickStylePickArmature() {
+  if (!openSelectModal || !props.form) return;
+  const works = getArmaturnayaWorksForElement(props.selectedPart?.name);
+  const cur = normalizeArmatureWorkIds(props.form.disassemblyCodes);
+  const selected = await openSelectModal({
+    title: 'Арматурные работы',
+    multiple: true,
+    toggleMultipleValue: (current, toggled) => toggleArmatureWorkIds(current, toggled),
+    options: works.map((w) => ({
+      value: w.code,
+      label: w.name,
+      rightText: w.price > 0 ? `${w.price.toLocaleString('ru-RU')} ₽` : ''
+    })),
+    value: cur,
+    confirmText: 'Готово'
+  });
+  if (selected === undefined) return;
+  props.form.disassemblyCodes = normalizeArmatureWorkIds(selected);
+}
+
+async function openDetailDiscountModal() {
+  const value = await openInputModal({
+    title: 'Скидка',
+    label: 'Скидка (%)',
+    value: props.estimateDraft.discountPercent ?? '',
+    inputType: 'number',
+    placeholder: '0',
+    min: 0,
+    max: 100
+  });
+  if (value === undefined) return;
+  props.estimateDraft.discountPercent = value === '' || value === null ? null : clampDiscount(value);
+}
+
+async function openDetailCommentModal() {
+  const value = await openInputModal({
+    title: 'Комментарий',
+    label: 'Комментарий к оценке (необязательно)',
+    value: props.estimateDraft.comment ?? '',
+    multiline: true,
+    placeholder: 'Введите комментарий...'
+  });
+  if (value !== undefined) props.estimateDraft.comment = value ?? '';
+}
 const freeformUsed = computed(() => dents.value?.some((d) => d?.type === 'freeform'));
 const freeformAreaMm2 = computed(() => dents.value.reduce((sum, d) => {
   if (d?.type !== 'freeform') return sum;

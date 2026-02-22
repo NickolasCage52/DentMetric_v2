@@ -116,7 +116,8 @@ export function calcTotalPrice(dents, conditions, initialData, roundStep = 0) {
     return Math.round(base / roundStep) * roundStep;
   }
 
-  const dentsTotal = dents.reduce((sum, dent) => sum + calculateDentPrice(dent, conditions, initialData), 0);
+  const perDentCores = dents.map((dent) => calculateDentPrice(dent, conditions, initialData));
+  const dentsTotal = perDentCores.reduce((sum, v) => sum + v, 0);
   let disCost = 0;
   if (typeof conditions.disassemblyCost === 'number') {
     disCost = conditions.disassemblyCost;
@@ -130,6 +131,37 @@ export function calcTotalPrice(dents, conditions, initialData, roundStep = 0) {
   const total = dentsTotal + disCost + soundCost;
   if (!roundStep || roundStep <= 0) return Math.max(0, total);
   return Math.round(total / roundStep) * roundStep;
+}
+
+/**
+ * Per-dent core totals (before disassembly/sound add-ons) for multi-dent aggregation.
+ * @param {Array} dents
+ * @param {object} conditions
+ * @param {object} initialData
+ * @returns {{ perDentCores: number[], disCost: number, soundCost: number }}
+ */
+export function getPerDentCoresAndAddons(dents, conditions, initialData) {
+  if (!dents || !Array.isArray(dents) || dents.length === 0) {
+    return { perDentCores: [], disCost: 0, soundCost: 0 };
+  }
+  const hasDisassembly = typeof conditions?.disassemblyCost === 'number' || conditions?.disassemblyCode;
+  const hasConditions =
+    conditions?.repairCode &&
+    conditions?.riskCode &&
+    conditions?.materialCode &&
+    conditions?.carClassCode &&
+    hasDisassembly;
+  if (!hasConditions) {
+    const perDentCores = dents.map((d) => normalizeNumber(d?.price, 0));
+    return { perDentCores, disCost: 0, soundCost: 0 };
+  }
+  const perDentCores = dents.map((dent) => calculateDentPrice(dent, conditions, initialData));
+  let disCost = 0;
+  if (typeof conditions.disassemblyCost === 'number') disCost = conditions.disassemblyCost;
+  else if (conditions.disassemblyCode) disCost = initialData.disassembly?.find((d) => d.code === conditions.disassemblyCode)?.price ?? 0;
+  let soundCost = 0;
+  if (conditions.soundInsulationCode) soundCost = initialData.soundInsulation?.find((s) => s.code === conditions.soundInsulationCode)?.price ?? 0;
+  return { perDentCores, disCost, soundCost };
 }
 
 /**

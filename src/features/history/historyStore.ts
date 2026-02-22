@@ -1,4 +1,5 @@
 import { ref } from 'vue';
+import { classifyDamageShapeByRatio } from '../../utils/shapeClassification';
 
 export const HISTORY_SCHEMA_VERSION = 1;
 export const STORAGE_KEY = `dentmetric_history_v${HISTORY_SCHEMA_VERSION}`;
@@ -85,6 +86,17 @@ export function normalizeHistoryRecord(raw: any): any | null {
     } else {
       const d = normalized.dents as Record<string, unknown>;
       if (!Array.isArray(d.items)) d.items = [];
+    }
+    // Backward compat: old oval_long (R>=3) → stripe; normalize dent type on load
+    const dentItems = (normalized.dents as any)?.items ?? [];
+    for (const dent of dentItems) {
+      if (!dent || typeof dent !== 'object') continue;
+      const w = Number(dent.bboxMm?.width ?? dent.sizeLengthMm) || 0;
+      const h = Number(dent.bboxMm?.height ?? dent.sizeWidthMm) || 0;
+      if (w > 0 && h > 0 && classifyDamageShapeByRatio(w, h) === 'stripe') {
+        dent.type = 'strip';
+        dent.shape = 'strip';
+      }
     }
     if (normalized.mode == null) normalized.mode = 'quick';
     if (normalized.discountPercent == null) normalized.discountPercent = 0;

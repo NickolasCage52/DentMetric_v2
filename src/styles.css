@@ -238,3 +238,82 @@ h3 { font-size: clamp(1rem, 2.5vw, 1.25rem); }
 .fade-leave-to {
   opacity: 0;
 }
+
+/* ── Detail Step 4 & 5: match Quick (qc-compact) tokens for 1:1 visual alignment ── */
+.graphics-step-4 .graphics-controls-area,
+.graphics-step-5 .graphics-controls-area {
+  --qc-section-gap: 6px;
+  --qc-card-px: 10px;
+  --qc-card-py: 8px;
+  --qc-row-min-h: 36px;
+  --qc-seg-min-h: 36px;
+  --qc-label-fs: 9px;
+  --qc-value-fs: 12px;
+  --qc-title-fs: 9px;
+}
+.graphics-step-4 .graphics-controls-area .qc-select-row,
+.graphics-step-5 .graphics-controls-area .qc-select-row {
+  min-height: var(--qc-row-min-h);
+  padding: 6px 10px;
+  border-radius: 0.625rem;
+}
+.graphics-step-4 .graphics-controls-area .qc-section-title,
+.graphics-step-5 .graphics-controls-area .qc-section-title {
+  font-size: var(--qc-title-fs);
+}
+.graphics-step-4 .graphics-controls-area .qc-sr-value,
+.graphics-step-5 .graphics-controls-area .qc-sr-value {
+  font-size: var(--qc-value-fs);
+}
+.graphics-step-4 .graphics-controls-area .qc-price-block,
+.graphics-step-5 .graphics-controls-area .qc-price-block {
+  text-align: center;
+  padding: 6px 0 2px;
+}
+.graphics-step-4 .graphics-controls-area .qc-price-label,
+.graphics-step-5 .graphics-controls-area .qc-price-label {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #6b7280;
+}
+.graphics-step-4 .graphics-controls-area .qc-price-value,
+.graphics-step-5 .graphics-controls-area .qc-price-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #88e523;
+  line-height: 1.15;
+}
+.graphics-step-4 .graphics-controls-area .qc-cta,
+.graphics-step-5 .graphics-controls-area .qc-cta {
+  min-height: 42px;
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-radius: 0.75rem;
+  color: #000;
+  background: #88e523;
+  box-shadow: 0 0 15px rgba(136, 229, 35, 0.35);
+}
+.graphics-step-4 .graphics-controls-area .qc-cta:disabled,
+.graphics-step-5 .graphics-controls-area .qc-cta:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* Conditions scroll: use gap (matches Quick) instead of space-y in Detail */
+.graphics-step-4 .quick-style-conditions > div.flex-1.overflow-y-auto {
+  gap: var(--qc-section-gap);
+}
+.graphics-step-4 .quick-style-conditions > div.flex-1.overflow-y-auto > * + * {
+  margin-top: 0 !important;
+}
+/* Final scroll: same section gap for breakdown cards */
+.graphics-step-5 .quick-style-final > div.flex-1.overflow-y-auto {
+  gap: var(--qc-section-gap);
+}
+.graphics-step-5 .quick-style-final > div.flex-1.overflow-y-auto > * + * {
+  margin-top: 0 !important;
+}

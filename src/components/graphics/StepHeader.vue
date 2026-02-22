@@ -9,7 +9,7 @@
       <span class="hidden sm:inline">Домой</span>
     </button>
     <img
-      src="/logo.png"
+      src="/dm-small.png"
       alt="DentMetric"
       class="graphics-header-logo h-7 w-auto max-w-full object-contain min-w-0"
       style="border:none;box-shadow:none"

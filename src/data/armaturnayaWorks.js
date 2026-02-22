@@ -68,6 +68,15 @@ export function getArmaturnayaWorksForElement(panelElement) {
   return [...base, ...works];
 }
 
+export function formatArmaturnayaSummary(codes, panelElement) {
+  const arr = Array.isArray(codes) ? codes : [];
+  const works = getArmaturnayaWorksForElement(panelElement);
+  const byCode = new Map(works.map((w) => [w.code, w]));
+  const normalized = arr.length ? arr : ['Z0'];
+  if (normalized.length === 1) return byCode.get(normalized[0])?.name || '—';
+  return `${normalized.length} выбрано`;
+}
+
 export function getArmaturnayaTotalPrice(codes, panelElement) {
   if (!codes || codes.length === 0) return 0;
   if (codes.length === 1 && codes[0] === 'Z0') return 0;

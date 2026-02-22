@@ -193,7 +193,40 @@
               </div>
             </div>
 
-            <div v-else-if="quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)" class="qc-compact" style="display:flex;flex-direction:column;gap:var(--qc-section-gap)">
+            <div v-else-if="quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)" data-testid="quick-step2" class="qc-compact" style="display:flex;flex-direction:column;gap:var(--qc-section-gap)">
+              <div class="flex items-center gap-2 flex-wrap mb-2">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Повреждения</span>
+                <div class="flex gap-1.5 flex-wrap items-center">
+                  <button
+                    v-for="(d, i) in estimateDraft.quickDents"
+                    :key="d.id"
+                    type="button"
+                    class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all touch-manipulation"
+                    :class="activeQuickDentId === d.id ? 'bg-metric-green text-black' : 'bg-white/10 text-gray-400 hover:bg-white/15 hover:text-white border border-white/10'"
+                    @click="setActiveQuickDent(d.id)"
+                  >
+                    Вмятина {{ i + 1 }}
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="quick-add-dent"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-metric-green/20 text-metric-green border border-metric-green/40 hover:bg-metric-green/30 transition-all touch-manipulation"
+                    @click="addQuickDent(); nextTick(() => metricScrollRef?.value?.scrollTo?.({ top: 0, behavior: 'smooth' }))"
+                  >
+                    +
+                  </button>
+                  <button
+                    v-if="estimateDraft.quickDents.length > 1"
+                    type="button"
+                    data-testid="quick-remove-dent"
+                    class="p-1.5 rounded-lg text-red-400 hover:bg-red-500/20 transition-all touch-manipulation"
+                    aria-label="Удалить повреждение"
+                    @click="removeActiveQuickDent"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                  </button>
+                </div>
+              </div>
               <div v-if="!activeQuickDent" class="card-metallic rounded-2xl p-5 text-center text-gray-400">
                 Повреждение не выбрано
               </div>
@@ -230,7 +263,7 @@
                 <div class="card-metallic rounded-xl" style="padding:var(--qc-card-py) var(--qc-card-px)">
                   <div class="flex items-center justify-between mb-1.5">
                     <span class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest">ГЕОМЕТРИЯ ПОВРЕЖДЕНИЯ</span>
-                    <button type="button" class="qc-preset-chip" @click="quickGeometryTab = 'standard'; openQuickManualSize(activeQuickDent)">пресеты</button>
+                    <button type="button" class="qc-preset-chip" data-testid="quick-presets" @click="presetsModalOpen = true">ПРЕСЕТЫ</button>
                   </div>
                   <div class="grid grid-cols-2 gap-1.5">
                     <button
@@ -352,6 +385,22 @@
                       </div>
                     </button>
                     <button
+                      v-if="userSettings.showPaintMaterial"
+                      type="button"
+                      data-testid="quick-param-paint"
+                      class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
+                      :class="activeQuickDent.conditions?.paintMaterialCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      @click="openQuickPaintPicker(activeQuickDent)"
+                    >
+                      <div class="min-w-0 flex-1">
+                        <div class="qc-sr-value text-[12px] font-semibold truncate" :class="activeQuickDent.conditions?.paintMaterialCode ? 'text-white' : 'text-gray-400'">{{ getPaintMaterialLabel(activeQuickDent.conditions?.paintMaterialCode) || 'Материал ЛКП' }}</div>
+                      </div>
+                      <div class="shrink-0 flex items-center gap-1.5">
+                        <div v-if="activeQuickDent.conditions?.paintMaterialCode" class="w-3 h-3 rounded-full bg-metric-green/80" aria-hidden="true"></div>
+                        <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
+                      </div>
+                    </button>
+                    <button
                       v-if="userSettings.showSoundInsulation"
                       type="button"
                       class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
@@ -436,7 +485,7 @@
                   <!-- Total -->
                   <div class="qc-bk-row qc-bk-row--total">
                     <span class="font-bold text-white text-[13px]">Итог по вмятине:</span>
-                    <span class="text-metric-green font-bold text-[18px] tabular-nums">{{ formatRoundedPrice(dentItem.appliedTotal) }} ₽</span>
+                    <span :data-testid="idx === 0 ? 'total-price' : undefined" class="text-metric-green font-bold text-[18px] tabular-nums">{{ formatRoundedPrice(dentItem.appliedTotal) }} ₽</span>
                   </div>
                 </div>
               </template>
@@ -480,6 +529,7 @@
           :selected-part="graphicsState.selectedPart"
           :circle-sizes="graphicsCircleSizes"
           :strip-sizes="graphicsStripSizes"
+        :use-quick-ui-in-detail="userSettings.useQuickUiInDetail !== false"
         :estimate-draft="estimateDraft"
         :history-saving="isSavingHistory"
           :client-required="userSettings.clientRequired"
@@ -682,6 +732,52 @@
             </label>
           </div>
           <p class="text-[10px] text-gray-500 mt-2">Отображение в списках. Ввод всегда в мм.</p>
+        </div>
+        <div class="border-t border-white/10 pt-4 mt-2">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Быстрое изменение цен</p>
+          <p class="text-[10px] text-gray-500 mb-2">Разово применить ±10% ко всем базовым ценам (круг и полосы).</p>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              data-testid="bulk-price-minus-10"
+              class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]"
+              @click="applyBulkPriceAdjustment(-10)"
+            >
+              −10%
+            </button>
+            <button
+              type="button"
+              data-testid="bulk-price-plus-10"
+              class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]"
+              @click="applyBulkPriceAdjustment(10)"
+            >
+              +10%
+            </button>
+          </div>
+        </div>
+        <div class="border-t border-white/10 pt-4 mt-2">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Скидка на 2-ю вмятину</p>
+          <div class="flex items-center justify-between gap-3 py-1">
+            <span class="text-sm text-gray-300 flex-1">Включить настраиваемую скидку</span>
+            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+              <input data-testid="settings-enable-second-dent-discount" v-model="userSettings.enableSecondDentDiscount" type="checkbox" class="sr-only peer">
+              <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
+              <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+            </label>
+          </div>
+          <div v-if="userSettings.enableSecondDentDiscount" class="flex items-center justify-between gap-3 py-2 mt-1">
+            <span class="text-sm text-gray-300 flex-1">Размер скидки (%)</span>
+            <button
+              type="button"
+              data-testid="settings-second-dent-discount-percent"
+              class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-sm text-white min-h-[44px] min-w-[100px] touch-manipulation"
+              @click="openSecondDentDiscountModal"
+            >
+              <span>{{ userSettings.secondDentDiscountPercent }}</span>
+              <span class="text-gray-500 shrink-0">✎</span>
+            </button>
+          </div>
+          <p class="text-[10px] text-gray-500 mt-1">Выкл: 50% для доп. вмятин. Вкл: задайте свой %.</p>
         </div>
         <div class="border-t border-white/10 pt-4 mt-2">
           <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">1.2 Базовый прайс</p>
@@ -1056,15 +1152,24 @@
     <Transition name="toast">
       <div
         v-if="toast.visible"
-        class="fixed left-1/2 -translate-x-1/2 z-[300] px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest shadow-xl backdrop-blur-sm"
+        class="fixed left-1/2 -translate-x-1/2 z-[300] px-5 py-3 rounded-xl text-xs font-bold uppercase tracking-widest shadow-xl backdrop-blur-sm flex flex-col items-center gap-2"
         :class="toast.type === 'error' ? 'toast-error' : 'toast-success'"
         style="bottom: calc(16px + env(safe-area-inset-bottom, 0px));"
       >
-        {{ toast.text }}
+        <span>{{ toast.text }}</span>
+        <button
+          v-if="toast.actionText && toast.onAction"
+          type="button"
+          class="px-3 py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-[11px] font-bold uppercase tracking-wider touch-manipulation"
+          @click="() => { toast.onAction?.(); toast.visible = false; toast.actionText = null; toast.onAction = null; if (toast.timeoutId) clearTimeout(toast.timeoutId); toast.timeoutId = null; }"
+        >
+          {{ toast.actionText }}
+        </button>
       </div>
     </Transition>
     <InputModal :model-value="inputModalOpen" :config="inputModalConfig" @confirm="inputModalConfirm" @cancel="inputModalCancel" />
     <SelectModal :model-value="selectModalOpen" :config="selectModalConfig" @confirm="selectModalConfirm" @cancel="selectModalCancel" />
+    <PresetsModal v-model="presetsModalOpen" @select="onPresetSelected" />
     <component :is="QAOverlayComp" v-if="qaEnabled && QAOverlayComp" />
   </div>
 </template>
@@ -1082,6 +1187,7 @@ import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown } from './utils/
 import { calculateDentPrice as calcDentViaAdapter, normalizeGraphicsDentsForPricing, normalizeDimensions } from './features/pricing/pricingAdapter';
 import { applyPriceRoundingCeil, PRICE_ROUND_OPTIONS } from './utils/priceRounding';
 import { applyDiscount, clampDiscount } from './utils/discount';
+import { calculateSessionTotalWithMultiDentRule } from './utils/multiDentAggregation';
 import { classifyDamageShapeByRatio } from './utils/shapeClassification';
 import GraphicsWizard from './components/graphics/GraphicsWizard.vue';
 import StepDots from './components/graphics/StepDots.vue';
@@ -1095,6 +1201,7 @@ import InputModal from './components/InputModal.vue';
 import { useInputModal } from './composables/useInputModal';
 import SelectModal from './components/SelectModal.vue';
 import { useSelectModal } from './composables/useSelectModal';
+import PresetsModal from './components/PresetsModal.vue';
 import SegmentedControl from './components/ui/SegmentedControl.vue';
 import SelectRow from './components/ui/SelectRow.vue';
 import { hideTelegramButtons } from './utils/telegramButtons';
@@ -1141,6 +1248,7 @@ const { modalOpen: inputModalOpen, modalConfig: inputModalConfig, openInputModal
 provide('openInputModal', openInputModal);
 const { modalOpen: selectModalOpen, modalConfig: selectModalConfig, openSelectModal, confirm: selectModalConfirm, cancel: selectModalCancel } = useSelectModal();
 provide('openSelectModal', openSelectModal);
+const presetsModalOpen = ref(false);
 let footerResizeObserver = null;
 const updateFooterHeight = () => {
   const root = appRootRef.value;
@@ -1206,7 +1314,7 @@ const selectedHistoryDentItems = computed(() => {
   });
 });
 const isSavingHistory = ref(false);
-const toast = reactive({ visible: false, text: '', type: 'success', timeoutId: null });
+const toast = reactive({ visible: false, text: '', type: 'success', timeoutId: null, actionText: null, onAction: null });
 const skipNextAutoFill = ref(false);
 const isEditingHistory = ref(false);
 const isUpdatingHistory = ref(false);
@@ -1322,7 +1430,16 @@ function removeQuickDent(id) {
 function removeActiveQuickDent() {
   if (!activeQuickDent.value?.id) return;
   if (estimateDraft.quickDents.length <= 1) return;
-  removeQuickDent(activeQuickDent.value.id);
+  const removedId = activeQuickDent.value.id;
+  const idx = estimateDraft.quickDents.findIndex((d) => d.id === removedId);
+  removeQuickDent(removedId);
+  const remaining = estimateDraft.quickDents;
+  if (remaining.length > 0) {
+    const nextIdx = Math.min(idx, remaining.length - 1);
+    activeQuickDentId.value = remaining[nextIdx].id;
+  } else {
+    activeQuickDentId.value = null;
+  }
 }
 
 function setQuickDentShape(dent, shape) {
@@ -1448,7 +1565,10 @@ const userSettings = reactive({
   sizeUnit: 'mm',
   showRepairTime: true,
   showPaintMaterial: true,
-  showSoundInsulation: true
+  showSoundInsulation: true,
+  enableSecondDentDiscount: false,
+  secondDentDiscountPercent: 50,
+  useQuickUiInDetail: true
 });
 
 function loadUserSettings() {
@@ -1471,6 +1591,9 @@ function loadUserSettings() {
     if (typeof p.showRepairTime === 'boolean') userSettings.showRepairTime = p.showRepairTime;
     if (typeof p.showPaintMaterial === 'boolean') userSettings.showPaintMaterial = p.showPaintMaterial;
     if (typeof p.showSoundInsulation === 'boolean') userSettings.showSoundInsulation = p.showSoundInsulation;
+    if (typeof p.enableSecondDentDiscount === 'boolean') userSettings.enableSecondDentDiscount = p.enableSecondDentDiscount;
+    if (typeof p.secondDentDiscountPercent === 'number' && p.secondDentDiscountPercent >= 0 && p.secondDentDiscountPercent <= 100) userSettings.secondDentDiscountPercent = p.secondDentDiscountPercent;
+    if (typeof p.useQuickUiInDetail === 'boolean') userSettings.useQuickUiInDetail = p.useQuickUiInDetail;
   } catch (e) {
     if (import.meta.env?.DEV) console.error('Failed to load settings', e);
   }
@@ -1575,8 +1698,12 @@ const quickDentTotals = computed(() => estimateDraft.quickDents.map((dent) => {
   const shape = dent.shape === 'circle' ? 'circle' : 'strip';
   const sizes = shape === 'circle' ? circleSizesWithArea : stripSizesWithArea;
   const ctx = { sizesWithArea: sizes, prices: userSettings.prices, initialData, roundStep: userSettings.priceRoundStep ?? 0 };
+  const conditions = dent.conditions || {};
+  const conditionsForCalc = userSettings.showPaintMaterial
+    ? conditions
+    : { ...conditions, paintMaterialCode: null };
   const result = calcDentViaAdapter(
-    { shape, widthMm: w, heightMm: h, conditions: dent.conditions, panelElement: dent.panelElement },
+    { shape, widthMm: w, heightMm: h, conditions: conditionsForCalc, panelElement: dent.panelElement },
     ctx
   );
   return { dent, sizeCode: result.sizeCode, base: result.base, total: result.total, breakdown: result.breakdown };
@@ -1584,10 +1711,16 @@ const quickDentTotals = computed(() => estimateDraft.quickDents.map((dent) => {
 
 const quickLineItems = computed(() => {
   const list = quickDentTotals.value.filter((d) => d.total > 0).sort((a, b) => b.total - a.total);
+  if (list.length === 0) return [];
+  const totals = list.map((d) => d.total);
+  const { weightedTotals } = calculateSessionTotalWithMultiDentRule(totals, {
+    enableSecondDentDiscount: userSettings.enableSecondDentDiscount,
+    secondDentDiscountPercent: userSettings.secondDentDiscountPercent
+  });
   const roundStep = userSettings.priceRoundStep;
   const discPct = clampDiscount(estimateDraft.discountPercent);
   return list.map((item, idx) => {
-    const rawApplied = idx === 0 ? item.total : item.total * 0.5;
+    const rawApplied = weightedTotals[idx] ?? item.total;
     const afterDiscount = applyDiscount(rawApplied, discPct);
     const applied = roundStep > 0
       ? applyPriceRoundingCeil(afterDiscount, roundStep)
@@ -1663,10 +1796,15 @@ const estimatedRepairTime = computed(() => {
   return m > 0 ? `${h} ч ${m} мин` : `${h} ч`;
 });
 
+const multiDentDiscountLabel = computed(() => {
+  if (!userSettings.enableSecondDentDiscount) return '50%';
+  return `${userSettings.secondDentDiscountPercent}%`;
+});
+
 const quickBreakdownItems = computed(() => {
   const result = [];
   quickLineItems.value.forEach((item, idx) => {
-    const dentLabel = `Вмятина ${idx + 1}${item.discount ? ' (50%)' : ''}`;
+    const dentLabel = `Вмятина ${idx + 1}${item.discount ? ` (${multiDentDiscountLabel.value})` : ''}`;
     const lines = item.breakdown || [];
     lines.forEach((line) => {
       result.push({ name: `${dentLabel} · ${line.name}`, value: line.value });
@@ -1809,6 +1947,21 @@ async function openDiscountModal() {
   estimateDraft.discountPercent = clampDiscount(value);
 }
 
+async function openSecondDentDiscountModal() {
+  const value = await openInputModal({
+    title: 'Скидка на 2-ю вмятину',
+    label: 'Размер скидки (%)',
+    value: userSettings.secondDentDiscountPercent ?? 50,
+    inputType: 'number',
+    placeholder: '50',
+    min: 0,
+    max: 100
+  });
+  if (value === undefined) return;
+  const n = Math.max(0, Math.min(100, Math.round(Number(value) || 0)));
+  userSettings.secondDentDiscountPercent = n;
+}
+
 async function openQuickPanelElementPicker(dent) {
   if (!dent) return;
   const list = (dent.panelSide === 'right' ? quickPartsRight : quickPartsLeft) || [];
@@ -1913,6 +2066,20 @@ async function openQuickManualSize(dent) {
   if (h === undefined) return;
 }
 
+function applyDamagePreset(dent, preset) {
+  if (!dent || !preset) return;
+  dent.sizeLengthMm = preset.widthMm;
+  dent.sizeWidthMm = preset.heightMm;
+  dent.sizeInputMode = 'preset';
+  syncQuickDentSizeFromMm(dent);
+  haptic('selection');
+}
+
+function onPresetSelected(preset) {
+  const dent = activeQuickDent.value;
+  if (dent) applyDamagePreset(dent, preset);
+}
+
 function getQuickDetectedShapeLabel(dent) {
   const w = Number(dent?.sizeLengthMm) || 0;
   const h = Number(dent?.sizeWidthMm) || 0;
@@ -1920,7 +2087,6 @@ function getQuickDetectedShapeLabel(dent) {
   const classified = classifyDamageShapeByRatio(w, h);
   if (classified === 'stripe') return 'Полоса';
   if (classified === 'round') return 'Круг';
-  if (classified === 'oval_long') return 'Вытянутый овал';
   return 'Овал';
 }
 const formatDateTime = (iso) => {
@@ -1968,11 +2134,65 @@ function showToast(text, type = 'success', duration = 1800) {
   if (toast.timeoutId) clearTimeout(toast.timeoutId);
   toast.text = text;
   toast.type = type;
+  toast.actionText = null;
+  toast.onAction = null;
   toast.visible = true;
   toast.timeoutId = setTimeout(() => {
     toast.visible = false;
     toast.timeoutId = null;
   }, duration);
+}
+
+function showUndoToast(text, onUndo, duration = 6000) {
+  if (toast.timeoutId) clearTimeout(toast.timeoutId);
+  toast.text = text;
+  toast.type = 'success';
+  toast.actionText = 'Отменить';
+  toast.onAction = onUndo;
+  toast.visible = true;
+  toast.timeoutId = setTimeout(() => {
+    toast.visible = false;
+    toast.actionText = null;
+    toast.onAction = null;
+    toast.timeoutId = null;
+  }, duration);
+}
+
+function getEditablePriceKeys() {
+  const keys = [];
+  initialData.circleSizes.forEach((s) => keys.push(s.code));
+  initialData.stripSizes.forEach((s) => keys.push(s.code));
+  return keys;
+}
+
+function applyBulkPriceAdjustment(percentDelta) {
+  const keys = getEditablePriceKeys();
+  const factor = 1 + percentDelta / 100;
+  const snapshot = {};
+  keys.forEach((k) => {
+    const v = userSettings.prices[k];
+    if (v != null && Number.isFinite(Number(v))) {
+      snapshot[k] = Number(v);
+    }
+  });
+  if (Object.keys(snapshot).length === 0) return;
+  keys.forEach((k) => {
+    const oldVal = userSettings.prices[k];
+    if (oldVal != null && Number.isFinite(Number(oldVal))) {
+      const raw = Number(oldVal) * factor;
+      userSettings.prices[k] = Math.max(0, Math.round(raw));
+    }
+  });
+  saveSettings();
+  haptic('success');
+  const label = percentDelta > 0 ? '+10%' : '−10%';
+  showUndoToast(`Цены изменены на ${label}`, () => {
+    keys.forEach((k) => {
+      if (snapshot[k] != null) userSettings.prices[k] = snapshot[k];
+    });
+    saveSettings();
+    haptic('success');
+  });
 }
 
 function startHistoryEdit() {
@@ -2356,7 +2576,10 @@ const saveSettings = () => {
     sizeUnit: userSettings.sizeUnit,
     showRepairTime: userSettings.showRepairTime,
     showPaintMaterial: userSettings.showPaintMaterial,
-    showSoundInsulation: userSettings.showSoundInsulation
+    showSoundInsulation: userSettings.showSoundInsulation,
+    enableSecondDentDiscount: userSettings.enableSecondDentDiscount,
+    secondDentDiscountPercent: userSettings.secondDentDiscountPercent,
+    useQuickUiInDetail: userSettings.useQuickUiInDetail
   };
   localStorage.setItem('dentRepairSettings_v6', JSON.stringify(dataToSave));
   const tg = window.Telegram?.WebApp;
@@ -2519,7 +2742,9 @@ watch(
     sizeUnit: userSettings.sizeUnit,
     showRepairTime: userSettings.showRepairTime,
     showPaintMaterial: userSettings.showPaintMaterial,
-    showSoundInsulation: userSettings.showSoundInsulation
+    showSoundInsulation: userSettings.showSoundInsulation,
+    enableSecondDentDiscount: userSettings.enableSecondDentDiscount,
+    secondDentDiscountPercent: userSettings.secondDentDiscountPercent
   }),
   (val) => {
     const data = {

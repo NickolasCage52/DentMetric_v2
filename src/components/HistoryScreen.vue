@@ -61,6 +61,7 @@
         v-for="(item, idx) in displayItems"
         :key="item.id + '-' + idx"
         class="hs-card"
+        :data-testid="'history-item-' + item.id"
         @click="$emit('select', item.id)"
       >
         <div class="hs-card-avatar">

@@ -8,6 +8,9 @@ app.config.errorHandler = (err, instance, info) => {
   console.error('[Vue error]', err, info)
   if (typeof window !== 'undefined') {
     window.__VUE_HISTORY_ERROR__ = { message: err?.message, stack: err?.stack, info }
+    if (import.meta.env?.DEV) {
+      console.error('[DentMetric DEV] Runtime error captured. If History shows black screen, inspect window.__VUE_HISTORY_ERROR__', err?.message)
+    }
   }
 }
 
@@ -16,9 +19,15 @@ app.mount('#app')
 if (typeof window !== 'undefined') {
   window.onerror = (msg, source, line, col, err) => {
     console.error('[Global error]', msg, source, line, col, err)
+    if (import.meta.env?.DEV) {
+      console.error('[DentMetric DEV] Global error. If History black screen, check window.__VUE_HISTORY_ERROR__', msg)
+    }
   }
   window.addEventListener('unhandledrejection', (e) => {
     console.error('[Unhandled rejection]', e.reason)
+    if (import.meta.env?.DEV) {
+      console.error('[DentMetric DEV] Unhandled rejection. If History black screen, check window.__VUE_HISTORY_ERROR__', e?.reason)
+    }
   })
 }
 
