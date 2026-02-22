@@ -155,7 +155,7 @@
         @calculate="() => goToStep(5)"
       />
       <QuickStyleFinalSection
-        v-else-if="props.useQuickUiInDetail && wizardStep === 5"
+        v-else-if="wizardStep === 5"
         :line-items="detailLineItems"
         :initial-data="initialData"
         :format-armaturnaya-summary="formatArmaturnayaSummary"
@@ -167,23 +167,6 @@
         @book="emit('save-history')"
         @open-discount="openDetailDiscountModal"
         @open-comment="openDetailCommentModal"
-      />
-      <Step4SummaryPanel
-        v-else-if="!props.useQuickUiInDetail && wizardStep === 5"
-        :breakdown="breakdown"
-        :total-price="displayTotal"
-        :pre-discount-total="preDiscountTotal"
-        :discount-percent="clampDiscount(estimateDraft.discountPercent)"
-        :freeform-used="freeformUsed"
-        :freeform-area-mm2="freeformAreaMm2"
-        :history-saving="historySaving"
-        :comment="estimateDraft.comment"
-        @update:comment="estimateDraft.comment = $event"
-        @update:discount-percent="estimateDraft.discountPercent = $event"
-        @back="goBack"
-        @back-to-edit="() => goToStep(3)"
-        @save="emit('save-history')"
-        @reset="resetAll"
       />
     </div>
     <!-- Size menu modal -->
@@ -297,7 +280,6 @@ import Step0ClientPanel from './Step0ClientPanel.vue';
 import Step1PlacementPanel from './Step1PlacementPanel.vue';
 import Step2SizePanel from './Step2SizePanel.vue';
 import Step3ConditionsPanel from './Step3ConditionsPanel.vue';
-import Step4SummaryPanel from './Step4SummaryPanel.vue';
 import StepDots from './StepDots.vue';
 import FreeformDrawModal from './FreeformDrawModal.vue';
 import QuickStyleClientSection from '../quickStyle/QuickStyleClientSection.vue';
@@ -1266,6 +1248,9 @@ defineExpose({ resetDentsOnly });
   min-height: 0;
   max-height: none;
   height: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 

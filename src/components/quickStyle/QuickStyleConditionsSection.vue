@@ -126,14 +126,6 @@
         <div class="qc-price-label">ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ</div>
         <div class="qc-price-value">{{ formatPrice(totalPrice) }} ₽</div>
       </div>
-      <button
-        type="button"
-        class="qc-cta w-full touch-manipulation"
-        :disabled="!conditionsComplete"
-        @click="$emit('calculate')"
-      >
-        РАССЧИТАТЬ СТОИМОСТЬ
-      </button>
     </div>
     <div class="graphics-action-bar shrink-0 p-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
       <div class="flex items-center gap-2 w-full">
