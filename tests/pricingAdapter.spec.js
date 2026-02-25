@@ -101,6 +101,7 @@ describe('pricingAdapter', () => {
         stripSizes: stripSizesWithArea,
         prices,
         initialData,
+        conditions,
       };
       const normalized = normalizeGraphicsDentsForPricing([graphicsDent], ctxDetail);
       const detailTotal = calcTotalPrice(normalized, conditions, initialData, 100);

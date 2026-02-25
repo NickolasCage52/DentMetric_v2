@@ -6,6 +6,7 @@
 import { getBasePriceByMm, getSizeCodeForMatrix } from '../../utils/priceAdapter';
 import { applyConditionsToBase, buildBreakdown, roundPrice } from '../../utils/priceCalc';
 import { getArmaturnayaTotalPrice } from '../../data/armaturnayaWorks';
+import { calculateStripePrice } from '../../utils/stripeCalc';
 
 /** Округление размеров в мм до 1 знака для консистентности */
 const MM_ROUND = 1;
@@ -27,18 +28,42 @@ export function normalizeDimensions(widthMm, heightMm) {
 }
 
 /**
+ * Получает coeffClass для stripe из conditions (K1→base, K2→k2, K3→k3, K4→k4).
+ * @param {object} [conditions]
+ * @param {object} [initialData]
+ * @returns {string} 'base'|'k2'|'k3'|'k4'
+ */
+function getStripeCoeffClass(conditions, initialData) {
+  const riskCode = conditions?.riskCode;
+  if (!riskCode || !initialData?.risks) return 'base';
+  const riskObj = initialData.risks.find((r) => r.code === riskCode);
+  const matrixKey = riskObj?.matrixKey ?? 'K2';
+  const map = { K1: 'base', K2: 'k2', K3: 'k3', K4: 'k4' };
+  return map[matrixKey] ?? 'base';
+}
+
+/**
  * Вычисляет базовую цену одной вмятины по размерам в мм.
- * @param {string} shape - 'circle' | 'strip' | 'freeform' (freeform → circle по bounding box)
+ * Для strip использует stripeCalc (таблица 2см); для circle — area interpolation.
+ * @param {string} shape - 'circle' | 'strip' | 'freeform'
  * @param {number} widthMm
  * @param {number} heightMm
  * @param {Array} sizesWithArea - circleSizesWithArea или stripSizesWithArea
  * @param {Object} prices - userSettings.prices
+ * @param {object} [options] - { conditions, initialData } для stripe (coeffClass)
  * @returns {number} базовая цена
  */
-export function calculateDentBasePrice(shape, widthMm, heightMm, sizesWithArea, prices) {
+export function calculateDentBasePrice(shape, widthMm, heightMm, sizesWithArea, prices, options = {}) {
   const { widthMm: w, heightMm: h } = normalizeDimensions(widthMm, heightMm);
   if (w <= 0 || h <= 0) return 0;
   const type = shape === 'freeform' ? 'circle' : (shape === 'strip' ? 'strip' : 'circle');
+  if (type === 'strip') {
+    const lengthCm = Math.max(w, h) / 10;
+    const heightCm = Math.min(w, h) / 10;
+    const coeffClass = getStripeCoeffClass(options.conditions, options.initialData);
+    const { price } = calculateStripePrice({ lengthCm, heightCm, coeffClass });
+    return price;
+  }
   return getBasePriceByMm(type, w, h, sizesWithArea, prices);
 }
 
@@ -77,7 +102,9 @@ export function calculateDentPrice(input, context) {
     return { base: 0, total: 0, breakdown: [], sizeCode: 'STRIP_DEFAULT' };
   }
   const type = shape === 'freeform' ? 'circle' : (shape === 'strip' ? 'strip' : 'circle');
-  const base = getBasePriceByMm(type, w, h, sizesWithArea, prices);
+  const base = type === 'strip'
+    ? calculateDentBasePrice(type, w, h, sizesWithArea, prices, { conditions, initialData })
+    : getBasePriceByMm(type, w, h, sizesWithArea, prices);
   const sizeCode = getSizeCodeForMatrix(type, w, h, sizesWithArea);
   const total = base > 0 && (conditions.repairCode && conditions.riskCode && conditions.materialCode && conditions.carClassCode && (conditions.disassemblyCode || conditions.disassemblyCodes?.length || typeof conditions.disassemblyCost === 'number'))
     ? applyConditionsToBase(base, conditionsWithCost, initialData, sizeCode, roundStep)
@@ -91,15 +118,15 @@ export function calculateDentPrice(input, context) {
 /**
  * Нормализует вмятины из режима Графика для расчёта.
  * Пересчитывает base price через адаптер (bboxMm → adapter), чтобы устранить расхождения с Quick.
- * Полоса (strip): использует реальные bboxMm (w×h), stripSizesWithArea и userSettings.prices — формулы/таблицы заказчика не меняются.
+ * Полоса (strip): stripeCalc по таблице 2см, piecewise linear + sub-linear height scaling.
  *
  * @param {Array} dents - из konvaEditor (с price, bboxMm, type, sizeCode)
- * @param {Object} context - { circleSizes, stripSizes, prices, initialData }
+ * @param {Object} context - { circleSizes, stripSizes, prices, initialData, conditions? }
  * @returns {Array} денты с price и sizeCode от адаптера
  */
 export function normalizeGraphicsDentsForPricing(dents, context) {
   if (!dents || !Array.isArray(dents)) return [];
-  const { circleSizes, stripSizes, prices, initialData } = context;
+  const { circleSizes, stripSizes, prices, initialData, conditions } = context;
   return dents.map((d) => {
     const bbox = d.bboxMm || {};
     const w = Number(bbox.width) || 0;
@@ -108,7 +135,10 @@ export function normalizeGraphicsDentsForPricing(dents, context) {
     const shape = type === 'strip' ? 'strip' : 'circle';
     const sizes = shape === 'circle' ? circleSizes : stripSizes;
     if (w <= 0 || h <= 0) return d;
-    const base = calculateDentBasePrice(shape, w, h, sizes, prices);
+    const base = calculateDentBasePrice(shape, w, h, sizes, prices, {
+      conditions,
+      initialData
+    });
     const sizeCode = getSizeCodeForConditions(shape, w, h, sizes);
     return { ...d, price: base, sizeCode };
   });

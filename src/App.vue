@@ -1740,7 +1740,8 @@ const graphicsDentsForPricing = computed(() => {
     circleSizes: graphicsCircleSizes.value,
     stripSizes: graphicsStripSizes.value,
     prices: userSettings.prices,
-    initialData
+    initialData,
+    conditions: graphicsConditions.value
   };
   return normalizeGraphicsDentsForPricing(graphicsState.dents || [], ctx);
 });

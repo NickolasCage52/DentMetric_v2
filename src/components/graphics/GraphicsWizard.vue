@@ -443,7 +443,8 @@ const dentsForPricing = computed(() => {
     circleSizes: props.circleSizes,
     stripSizes: props.stripSizes,
     prices: props.userSettings.prices,
-    initialData: props.initialData
+    initialData: props.initialData,
+    conditions: conditionsForCalc.value
   };
   return normalizeGraphicsDentsForPricing(dents.value, ctx);
 });

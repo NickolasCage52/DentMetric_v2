@@ -1,5 +1,5 @@
 import { normalizeNumber } from './validation';
-import { getStripeCoefficient, parseStripeMatrixKey } from '../features/pricing/stripeCoefficients';
+import { parseStripeMatrixKey } from '../features/pricing/stripeCoefficients';
 
 /** Шаг округления цен: все цены кратны 100 (без десятков, единиц, копеек). */
 export const PRICE_ROUND_STEP = 100;
@@ -59,27 +59,22 @@ function calculateDentPrice(dent, conditions, initialData) {
 
 /**
  * Returns complexity coefficient (K1..K4) for a given sizeCodeForMatrix.
- * Stripe ("Полоса/Царапина") is handled via the new official 2cm table.
+ * Stripe ("Полоса/Царапина"): base price from stripeCalc already includes K level → return 1.0.
+ * Circle/oval: use complexityMatrix.
  *
  * @param {object} initialData
  * @param {'K1'|'K2'|'K3'|'K4'} kKey
  * @param {string} sizeCodeForMatrix
- * @param {any} [dent] - optional dent object (used as fallback for stripe dims)
+ * @param {any} [dent] - optional dent object (unused for stripe)
  * @returns {number}
  */
 function getComplexityCoeff(initialData, kKey, sizeCodeForMatrix, dent) {
   const parsed = parseStripeMatrixKey(sizeCodeForMatrix);
   if (parsed) {
-    return getStripeCoefficient({ lengthMm: parsed.lengthMm, heightMm: parsed.heightMm, kKey });
+    return 1.0;
   }
-  // Back-compat: if some legacy caller still passes STRIP_DEFAULT for strip dents,
-  // we try to derive geometry from bboxMm (if present) to avoid using old stripe coefficients.
   if (dent?.type === 'strip' && dent?.bboxMm) {
-    const w = Number(dent.bboxMm.width) || 0;
-    const h = Number(dent.bboxMm.height) || 0;
-    if (w > 0 && h > 0) {
-      return getStripeCoefficient({ lengthMm: Math.max(w, h), heightMm: Math.min(w, h), kKey });
-    }
+    return 1.0;
   }
   const matrixRow =
     initialData.complexityMatrix?.[sizeCodeForMatrix] ??
