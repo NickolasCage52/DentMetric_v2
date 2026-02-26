@@ -26,20 +26,35 @@
       </button>
     </div>
 
-    <!-- Summary rows -->
+    <!-- Summary rows (кликабельные — фильтр по статусу) -->
     <div class="hs-summary">
-      <div class="hs-sum-row">
+      <button
+        type="button"
+        class="hs-sum-row hs-sum-row--clickable"
+        :class="{ 'hs-sum-row--active': activeStatusFilter === 'estimate' }"
+        @click="toggleStatusFilter('estimate')"
+      >
         <span class="hs-sum-label">Оценок без записи</span>
         <span class="hs-sum-nums"><b>{{ summary.noBooking.count }}</b> {{ fmtK(summary.noBooking.sum) }} ₽</span>
-      </div>
-      <div class="hs-sum-row">
+      </button>
+      <button
+        type="button"
+        class="hs-sum-row hs-sum-row--clickable"
+        :class="{ 'hs-sum-row--active': activeStatusFilter === 'scheduled' }"
+        @click="toggleStatusFilter('scheduled')"
+      >
         <span class="hs-sum-label">Записаны на ремонт</span>
         <span class="hs-sum-nums"><b>{{ summary.booked.count }}</b> {{ fmtK(summary.booked.sum) }} ₽</span>
-      </div>
-      <div class="hs-sum-row">
+      </button>
+      <button
+        type="button"
+        class="hs-sum-row hs-sum-row--clickable"
+        :class="{ 'hs-sum-row--active': activeStatusFilter === 'done' }"
+        @click="toggleStatusFilter('done')"
+      >
         <span class="hs-sum-label">Выполнено</span>
         <span class="hs-sum-nums"><b>{{ summary.done.count }}</b> {{ fmtK(summary.done.sum) }} ₽</span>
-      </div>
+      </button>
       <div class="hs-sum-row hs-sum-row--total">
         <span class="hs-sum-label" style="font-weight:700">Всего</span>
         <span class="hs-sum-nums hs-sum-nums--green"><b>{{ summary.all.count }}</b> {{ fmtK(summary.all.sum) }} ₽</span>
@@ -57,20 +72,28 @@
           <button type="button" class="hs-show-all-btn" @click="setRange('month')">Показать за месяц</button>
         </div>
       </div>
+      <template v-for="(item, idx) in displayItems" :key="(item?.id || idx) + '-' + idx">
       <div
-        v-for="(item, idx) in displayItems"
-        :key="item.id + '-' + idx"
+        v-if="item && item.id"
         class="hs-card"
         :data-testid="'history-item-' + item.id"
         @click="$emit('select', item.id)"
       >
-        <div class="hs-card-avatar">
+        <a
+          v-if="(item.client?.phone || '').trim()"
+          :href="`tel:${telHref(item)}`"
+          class="hs-card-phone-btn"
+          @click.stop
+        >
+          <svg class="hs-phone-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+        </a>
+        <div v-else class="hs-card-avatar">
           <div class="hs-avatar-circle">{{ avatarInitial(item) }}</div>
         </div>
         <div class="hs-card-body">
           <div class="hs-card-name">{{ clientName(item) }}</div>
           <div class="hs-card-phone">
-            {{ maskedPhone(item) }}<span class="hs-card-time">{{ relativeTime(item) }}</span>
+            {{ displayPhone(item) }}<span class="hs-card-time">{{ relativeTime(item) }}</span>
           </div>
           <div class="hs-card-car">{{ carLine(item) }}</div>
           <div class="hs-card-total">Итого: {{ fmtPrice(item.total || 0) }} ₽ ·</div>
@@ -85,6 +108,7 @@
           >записать</button>
         </div>
       </div>
+      </template>
     </div>
 
     <!-- Search FAB -->
@@ -160,6 +184,9 @@ const props = defineProps({
   historyItems: { type: Array, default: () => [] },
   footerHeight: { type: String, default: '64px' }
 });
+
+/** Активный фильтр по статусу: null = все, 'estimate' | 'scheduled' | 'done' */
+const activeStatusFilter = ref(null);
 
 const emit = defineEmits(['back', 'select', 'update-status']);
 
@@ -242,7 +269,7 @@ const dateFilter = computed(() => {
   return { from: m, to: dayEnd(now) };
 });
 
-const filteredItems = computed(() => {
+const recordsInPeriod = computed(() => {
   const { from, to } = dateFilter.value;
   const fromTime = Number.isFinite(from?.getTime?.()) ? from.getTime() : 0;
   const toTime = Number.isFinite(to?.getTime?.()) ? to.getTime() : Date.now();
@@ -253,17 +280,35 @@ const filteredItems = computed(() => {
   });
 });
 
+const filteredItems = computed(() => {
+  let list = recordsInPeriod.value;
+  const filter = activeStatusFilter.value;
+  if (!filter) return list;
+  return list.filter((r) => {
+    const s = r.status || 'estimate';
+    if (filter === 'estimate') return s === 'estimate' || s === 'rejected';
+    return s === filter;
+  });
+});
+
 const displayItems = computed(() => filteredItems.value);
+
+function toggleStatusFilter(key) {
+  activeStatusFilter.value = activeStatusFilter.value === key ? null : key;
+}
 
 const totalItemCount = computed(() => normalizedItems.value.length);
 
 function itemStatus(item) {
-  return item.status || 'no_booking';
+  const s = item.status || 'estimate';
+  if (s === 'scheduled') return 'booked';
+  if (s === 'done') return 'done';
+  return 'no_booking';
 }
 
 const summary = computed(() => {
   const s = { noBooking: { count: 0, sum: 0 }, booked: { count: 0, sum: 0 }, done: { count: 0, sum: 0 }, all: { count: 0, sum: 0 } };
-  for (const item of filteredItems.value) {
+  for (const item of recordsInPeriod.value) {
     const st = itemStatus(item);
     const t = Number(item?.total) || 0;
     if (!Number.isFinite(t)) continue;
@@ -308,7 +353,7 @@ function applyCustomRange() {
 }
 
 function bookItem(item) {
-  emit('update-status', { id: item.id, status: 'booked', bookingAt: new Date().toISOString() });
+  emit('update-status', { id: item.id, status: 'scheduled', bookingAt: new Date().toISOString() });
 }
 
 function clientName(item) {
@@ -320,19 +365,18 @@ function avatarInitial(item) {
   return name.charAt(0).toUpperCase() || '?';
 }
 
-function maskedPhone(item) {
+function displayPhone(item) {
+  const p = (item.client?.phone || '').trim();
+  return p || '—';
+}
+
+function telHref(item) {
   const raw = (item.client?.phone || '').replace(/\D/g, '');
-  if (raw.length < 4) return item.client?.phone || '—';
-  const last2 = raw.slice(-2);
-  if (raw.length >= 11) {
-    const code = raw.slice(1, 4);
-    return `+7 (${code}) ***-**-${last2}`;
+  if (!raw) return '';
+  if (raw.length >= 10 && (raw[0] === '8' || raw[0] === '7')) {
+    return '+7' + raw.slice(1);
   }
-  if (raw.length >= 10) {
-    const code = raw.slice(0, 3);
-    return `+7 (${code}) ***-**-${last2}`;
-  }
-  return `***-${last2}`;
+  return '+' + raw;
 }
 
 function relativeTime(item) {
@@ -469,6 +513,15 @@ function fmtK(v) {
   background: linear-gradient(180deg, #1a1a1a 0%, #111 100%);
   font-size: 12px;
 }
+.hs-sum-row--clickable {
+  width: 100%; text-align: left; cursor: pointer; border: none;
+  color: inherit; font: inherit;
+}
+.hs-sum-row--clickable:hover { background: linear-gradient(180deg, #222 0%, #181818 100%); }
+.hs-sum-row--clickable.hs-sum-row--active {
+  border-color: rgba(136,229,35,0.3);
+  background: linear-gradient(180deg, #1f2a18 0%, #151d0f 100%);
+}
 .hs-sum-row--total { border-color: rgba(136,229,35,0.15); }
 .hs-sum-label { color: #9ca3af; }
 .hs-sum-nums { color: #e5e7eb; font-variant-numeric: tabular-nums; }
@@ -503,6 +556,17 @@ function fmtK(v) {
   display: flex; align-items: center; justify-content: center;
   font-size: 16px; font-weight: 700; color: #9ca3af;
 }
+.hs-card-phone-btn {
+  width: 40px; height: 40px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: rgba(136,229,35,0.15);
+  border: 1px solid rgba(136,229,35,0.4);
+  color: #88e523;
+  text-decoration: none;
+}
+.hs-card-phone-btn:active { opacity: 0.85; }
+.hs-phone-icon { flex-shrink: 0; }
 
 .hs-card-body { flex: 1; min-width: 0; }
 .hs-card-name { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 1px; }

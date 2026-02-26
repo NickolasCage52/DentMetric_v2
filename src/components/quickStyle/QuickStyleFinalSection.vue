@@ -51,6 +51,14 @@
           <span class="block truncate">{{ comment || '—' }}</span>
         </button>
       </div>
+      <div class="card-metallic rounded-xl p-3">
+        <AttachmentPicker
+          :record-id="recordId"
+          :dent-index="0"
+          :model-value="attachments || []"
+          @update:model-value="$emit('update:attachments', $event)"
+        />
+      </div>
     </div>
     <div class="graphics-action-bar flex gap-0 shrink-0 p-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
       <button type="button" @click="$emit('back')" class="qc-s3-btn qc-s3-btn--left flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[40px]">Назад</button>
@@ -66,10 +74,13 @@
 
 <script setup>
 import { buildDetailedBreakdownRows, formatBreakdownDelta, deltaClass } from '../../utils/buildDetailedBreakdown';
+import AttachmentPicker from '../AttachmentPicker.vue';
 
 const props = defineProps({
   lineItems: { type: Array, default: () => [] },
   initialData: { type: Object, default: () => ({}) },
+  recordId: { type: String, default: '' },
+  attachments: { type: Array, default: () => [] },
   formatArmaturnayaSummary: { type: Function, default: null },
   comment: { type: String, default: '' },
   discountPercent: { type: [Number, null], default: null },
@@ -78,7 +89,7 @@ const props = defineProps({
   estimatedRepairTime: { type: String, default: '—' }
 });
 
-defineEmits(['back', 'save', 'book', 'open-discount', 'open-comment']);
+defineEmits(['back', 'save', 'book', 'open-discount', 'open-comment', 'update:attachments']);
 
 const canSave = () => (props.lineItems?.length ?? 0) > 0;
 

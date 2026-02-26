@@ -9,6 +9,9 @@ import {
   updateEstimate,
   clearHistory,
   normalizeHistoryRecord,
+  STATUS_ESTIMATE,
+  STATUS_SCHEDULED,
+  STATUS_DONE,
   STORAGE_KEY,
 } from '../src/features/history/historyStore';
 
@@ -102,7 +105,7 @@ describe('historyStore', () => {
       expect(typeof out.createdAt).toBe('string');
       expect(new Date(out.createdAt).getTime()).not.toBeNaN();
       expect(typeof out.total).toBe('number');
-      expect(out.status).toBe('no_booking');
+      expect(out.status).toBe(STATUS_ESTIMATE);
       expect(out.client).toBeDefined();
       expect(out.client.name).toBe('Клиент без имени');
       expect(out.client.phone).toBe('');
@@ -114,10 +117,11 @@ describe('historyStore', () => {
       expect(new Date(out.createdAt).getTime()).not.toBeNaN();
     });
 
-    it('maps unknown status to no_booking', () => {
-      expect(normalizeHistoryRecord({ status: 'invalid' }).status).toBe('no_booking');
-      expect(normalizeHistoryRecord({ status: 'booked' }).status).toBe('booked');
-      expect(normalizeHistoryRecord({ status: 'done' }).status).toBe('done');
+    it('maps unknown status to estimate, migrates old statuses', () => {
+      expect(normalizeHistoryRecord({ status: 'invalid' }).status).toBe(STATUS_ESTIMATE);
+      expect(normalizeHistoryRecord({ status: 'booked' }).status).toBe(STATUS_SCHEDULED);
+      expect(normalizeHistoryRecord({ status: 'done' }).status).toBe(STATUS_DONE);
+      expect(normalizeHistoryRecord({ status: 'no_booking' }).status).toBe(STATUS_ESTIMATE);
     });
 
     it('ensures dents has items array', () => {

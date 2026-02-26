@@ -8,9 +8,9 @@ export const initialData = {
         { code: 'M2', name: 'Алюминий', mult: 1.3 }
     ],
     paintMaterials: [
-        { code: 'P1', name: 'Глянец (1.0)', desc: 'Стандартное глянцевое ЛКП', mult: 1.0 },
-        { code: 'P2', name: 'Матовая краска (1.25)', desc: 'Матовая краска требует особой технологии', mult: 1.25 },
-        { code: 'P3', name: 'Плёнка (1.25)', desc: 'Виниловая плёнка или оклейка', mult: 1.25 }
+        { code: 'P1', name: 'Глянец', desc: 'Стандартное глянцевое ЛКП', mult: 1.0 },
+        { code: 'P2', name: 'Матовая краска', desc: 'Матовая краска требует особой техники', mult: 1.25 },
+        { code: 'P3', name: 'Работа по плёнке', desc: 'Виниловая плёнка или оклейка', mult: 1.25 }
     ],
     carClasses: [
         { code: 'CLASS_STD', name: 'Стандарт', mult: 1.0 },
@@ -23,8 +23,8 @@ export const initialData = {
         { code: 'RK4', name: 'Экстра (острая+сложный доступ)', matrixKey: 'K4' }
     ],
     soundInsulation: [
-        { code: 'SI0', name: 'Нет', desc: 'Шумоизоляция не требуется', price: 0 },
-        { code: 'SI1', name: 'Да', desc: 'Требуется шумоизоляция (+2000 ₽)', price: 2000 }
+        { code: 'SI0', name: 'Без шумоизоляции', desc: 'Шумоизоляция не требуется', price: 0 },
+        { code: 'SI1', name: 'Доп. шумоизоляция', desc: 'Требуется шумоизоляция (+2 000 ₽)', price: 2000 }
     ],
     disassembly: [
         { code: 'Z0', name: 'Без разборки', price: 0 },

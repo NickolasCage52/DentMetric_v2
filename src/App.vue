@@ -194,8 +194,8 @@
             </div>
 
             <div v-else-if="quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)" data-testid="quick-step2" class="qc-compact" style="display:flex;flex-direction:column;gap:var(--qc-section-gap)">
-              <div class="flex items-center gap-2 flex-wrap mb-2">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Повреждения</span>
+              <div class="mb-2">
+                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">ПОВРЕЖДЕНИЯ</div>
                 <div class="flex gap-1.5 flex-wrap items-center">
                   <button
                     v-for="(d, i) in estimateDraft.quickDents"
@@ -248,7 +248,7 @@
                     type="button"
                     data-testid="quick-panel-element"
                     class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
-                    :class="activeQuickDent.panelElement ? 'bg-[#1a1a1a] border-metric-green/40 text-white' : 'bg-[#151515] border-white/10 text-gray-200 hover:border-white/15'"
+                    :class="activeQuickDent.panelElement ? 'bg-[#1a1a1a] border-white/15 text-white' : 'bg-[#151515] border-white/10 text-gray-200 hover:border-white/15'"
                     @click="openQuickPanelElementPicker(activeQuickDent)"
                   >
                     <span class="qc-sr-value text-[13px] font-semibold truncate">{{ activeQuickDent.panelElement || 'Выбрать элемент' }}</span>
@@ -269,7 +269,7 @@
                     <button
                       type="button"
                       class="qc-geo-btn border transition-colors touch-manipulation text-left"
-                      :class="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      :class="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 ? 'bg-[#1a1a1a] border-white/15' : 'bg-[#151515] border-white/10 hover:border-white/15'"
                       @click="activeQuickDent.sizeInputMode = 'manual'; openQuickDentSizeModal(activeQuickDent, 'sizeLengthMm', 'Длина (мм)')"
                     >
                       <div class="qc-geo-label">длина</div>
@@ -280,7 +280,7 @@
                     <button
                       type="button"
                       class="qc-geo-btn border transition-colors touch-manipulation text-left"
-                      :class="(Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      :class="(Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? 'bg-[#1a1a1a] border-white/15' : 'bg-[#151515] border-white/10 hover:border-white/15'"
                       @click="activeQuickDent.sizeInputMode = 'manual'; openQuickDentSizeModal(activeQuickDent, 'sizeWidthMm', 'Высота (мм)')"
                     >
                       <div class="qc-geo-label">ширина</div>
@@ -289,29 +289,26 @@
                       </div>
                     </button>
                   </div>
-                  <div
-                    v-if="(Number(activeQuickDent.sizeLengthMm) || 0) > 0 && (Number(activeQuickDent.sizeWidthMm) || 0) > 0"
-                    class="qc-info-rows"
-                  >
-                    <div>Площадь: <span>{{ ((Number(activeQuickDent.sizeLengthMm) || 0) * (Number(activeQuickDent.sizeWidthMm) || 0)).toFixed(1) }} мм²</span></div>
-                    <div>Соотношение сторон: <span>{{ (Number(activeQuickDent.sizeLengthMm) > 0 && Number(activeQuickDent.sizeWidthMm) > 0) ? (Math.max(Number(activeQuickDent.sizeLengthMm), Number(activeQuickDent.sizeWidthMm)) / Math.min(Number(activeQuickDent.sizeLengthMm), Number(activeQuickDent.sizeWidthMm))).toFixed(1) : '—' }}</span></div>
-                    <div>Тип формы: <span>{{ getQuickDetectedShapeLabel(activeQuickDent) }}</span></div>
+                  <div class="qc-info-rows">
+                    <div>Площадь: <span>{{ (Number(activeQuickDent.sizeLengthMm) || 0) > 0 && (Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? ((Number(activeQuickDent.sizeLengthMm) || 0) * (Number(activeQuickDent.sizeWidthMm) || 0)).toFixed(1) : '—' }}</span></div>
+                    <div>Соотношение сторон: <span>{{ (Number(activeQuickDent.sizeLengthMm) || 0) > 0 && (Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? (Math.max(Number(activeQuickDent.sizeLengthMm), Number(activeQuickDent.sizeWidthMm)) / Math.min(Number(activeQuickDent.sizeLengthMm), Number(activeQuickDent.sizeWidthMm))).toFixed(1) : '—' }}</span></div>
+                    <div>Тип формы: <span>{{ (Number(activeQuickDent.sizeLengthMm) || 0) > 0 && (Number(activeQuickDent.sizeWidthMm) || 0) > 0 ? getQuickDetectedShapeLabel(activeQuickDent) : '—' }}</span></div>
                   </div>
                 </div>
 
                 <!-- 4. ПАРАМЕТРЫ РАСЧЁТА -->
                 <div class="card-metallic rounded-xl" style="padding:var(--qc-card-py) var(--qc-card-px)">
-                  <div class="qc-section-title text-[9px] font-bold text-metric-green uppercase tracking-widest mb-1.5">ПАРАМЕТРЫ РАСЧЁТА</div>
+                  <div class="qc-section-title text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">ПАРАМЕТРЫ РАСЧЁТА</div>
                   <div style="display:flex;flex-direction:column;gap:4px">
                     <button
                       type="button"
                       data-testid="quick-param-repair"
                       class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
-                      :class="activeQuickDent.conditions?.repairCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      :class="activeQuickDent.conditions?.repairCode ? 'bg-[#1a1a1a] border-white/15' : 'bg-[#151515] border-white/10 hover:border-white/15'"
                       @click="openQuickParamPicker(activeQuickDent, 'repairCode', 'Технология ремонта', initialData.repairTypes)"
                     >
                       <div class="min-w-0 flex-1">
-                        <div class="qc-sr-value text-[12px] font-semibold truncate" :class="activeQuickDent.conditions?.repairCode ? 'text-white' : 'text-gray-400'">{{ getRepairLabel(activeQuickDent.conditions?.repairCode) || 'Без покраски' }}</div>
+                        <div class="qc-sr-value text-[12px] font-semibold truncate" :class="activeQuickDent.conditions?.repairCode ? 'text-white' : 'text-gray-400'">{{ getRepairLabel(activeQuickDent.conditions?.repairCode) || 'Метод ремонта' }}</div>
                       </div>
                       <div class="shrink-0 flex items-center gap-1.5">
                         <div v-if="activeQuickDent.conditions?.repairCode" class="w-3 h-3 rounded-full bg-metric-green/80" aria-hidden="true"></div>
@@ -322,7 +319,7 @@
                       type="button"
                       data-testid="quick-param-risk"
                       class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
-                      :class="activeQuickDent.conditions?.riskCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      :class="activeQuickDent.conditions?.riskCode ? 'bg-[#1a1a1a] border-white/15' : 'bg-[#151515] border-white/10 hover:border-white/15'"
                       @click="openQuickParamPicker(activeQuickDent, 'riskCode', 'Сложность выполнения', initialData.risks)"
                     >
                       <div class="min-w-0 flex-1">
@@ -337,7 +334,7 @@
                       type="button"
                       data-testid="quick-param-material"
                       class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
-                      :class="activeQuickDent.conditions?.materialCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      :class="activeQuickDent.conditions?.materialCode ? 'bg-[#1a1a1a] border-white/15' : 'bg-[#151515] border-white/10 hover:border-white/15'"
                       @click="openQuickParamPicker(activeQuickDent, 'materialCode', 'Материал панели', initialData.materials)"
                     >
                       <div class="min-w-0 flex-1">
@@ -352,7 +349,7 @@
                       type="button"
                       data-testid="quick-param-carclass"
                       class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
-                      :class="activeQuickDent.conditions?.carClassCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      :class="activeQuickDent.conditions?.carClassCode ? 'bg-[#1a1a1a] border-white/15' : 'bg-[#151515] border-white/10 hover:border-white/15'"
                       @click="openQuickParamPicker(activeQuickDent, 'carClassCode', 'Класс автомобиля', initialData.carClasses)"
                     >
                       <div class="min-w-0 flex-1">
@@ -374,7 +371,7 @@
                       type="button"
                       data-testid="quick-armaturnaya"
                       class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
-                      :class="(activeQuickDent.conditions?.disassemblyCodes?.length ?? 0) > 0 ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      :class="(activeQuickDent.conditions?.disassemblyCodes?.length ?? 0) > 0 ? 'bg-[#1a1a1a] border-white/15' : 'bg-[#151515] border-white/10 hover:border-white/15'"
                       @click="openQuickArmaturnayaPicker(activeQuickDent)"
                     >
                       <div class="min-w-0 flex-1">
@@ -389,7 +386,7 @@
                       type="button"
                       data-testid="quick-param-paint"
                       class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
-                      :class="activeQuickDent.conditions?.paintMaterialCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      :class="activeQuickDent.conditions?.paintMaterialCode ? 'bg-[#1a1a1a] border-white/15' : 'bg-[#151515] border-white/10 hover:border-white/15'"
                       @click="openQuickPaintPicker(activeQuickDent)"
                     >
                       <div class="min-w-0 flex-1">
@@ -404,7 +401,7 @@
                       v-if="userSettings.showSoundInsulation"
                       type="button"
                       class="qc-select-row w-full flex items-center justify-between gap-2 border transition-colors touch-manipulation"
-                      :class="activeQuickDent?.conditions?.soundInsulationCode ? 'bg-[#1a1a1a] border-metric-green/40' : 'bg-[#151515] border-white/10 hover:border-white/15'"
+                      :class="activeQuickDent?.conditions?.soundInsulationCode ? 'bg-[#1a1a1a] border-white/15' : 'bg-[#151515] border-white/10 hover:border-white/15'"
                       @click="openQuickSoundPicker(activeQuickDent)"
                     >
                       <div class="min-w-0 flex-1">
@@ -417,19 +414,11 @@
                   </div>
                 </div>
 
-                <!-- 6. ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ + CTA -->
+                <!-- 6. ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ (кнопка Вперёд в nav bar) -->
                 <div class="qc-price-block">
                   <div class="qc-price-label">ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ</div>
                   <div class="qc-price-value">{{ formatCurrency(displayTotal) }} ₽</div>
                 </div>
-                <button
-                  type="button"
-                  class="qc-cta w-full touch-manipulation"
-                  :disabled="!quickStep2Valid"
-                  @click="goQuickNext"
-                >
-                  РАССЧИТАТЬ СТОИМОСТЬ
-                </button>
               </template>
             </div>
 
@@ -501,6 +490,15 @@
                 >
                   <span class="block truncate">{{ estimateDraft.comment || '—' }}</span>
                 </button>
+              </div>
+              <!-- Вложения -->
+              <div class="card-metallic rounded-xl p-3">
+                <AttachmentPicker
+                  :record-id="estimateDraft.id || ''"
+                  :dent-index="0"
+                  :model-value="estimateDraft.attachments || []"
+                  @update:model-value="(v) => (estimateDraft.attachments = v)"
+                />
               </div>
             </div>
           </div>
@@ -633,7 +631,14 @@
         <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Клиент</div>
         <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-400">
           <div>Имя: <span class="text-white">{{ selectedHistory.client?.name || '—' }}</span></div>
-          <div>Тел: <span class="text-white">{{ selectedHistory.client?.phone || '—' }}</span></div>
+          <div class="col-span-2 flex items-center justify-between gap-2">
+            <span>Тел: <span class="text-white">{{ selectedHistory.client?.phone || '—' }}</span></span>
+            <a
+              v-if="(selectedHistory.client?.phone || '').trim()"
+              :href="`tel:${historyDetailTelHref}`"
+              class="px-3 py-1.5 rounded-lg text-xs font-bold bg-metric-green text-black border border-metric-green/40"
+            >Позвонить</a>
+          </div>
           <div>Марка: <span class="text-white">{{ selectedHistory.client?.brand || '—' }}</span></div>
           <div>Модель: <span class="text-white">{{ selectedHistory.client?.model || '—' }}</span></div>
         </div>
@@ -673,6 +678,7 @@
         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Комментарий</div>
         <div class="text-sm text-gray-300">{{ selectedHistory.comment }}</div>
       </div>
+      <HistoryAttachmentsView v-if="(selectedHistory.attachments || []).length > 0" :attachments="selectedHistory.attachments" />
       <div class="flex gap-2">
         <button type="button" @click="selectedHistoryId = null" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[40px]">Назад</button>
         <button v-if="!isEditingHistory" type="button" @click="startHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[40px]">Редакт.</button>
@@ -1196,7 +1202,7 @@ import AppWowBackground from './components/AppWowBackground.vue';
 import TopBrandBar from './components/TopBrandBar.vue';
 import WowScreenShell from './components/WowScreenShell.vue';
 import { getElementIconPath } from './utils/elementIcons';
-import { useHistoryStore } from './features/history/historyStore';
+import { useHistoryStore, generateRecordId } from './features/history/historyStore';
 import InputModal from './components/InputModal.vue';
 import { useInputModal } from './composables/useInputModal';
 import SelectModal from './components/SelectModal.vue';
@@ -1206,6 +1212,8 @@ import SegmentedControl from './components/ui/SegmentedControl.vue';
 import SelectRow from './components/ui/SelectRow.vue';
 import { hideTelegramButtons } from './utils/telegramButtons';
 import HistoryScreen from './components/HistoryScreen.vue';
+import AttachmentPicker from './components/AttachmentPicker.vue';
+import HistoryAttachmentsView from './components/HistoryAttachmentsView.vue';
 
 const isDev = import.meta.env?.DEV === true;
 // DEV-only QA overlay (?qa=1). Must not ship in production bundles.
@@ -1293,6 +1301,12 @@ const estimateDraft = reactive({
 const { historyItems, loadHistory, saveEstimate, updateEstimate, deleteEstimate, clearHistory } = useHistoryStore();
 const selectedHistoryId = ref(null);
 const selectedHistory = computed(() => historyItems.value.find((item) => item.id === selectedHistoryId.value) || null);
+const historyDetailTelHref = computed(() => {
+  const raw = (selectedHistory.value?.client?.phone || '').replace(/\D/g, '');
+  if (!raw) return '';
+  if (raw.length >= 10 && (raw[0] === '8' || raw[0] === '7')) return '+7' + raw.slice(1);
+  return '+' + raw;
+});
 const selectedHistoryDentItems = computed(() => {
   const h = selectedHistory.value;
   const items = h?.dents?.items;
@@ -2271,6 +2285,8 @@ function resetDentsOnly() {
   estimateDraft.quickDents = [];
   estimateDraft.repairTimeHours = null;
   estimateDraft.discountPercent = null;
+  estimateDraft.attachments = [];
+  delete estimateDraft.id;
   graphicsState.dents = [];
   graphicsState.selectedClass = null;
   graphicsState.selectedPart = null;
@@ -2327,6 +2343,7 @@ function buildEstimatePayload(mode) {
       };
     });
     return {
+      id: estimateDraft.id,
       mode: 'detail',
       client,
       vehicleClass,
@@ -2336,7 +2353,8 @@ function buildEstimatePayload(mode) {
       total: displayTotal.value,
       rawTotal: totalPrice.value,
       discountPercent: discPct || 0,
-      comment: estimateDraft.comment || ''
+      comment: estimateDraft.comment || '',
+      attachments: estimateDraft.attachments || []
     };
   }
   const dentItems = (estimateDraft.quickDents || []).map((d) => {
@@ -2352,6 +2370,7 @@ function buildEstimatePayload(mode) {
     };
   });
   return {
+    id: estimateDraft.id,
     mode: 'quick',
     client,
     vehicleClass: null,
@@ -2361,7 +2380,8 @@ function buildEstimatePayload(mode) {
     total: displayTotal.value,
     rawTotal: totalPrice.value,
     discountPercent: discPct || 0,
-    comment: estimateDraft.comment || ''
+    comment: estimateDraft.comment || '',
+    attachments: estimateDraft.attachments || []
   };
 }
 
@@ -2394,7 +2414,7 @@ async function saveAndBookEstimate(modeOverride) {
   isSavingHistory.value = true;
   try {
     const payload = buildEstimatePayload(mode);
-    payload.status = 'booked';
+    payload.status = 'scheduled';
     payload.bookingAt = new Date().toISOString();
     saveEstimate(payload);
     showToast('Записан на ремонт', 'success', 1800);
@@ -2418,7 +2438,7 @@ function clearHistoryConfirm() {
 
 function generateQaHistoryRecords() {
   if (!import.meta.env?.DEV) return;
-  const statuses = ['no_booking', 'no_booking', 'booked', 'done'];
+  const statuses = ['estimate', 'estimate', 'scheduled', 'done'];
   const names = ['Иван', '', 'Мария Петрова', 'Алексей', 'ООО Рога'];
   const phones = ['+79001234567', '', '89001234568', '+7 900 111 22 33'];
   const cars = [{ b: 'Toyota', m: 'Camry' }, { b: '', m: '' }, { b: 'BMW', m: 'X5' }];
@@ -2460,14 +2480,14 @@ function handleHistoryStatusUpdate({ id, status, bookingAt }) {
 }
 
 const historyDetailStatuses = [
-  { key: 'no_booking', label: 'Без записи', activeClass: 'border-gray-500 bg-gray-800/50 text-gray-300' },
-  { key: 'booked', label: 'Записан', activeClass: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400' },
+  { key: 'estimate', label: 'Без записи', activeClass: 'border-gray-500 bg-gray-800/50 text-gray-300' },
+  { key: 'scheduled', label: 'Записан', activeClass: 'border-yellow-500/40 bg-yellow-500/10 text-yellow-400' },
   { key: 'done', label: 'Выполнено', activeClass: 'border-blue-500/40 bg-blue-500/10 text-blue-400' }
 ];
 
 function changeDetailStatus(status) {
   if (!selectedHistory.value) return;
-  const bookingAt = status === 'booked' ? new Date().toISOString() : null;
+  const bookingAt = status === 'scheduled' ? new Date().toISOString() : null;
   updateEstimate(selectedHistory.value.id, { status, bookingAt });
 }
 
@@ -2770,6 +2790,9 @@ watch(
 );
 
 watch(quickStep, (step) => {
+  if (step === 3 && !estimateDraft.id) {
+    estimateDraft.id = generateRecordId();
+  }
   const onDentsStep = step === 2 || (step === 1 && !userSettings.showClientQuick);
   if (onDentsStep && estimateDraft.quickDents.length === 0) {
     addQuickDent();

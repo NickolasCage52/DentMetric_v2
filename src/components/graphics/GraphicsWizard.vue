@@ -162,11 +162,14 @@
         :comment="estimateDraft.comment"
         :discount-percent="clampDiscount(estimateDraft.discountPercent)"
         :history-saving="historySaving"
+        :record-id="estimateDraft.id || ''"
+        :attachments="estimateDraft.attachments || []"
         @back="goBack"
         @save="emit('save-history')"
         @book="emit('save-history')"
         @open-discount="openDetailDiscountModal"
         @open-comment="openDetailCommentModal"
+        @update:attachments="(v) => (estimateDraft.attachments = v)"
       />
     </div>
     <!-- Size menu modal -->
@@ -288,6 +291,7 @@ import QuickStyleFinalSection from '../quickStyle/QuickStyleFinalSection.vue';
 import { calculateDentPrice as calcDentViaAdapter } from '../../features/pricing/pricingAdapter';
 import { formatArmaturnayaSummary, getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks';
 import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from '../../utils/armatureSelection';
+import { generateRecordId } from '../../features/history/historyStore';
 
 const props = defineProps({
   form: { type: Object, required: true },
@@ -706,6 +710,9 @@ watch(dents, (val) => {
 }, { deep: true });
 
 watch(wizardStep, (step, prev) => {
+  if (step === 5 && props.estimateDraft && !props.estimateDraft.id) {
+    props.estimateDraft.id = generateRecordId();
+  }
   if (props.autoSave && step === 5 && prev === 4 && totalPrice.value > 0 && !props.historySaving) {
     nextTick(() => emit('save-history'));
   }

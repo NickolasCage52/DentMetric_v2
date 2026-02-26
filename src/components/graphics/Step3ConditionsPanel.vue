@@ -8,9 +8,9 @@
         </p>
       </div>
       <div class="step3-scroll-wrap space-y-2">
-        <div class="rounded-2xl border border-metric-green/20 bg-[#0d0d0d]/80 p-4 space-y-3">
+        <div class="rounded-2xl border border-white/10 bg-[#0d0d0d]/80 p-4 space-y-3">
           <div class="flex items-center gap-1.5">
-            <span class="text-[10px] font-bold text-metric-green uppercase tracking-widest">ПАРАМЕТРЫ РАСЧЁТА</span>
+            <span class="text-[10px] font-bold text-gray-500 uppercase tracking-widest">ПАРАМЕТРЫ РАСЧЁТА</span>
             <InfoIcon
               v-if="showInfoTooltips"
               tooltip-text="Технология ремонта, сложность выполнения, материал панели и класс авто влияют на итоговую стоимость."
@@ -117,7 +117,7 @@
           class="step3-calc-btn flex-1 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 transition-opacity min-h-[44px]"
           :class="conditionsComplete ? 'bg-metric-green text-black shadow-[0_0_15px_rgba(136,229,35,0.4)] hover:opacity-95 active:opacity-90' : 'bg-white/10 text-gray-500 cursor-not-allowed'"
         >
-          <span>Рассчитать стоимость</span>
+          <span>Вперёд</span>
         </button>
       </div>
       <p v-if="!conditionsComplete" class="text-[10px] text-gray-500 text-center">Выберите все параметры</p>
@@ -168,8 +168,7 @@ const conditionsComplete = computed(() => {
     m.repairCode &&
     m.riskCode &&
     m.materialCode &&
-    m.carClassCode &&
-    (m.disassemblyCodes?.length ?? 0) > 0
+    m.carClassCode
   );
 });
 
