@@ -132,61 +132,58 @@
           </div>
 
           <div :class="(quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)) ? 'space-y-0 pb-4' : (quickStep === 3 ? 'pb-20' : 'space-y-4 pb-40')">
-            <div v-if="quickStep === 1 && userSettings.showClientQuick" class="space-y-4">
+            <div v-if="quickStep === 1 && userSettings.showClientQuick" class="space-y-3">
               <div class="card-metallic rounded-2xl p-5 space-y-3">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between gap-2">
                   <div class="flex items-center gap-1.5">
-                    <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Данные клиента</span>
+                    <span class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest">ДАННЫЕ КЛИЕНТА</span>
                     <InfoIcon v-if="userSettings.showInfoTooltips" tooltip-text="Заполните контактные данные клиента и информацию об автомобиле. Эти поля можно сделать обязательными в настройках." />
+                    <span v-if="userSettings.clientRequired" class="text-[10px] text-red-400 uppercase tracking-widest">обязательно</span>
+                    <span v-else class="text-[10px] text-gray-500">опционально</span>
                   </div>
-                  <span v-if="userSettings.clientRequired" class="text-[10px] text-red-400 uppercase tracking-widest">обязательно</span>
-                  <span v-else class="text-[10px] text-gray-500">опционально</span>
+                  <button
+                    type="button"
+                    class="client-reset-btn"
+                    @click="resetClientDataOnly"
+                    aria-label="Сбросить данные клиента и автомобиля, кроме даты и времени"
+                  >
+                    СБРОС
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  @click="resetClientDataOnly"
-                  class="w-full text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 rounded-lg px-3 py-2 transition-colors min-h-[36px] touch-manipulation"
-                  aria-label="Сбросить данные клиента и автомобиля, кроме даты и времени"
-                >
-                  СБРОС
-                </button>
-              </div>
-              <div class="card-metallic rounded-2xl p-5 space-y-3">
-                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Данные клиента</div>
                 <div class="grid grid-cols-1 gap-2">
-                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('clientName', 'Имя клиента', 'text', 'Имя клиента')">
-                    <span class="truncate">{{ estimateDraft.clientName || 'Имя клиента' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openClientField('clientName', 'Имя клиента', 'text', 'Имя клиента')">
+                    <span class="truncate text-[12px] font-semibold" :class="estimateDraft.clientName ? 'text-white' : 'text-gray-400'">{{ estimateDraft.clientName || 'Имя клиента' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
                   </button>
-                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('clientPhone', 'Телефон', 'tel', 'Телефон')">
-                    <span class="truncate">{{ estimateDraft.clientPhone || 'Телефон' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openClientField('clientPhone', 'Телефон', 'tel', 'Телефон')">
+                    <span class="truncate text-[12px] font-semibold" :class="estimateDraft.clientPhone ? 'text-white' : 'text-gray-400'">{{ estimateDraft.clientPhone || 'Телефон' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
                   </button>
-                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('clientCompany', 'Компания (необязательно)', 'text', 'Компания')">
-                    <span class="truncate">{{ estimateDraft.clientCompany || 'Компания (необязательно)' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openClientField('clientCompany', 'Компания (необязательно)', 'text', 'Компания')">
+                    <span class="truncate text-[12px] font-semibold" :class="estimateDraft.clientCompany ? 'text-white' : 'text-gray-400'">{{ estimateDraft.clientCompany || 'Компания (необязательно)' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
                   </button>
                 </div>
               </div>
               <div class="card-metallic rounded-2xl p-5 space-y-3">
-                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Автомобиль</div>
+                <div class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">АВТОМОБИЛЬ</div>
                 <div class="grid grid-cols-1 gap-2">
-                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('carBrand', 'Марка автомобиля', 'text', 'Марка')">
-                    <span class="truncate">{{ estimateDraft.carBrand || 'Марка' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openClientField('carBrand', 'Марка автомобиля', 'text', 'Марка')">
+                    <span class="truncate text-[12px] font-semibold" :class="estimateDraft.carBrand ? 'text-white' : 'text-gray-400'">{{ estimateDraft.carBrand || 'Марка' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
                   </button>
-                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('carModel', 'Модель автомобиля', 'text', 'Модель')">
-                    <span class="truncate">{{ estimateDraft.carModel || 'Модель' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openClientField('carModel', 'Модель автомобиля', 'text', 'Модель')">
+                    <span class="truncate text-[12px] font-semibold" :class="estimateDraft.carModel ? 'text-white' : 'text-gray-400'">{{ estimateDraft.carModel || 'Модель' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
                   </button>
-                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('carPlate', 'Гос.номер', 'text', 'Гос.номер')">
-                    <span class="truncate">{{ estimateDraft.carPlate || 'Гос.номер' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openClientField('carPlate', 'Гос.номер', 'text', 'Гос.номер')">
+                    <span class="truncate text-[12px] font-semibold" :class="estimateDraft.carPlate ? 'text-white' : 'text-gray-400'">{{ estimateDraft.carPlate || 'Гос.номер' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
                   </button>
                 </div>
               </div>
               <div class="card-metallic rounded-2xl p-5 space-y-3">
-                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Дата и время</div>
+                <div class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">ДАТА И ВРЕМЯ</div>
                 <div class="grid grid-cols-2 gap-2">
-                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('inspectDate', 'Дата осмотра', 'date', 'Дата')">
-                    <span class="truncate">{{ estimateDraft.inspectDate || 'Дата' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openClientField('inspectDate', 'Дата осмотра', 'date', 'Дата')">
+                    <span class="truncate text-[12px] font-semibold" :class="estimateDraft.inspectDate ? 'text-white' : 'text-gray-400'">{{ estimateDraft.inspectDate || 'Дата' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
                   </button>
-                  <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openClientField('inspectTime', 'Время осмотра', 'time', 'Время')">
-                    <span class="truncate">{{ estimateDraft.inspectTime || 'Время' }}</span><span class="text-gray-500 shrink-0">✎</span>
+                  <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openClientField('inspectTime', 'Время осмотра', 'time', 'Время')">
+                    <span class="truncate text-[12px] font-semibold" :class="estimateDraft.inspectTime ? 'text-white' : 'text-gray-400'">{{ estimateDraft.inspectTime || 'Время' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
                   </button>
                 </div>
                 <p v-if="userSettings.clientRequired && !clientDataValid" class="text-[10px] text-gray-500 text-center">Заполните обязательные поля</p>
@@ -195,7 +192,18 @@
 
             <div v-else-if="quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)" data-testid="quick-step2" class="qc-compact" style="display:flex;flex-direction:column;gap:var(--qc-section-gap)">
               <div class="mb-2">
-                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">ПОВРЕЖДЕНИЯ</div>
+                <div class="flex items-center justify-between gap-2 mb-1.5">
+                  <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ПОВРЕЖДЕНИЯ</div>
+                  <button
+                    type="button"
+                    class="client-reset-btn qc-reset-btn"
+                    data-testid="quick-reset-dents"
+                    @click="resetQuickDentsValues"
+                    aria-label="Сбросить введённые значения"
+                  >
+                    СБРОС
+                  </button>
+                </div>
                 <div class="flex gap-1.5 flex-wrap items-center">
                   <button
                     v-for="(d, i) in estimateDraft.quickDents"
@@ -1456,6 +1464,30 @@ function removeActiveQuickDent() {
   }
 }
 
+/** Сброс значений вмятин до начального вида. Карточки не удаляются. */
+function resetQuickDentsValues() {
+  const list = estimateDraft.quickDents || [];
+  list.forEach((dent) => {
+    dent.shape = 'circle';
+    dent.sizeInputMode = 'preset';
+    dent.sizeCode = null;
+    dent.sizeLengthMm = null;
+    dent.sizeWidthMm = null;
+    dent.panelSide = 'left';
+    dent.panelElement = null;
+    if (dent.conditions) {
+      dent.conditions.repairCode = null;
+      dent.conditions.riskCode = null;
+      dent.conditions.materialCode = null;
+      dent.conditions.carClassCode = null;
+      dent.conditions.disassemblyCodes = ['Z0'];
+      dent.conditions.paintMaterialCode = null;
+      dent.conditions.soundInsulationCode = null;
+    }
+  });
+  haptic('selection');
+}
+
 function setQuickDentShape(dent, shape) {
   dent.shape = shape;
   dent.sizeCode = null;
@@ -2287,6 +2319,7 @@ function resetDentsOnly() {
   estimateDraft.discountPercent = null;
   estimateDraft.attachments = [];
   delete estimateDraft.id;
+  activeQuickDentId.value = null;
   graphicsState.dents = [];
   graphicsState.selectedClass = null;
   graphicsState.selectedPart = null;
@@ -2867,6 +2900,38 @@ onBeforeUnmount(() => {
 .text-metric-silver { color: #a0aec0; }
 .bg-metric-green { background-color: #88e523; }
 .border-metric-green { border-color: #88e523; }
+
+/* Страница клиента: эталон токенов (qc-preset-chip — второстепенная кнопка; СБРОС — ghost, серый) */
+.client-reset-btn {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: #888;
+  background: transparent;
+  border: 1px solid #444;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.client-reset-btn:hover {
+  color: #aaa;
+  border-color: #555;
+}
+.qc-reset-btn {
+  background: rgba(0, 0, 0, 0.35);
+  color: #777;
+  border-color: #3a3a3a;
+}
+.qc-reset-btn:hover {
+  background: rgba(0, 0, 0, 0.45);
+  color: #999;
+  border-color: #4a4a4a;
+}
+.client-input-row {
+  min-height: 36px;
+}
 .app-root {
   --app-footer-height: calc(64px + env(safe-area-inset-bottom, 0px));
   --content-padding-bottom: calc(var(--app-footer-height) + 1rem);

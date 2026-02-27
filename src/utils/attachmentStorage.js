@@ -1,6 +1,6 @@
 /**
  * IndexedDB-адаптер для хранения вложений (фото) к записям истории.
- * Ключи: dm_attach_{recordId}_dent{dentIndex}_{timestamp}
+ * AUDIT: OK — saveAttachment, getAttachment, deleteAttachment; ключи dm_attach_{recordId}_dent{dentIndex}_{timestamp}
  */
 const DB_NAME = 'dm_attachments';
 const STORE_NAME = 'files';

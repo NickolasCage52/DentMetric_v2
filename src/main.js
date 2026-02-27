@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import './styles.css'
+import { runDevAudit } from './utils/devAudit'
 
 const app = createApp(App)
 
@@ -32,6 +33,7 @@ if (typeof window !== 'undefined') {
 }
 
 if (import.meta.env?.DEV) {
+  runDevAudit()
   fetch('/meta.json')
     .then((r) => (r.ok ? null : Promise.reject(new Error(`${r.status}`))))
     .catch(() => console.warn('[dev] meta.json not found or failed to load (404 is OK in dev)'))

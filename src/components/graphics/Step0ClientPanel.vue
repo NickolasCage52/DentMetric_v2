@@ -1,61 +1,63 @@
 <template>
   <div class="step0-panel flex flex-col min-h-0">
-    <div class="graphics-panel-content p-3 space-y-3">
-      <div class="card-metallic rounded-2xl p-4 space-y-3">
+    <div class="graphics-panel-content step0-content p-3 space-y-3">
+      <div class="card-metallic rounded-2xl p-5 space-y-3">
         <div class="flex items-center justify-between gap-2">
-          <div class="text-[11px] text-gray-300 uppercase tracking-widest">Данные клиента</div>
-          <div class="flex items-center gap-2">
-            <div v-if="clientRequired" class="text-[10px] text-red-400 uppercase tracking-widest">обязательно</div>
-            <button
-              type="button"
-              class="text-[10px] font-bold uppercase tracking-widest text-gray-400 hover:text-amber-400 border border-white/10 hover:border-amber-500/40 rounded-lg px-2.5 py-1.5 transition-colors"
-              @click="resetClientFields"
-            >
-              СБРОС
-            </button>
+          <div class="flex items-center gap-1.5">
+            <span class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest">ДАННЫЕ КЛИЕНТА</span>
+            <span v-if="clientRequired" class="text-[10px] text-red-400 uppercase tracking-widest">обязательно</span>
+            <span v-else class="text-[10px] text-gray-500">опционально</span>
           </div>
+          <button
+            type="button"
+            class="client-reset-btn"
+            @click="resetClientFields"
+          >
+            СБРОС
+          </button>
+        </div>
+        <div class="grid grid-cols-1 gap-2">
+          <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openField('clientName', 'Имя клиента', 'text', 'Имя клиента')">
+            <span class="truncate text-[12px] font-semibold" :class="model.clientName ? 'text-white' : 'text-gray-400'">{{ model.clientName || 'Имя клиента' }}</span>
+            <span class="text-gray-500 shrink-0 text-sm">✎</span>
+          </button>
+          <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openField('clientPhone', 'Телефон', 'tel', 'Телефон')">
+            <span class="truncate text-[12px] font-semibold" :class="model.clientPhone ? 'text-white' : 'text-gray-400'">{{ model.clientPhone || 'Телефон' }}</span>
+            <span class="text-gray-500 shrink-0 text-sm">✎</span>
+          </button>
+          <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openField('clientCompany', 'Компания (необязательно)', 'text', 'Компания')">
+            <span class="truncate text-[12px] font-semibold" :class="model.clientCompany ? 'text-white' : 'text-gray-400'">{{ model.clientCompany || 'Компания (необязательно)' }}</span>
+            <span class="text-gray-500 shrink-0 text-sm">✎</span>
+          </button>
         </div>
       </div>
-      <div class="card-metallic rounded-2xl p-4 space-y-2">
-        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Данные клиента</div>
-        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('clientName', 'Имя клиента', 'text', 'Имя клиента')">
-          <span class="truncate">{{ model.clientName || 'Имя клиента' }}</span>
-          <span class="text-gray-500 shrink-0">✎</span>
-        </button>
-        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('clientPhone', 'Телефон', 'tel', 'Телефон')">
-          <span class="truncate">{{ model.clientPhone || 'Телефон' }}</span>
-          <span class="text-gray-500 shrink-0">✎</span>
-        </button>
-        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('clientCompany', 'Компания (необязательно)', 'text', 'Компания')">
-          <span class="truncate">{{ model.clientCompany || 'Компания (необязательно)' }}</span>
-          <span class="text-gray-500 shrink-0">✎</span>
-        </button>
-      </div>
-      <div class="card-metallic rounded-2xl p-4 space-y-2">
-        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Автомобиль</div>
-        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('carBrand', 'Марка автомобиля', 'text', 'Марка')">
-          <span class="truncate">{{ model.carBrand || 'Марка' }}</span>
-          <span class="text-gray-500 shrink-0">✎</span>
-        </button>
-        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('carModel', 'Модель автомобиля', 'text', 'Модель')">
-          <span class="truncate">{{ model.carModel || 'Модель' }}</span>
-          <span class="text-gray-500 shrink-0">✎</span>
-        </button>
-        <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('carPlate', 'Гос.номер', 'text', 'Гос.номер')">
-          <span class="truncate">{{ model.carPlate || 'Гос.номер' }}</span>
-          <span class="text-gray-500 shrink-0">✎</span>
-        </button>
-      </div>
-      <div class="card-metallic rounded-2xl p-4 space-y-2">
-        <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Дата и время</div>
-        <div class="grid grid-cols-2 gap-2">
-          <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('inspectDate', 'Дата осмотра', 'date', 'Дата')">
-            <span class="truncate">{{ model.inspectDate || 'Дата' }}</span>
-            <span class="text-gray-500 shrink-0">✎</span>
+      <div class="card-metallic rounded-2xl p-5 space-y-3">
+        <div class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">АВТОМОБИЛЬ</div>
+        <div class="grid grid-cols-1 gap-2">
+          <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openField('carBrand', 'Марка автомобиля', 'text', 'Марка')">
+            <span class="truncate text-[12px] font-semibold" :class="model.carBrand ? 'text-white' : 'text-gray-400'">{{ model.carBrand || 'Марка' }}</span>
+            <span class="text-gray-500 shrink-0 text-sm">✎</span>
           </button>
-          <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[16px] text-white min-h-[48px]" @click="openField('inspectTime', 'Время осмотра', 'time', 'Время')">
-            <span class="truncate">{{ model.inspectTime || 'Время' }}</span>
-            <span class="text-gray-500 shrink-0">✎</span>
+          <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openField('carModel', 'Модель автомобиля', 'text', 'Модель')">
+            <span class="truncate text-[12px] font-semibold" :class="model.carModel ? 'text-white' : 'text-gray-400'">{{ model.carModel || 'Модель' }}</span>
+            <span class="text-gray-500 shrink-0 text-sm">✎</span>
+          </button>
+          <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openField('carPlate', 'Гос.номер', 'text', 'Гос.номер')">
+            <span class="truncate text-[12px] font-semibold" :class="model.carPlate ? 'text-white' : 'text-gray-400'">{{ model.carPlate || 'Гос.номер' }}</span>
+            <span class="text-gray-500 shrink-0 text-sm">✎</span>
+          </button>
+        </div>
+      </div>
+      <div class="card-metallic rounded-2xl p-5 space-y-3">
+        <div class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">ДАТА И ВРЕМЯ</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openField('inspectDate', 'Дата осмотра', 'date', 'Дата')">
+            <span class="truncate text-[12px] font-semibold" :class="model.inspectDate ? 'text-white' : 'text-gray-400'">{{ model.inspectDate || 'Дата' }}</span>
+            <span class="text-gray-500 shrink-0 text-sm">✎</span>
+          </button>
+          <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openField('inspectTime', 'Время осмотра', 'time', 'Время')">
+            <span class="truncate text-[12px] font-semibold" :class="model.inspectTime ? 'text-white' : 'text-gray-400'">{{ model.inspectTime || 'Время' }}</span>
+            <span class="text-gray-500 shrink-0 text-sm">✎</span>
           </button>
         </div>
       </div>
@@ -118,3 +120,28 @@ function resetClientFields() {
   props.model.carPlate = '';
 }
 </script>
+
+<style scoped>
+/* Эталон: второстепенная кнопка; СБРОС — ghost, серый (деструктивное действие) */
+.client-reset-btn {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  color: #888;
+  background: transparent;
+  border: 1px solid #444;
+  cursor: pointer;
+  transition: color 0.2s, border-color 0.2s;
+}
+.client-reset-btn:hover {
+  color: #aaa;
+  border-color: #555;
+}
+/* Строки полей: min-height как qc-select-row (36px) */
+.client-input-row {
+  min-height: 36px;
+}
+</style>

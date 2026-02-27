@@ -19,7 +19,12 @@
     </button>
     <div v-if="thumbnails.length > 0" class="flex flex-wrap gap-2 mt-2">
       <div v-for="(t, i) in thumbnails" :key="t.key" class="relative">
-        <img :src="t.url" class="w-16 h-16 object-cover rounded-lg border border-white/10" alt="Вложение">
+        <img
+          :src="t.url"
+          class="attachment-thumb w-16 h-16 object-cover rounded-lg border border-white/10 cursor-pointer"
+          alt="Вложение"
+          @click="openLightbox(t.key)"
+        >
         <button
           type="button"
           class="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500/90 text-white text-xs flex items-center justify-center"
@@ -27,12 +32,14 @@
         >×</button>
       </div>
     </div>
+    <ImageLightbox :src="lightboxSrc" :visible="lightboxVisible" @close="closeLightbox" />
   </div>
 </template>
 
 <script setup>
 import { ref, watch, onUnmounted } from 'vue';
 import { saveAttachment, getAttachment, deleteAttachment, generateAttachmentKey } from '../utils/attachmentStorage';
+import ImageLightbox from './ImageLightbox.vue';
 
 const props = defineProps({
   recordId: { type: String, default: '' },
@@ -44,6 +51,8 @@ const emit = defineEmits(['update:modelValue']);
 
 const fileInputRef = ref(null);
 const thumbnails = ref([]);  // [{ key, url }]
+const lightboxSrc = ref('');
+const lightboxVisible = ref(false);
 
 const draftId = ref('');
 const effectiveRecordId = () => props.recordId || draftId.value || (draftId.value = `draft_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`);
@@ -84,6 +93,18 @@ async function onFileSelect(e) {
   }
 }
 
+function openLightbox(key) {
+  const t = thumbnails.value.find((x) => x.key === key);
+  if (!t?.url) return;
+  lightboxSrc.value = t.url;
+  lightboxVisible.value = true;
+}
+
+function closeLightbox() {
+  lightboxVisible.value = false;
+  lightboxSrc.value = '';
+}
+
 async function removeAt(idx) {
   const t = thumbnails.value[idx];
   if (!t) return;
@@ -96,3 +117,8 @@ async function removeAt(idx) {
   thumbnails.value.splice(idx, 1);
 }
 </script>
+
+<style scoped>
+.attachment-thumb { transition: opacity 0.15s; }
+.attachment-thumb:active { opacity: 0.75; }
+</style>

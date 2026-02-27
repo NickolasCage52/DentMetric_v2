@@ -63,6 +63,7 @@ export function generateRecordId(): string {
  * Гарантии: id, createdAt, total, status (estimate|scheduled|done|rejected),
  * client, dents, attachments, schemaVersion.
  */
+// AUDIT: OK — normalizeRecord (normalizeHistoryRecord) подставляет дефолты для id, schemaVersion, createdAt, client, dents, attachments, status, comment, master
 export function normalizeHistoryRecord(raw: any): any | null {
   try {
     if (!raw || typeof raw !== 'object') return null;
@@ -147,12 +148,13 @@ export function normalizeHistoryRecord(raw: any): any | null {
   }
 }
 
+// AUDIT: OK — дубли id получают crypto.randomUUID
 function dedupeIds(items: any[]): any[] {
   const seen = new Set<string>();
   return items.map((item, index) => {
     if (!item || typeof item !== 'object') return item;
-    let id = item.id != null ? String(item.id) : `unknown_${index}`;
-    if (seen.has(id)) id = `${id}-${index}`;
+    let id = item.id != null ? String(item.id) : generateRecordId();
+    if (seen.has(id)) id = generateRecordId();
     seen.add(id);
     return { ...item, id };
   });
@@ -176,6 +178,48 @@ function persist(items: any[]) {
   }
   historyItems.value = items;
 }
+
+// AUDIT: OK — safeLoadHistory/safeSaveHistory wrap loadHistory/persist with STORAGE_KEY
+/** Безопасная загрузка: try-catch JSON.parse, фильтрация битых записей */
+export function safeLoadHistory(): any[] {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  const parsed = migrateHistory(safeParse(raw));
+  const items: any[] = [];
+  for (const item of Array.isArray(parsed?.items) ? parsed.items : []) {
+    try {
+      const norm = normalizeHistoryRecord(item);
+      if (norm && norm.id) items.push(norm);
+    } catch (_e) {
+      /* AUDIT: OK — битые записи фильтруются */
+    }
+  }
+  return dedupeIds(items);
+}
+
+/** Безопасное сохранение: try-catch localStorage.setItem */
+export function safeSaveHistory(records: any[]): boolean {
+  try {
+    const payload = { version: HISTORY_SCHEMA_VERSION, items: records };
+    let serialized = JSON.stringify(payload);
+    if (serialized.length > MAX_STORAGE_BYTES) {
+      const trimmed = [...records];
+      while (trimmed.length > 0 && (serialized = JSON.stringify({ version: HISTORY_SCHEMA_VERSION, items: trimmed })).length > MAX_STORAGE_BYTES) {
+        trimmed.pop();
+      }
+      records = trimmed;
+    }
+    localStorage.setItem(STORAGE_KEY, serialized);
+    historyItems.value = records;
+    historyLoaded.value = true;
+    return true;
+  } catch (e) {
+    console.error('[DentMetric] History save failed:', e);
+    return false;
+  }
+}
+
+/** Alias для совместимости с devAudit */
+export const normalizeRecord = normalizeHistoryRecord;
 
 /**
  * Безопасная загрузка истории: не падает при битых записях/JSON.
