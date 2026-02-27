@@ -278,6 +278,7 @@ import { normalizeGraphicsDentsForPricing } from '../../features/pricing/pricing
 import { applyPriceRoundingCeil } from '../../utils/priceRounding';
 import { applyDiscount, clampDiscount } from '../../utils/discount';
 import { calculateSessionTotalWithMultiDentRule } from '../../utils/multiDentAggregation';
+import { getPriceMultiplier } from '../../utils/settingsUtils';
 import StepHeader from './StepHeader.vue';
 import Step0ClientPanel from './Step0ClientPanel.vue';
 import Step1PlacementPanel from './Step1PlacementPanel.vue';
@@ -450,7 +451,11 @@ const dentsForPricing = computed(() => {
     initialData: props.initialData,
     conditions: conditionsForCalc.value
   };
-  return normalizeGraphicsDentsForPricing(dents.value, ctx);
+  const normalized = normalizeGraphicsDentsForPricing(dents.value, ctx);
+  return normalized.map((d) => {
+    const mult = getPriceMultiplier(d.type || 'circle', props.userSettings || {});
+    return { ...d, price: (d.price || 0) * mult };
+  });
 });
 const basePrice = computed(() => calcBasePriceFromDents(dentsForPricing.value));
 const conditionsForCalc = computed(() => props.conditionsForCalc || props.form);
@@ -462,7 +467,16 @@ const totalPriceRaw = computed(() => {
   if (perDentCores.length <= 1) {
     return Math.max(0, (perDentCores[0] ?? 0) + disCost + soundCost);
   }
-  const { total: aggregated } = calculateSessionTotalWithMultiDentRule(perDentCores, {
+  const dentItems = dents.map((d, i) => ({
+    total: perDentCores[i] ?? 0,
+    panelElement: props.selectedPart?.name ?? d?.panelElement ?? null,
+    dent: d
+  }));
+  const { total: aggregated } = calculateSessionTotalWithMultiDentRule(dentItems, {
+    discountSamePartEnabled: props.userSettings?.discountSamePartEnabled,
+    discountSamePartValue: props.userSettings?.discountSamePartValue,
+    discountDiffPartEnabled: props.userSettings?.discountDiffPartEnabled,
+    discountDiffPartValue: props.userSettings?.discountDiffPartValue,
     enableSecondDentDiscount: props.userSettings?.enableSecondDentDiscount,
     secondDentDiscountPercent: props.userSettings?.secondDentDiscountPercent
   });
@@ -507,6 +521,7 @@ const detailLineItems = computed(() => {
       { shape, widthMm: w, heightMm: h, conditions, panelElement: props.selectedPart?.name },
       ctx
     );
+    const mult = getPriceMultiplier(shape, props.userSettings || {});
     const dentDisplay = {
       ...dent,
       conditions,
@@ -515,12 +530,16 @@ const detailLineItems = computed(() => {
       sizeLengthMm: w,
       sizeWidthMm: h
     };
-    return { dent: dentDisplay, sizeCode: result.sizeCode, base: result.base, total: result.total, breakdown: result.breakdown };
+    return { dent: dentDisplay, sizeCode: result.sizeCode, base: result.base * mult, total: result.total * mult, breakdown: result.breakdown };
   });
   const filtered = list.filter((d) => d.total > 0).sort((a, b) => b.total - a.total);
   if (filtered.length === 0) return [];
-  const totals = filtered.map((d) => d.total);
-  const { weightedTotals } = calculateSessionTotalWithMultiDentRule(totals, {
+  const dentItems = filtered.map((d) => ({ total: d.total, panelElement: d.dent?.panelElement ?? props.selectedPart?.name ?? null, dent: d.dent }));
+  const { weightedTotals } = calculateSessionTotalWithMultiDentRule(dentItems, {
+    discountSamePartEnabled: props.userSettings?.discountSamePartEnabled,
+    discountSamePartValue: props.userSettings?.discountSamePartValue,
+    discountDiffPartEnabled: props.userSettings?.discountDiffPartEnabled,
+    discountDiffPartValue: props.userSettings?.discountDiffPartValue,
     enableSecondDentDiscount: props.userSettings?.enableSecondDentDiscount,
     secondDentDiscountPercent: props.userSettings?.secondDentDiscountPercent
   });

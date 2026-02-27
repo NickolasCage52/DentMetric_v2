@@ -42,4 +42,30 @@ describe('calculateSessionTotalWithMultiDentRule', () => {
     const r = calculateSessionTotalWithMultiDentRule([100, NaN, 100], {});
     expect(r.total).toBe(150);
   });
+
+  it('same element: discountSamePart applied', () => {
+    const dents = [
+      { total: 100, panelElement: 'door' },
+      { total: 100, panelElement: 'door' }
+    ];
+    const r = calculateSessionTotalWithMultiDentRule(dents, {
+      discountSamePartEnabled: true,
+      discountSamePartValue: 25
+    });
+    expect(r.total).toBe(175); // 100 + 100*0.75
+  });
+
+  it('different elements: discountDiffPart applied', () => {
+    const dents = [
+      { total: 100, panelElement: 'door' },
+      { total: 100, panelElement: 'hood' }
+    ];
+    const r = calculateSessionTotalWithMultiDentRule(dents, {
+      discountSamePartEnabled: true,
+      discountSamePartValue: 50,
+      discountDiffPartEnabled: true,
+      discountDiffPartValue: 30
+    });
+    expect(r.total).toBe(170); // 100 + 100*0.7
+  });
 });

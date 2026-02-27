@@ -5,8 +5,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Lookup table ──────────────────────────────────────────────────────────────
-// Source of truth for height = 2 cm.
-// Lengths in cm, prices in rubles.
+// Source of truth for height = 2 cm. PDF "доработки_240226_Раздел_настроек", стр. 3.
+// Lengths in cm, prices in rubles (base from PDF; k2/k3/k4 для матрицы сложности).
 const STRIPE_TABLE = [
   { length: 5, base: 4000, k2: 6000, k3: 9200, k4: 16000 },
   { length: 18, base: 8000, k2: 11040, k3: 16000, k4: 25600 },
@@ -16,6 +16,13 @@ const STRIPE_TABLE = [
   { length: 50, base: 15000, k2: 18000, k3: 25300, k4: 44000 },
   { length: 100, base: 22000, k2: 25300, k3: 31900, k4: 44000 }
 ];
+
+/** Presets for display in settings (length, label, base). */
+export const STRIPE_PRESETS_DISPLAY = STRIPE_TABLE.map((r) => ({
+  lengthCm: r.length,
+  label: `${r.length} см`,
+  base: r.base
+}));
 
 // ── Height scaling parameters ─────────────────────────────────────────────────
 // Sub-linear power law: scale = (h / H_REF) ^ EXPONENT
@@ -89,7 +96,36 @@ function heightScaleFactor(heightCm) {
 }
 
 /**
- * PUBLIC API: calculate stripe/scratch price
+ * Get complexity ratio for stripe (K2/K3/K4 vs base). Used when base comes from user prices.
+ * @param {number} lengthCm
+ * @param {'base'|'k2'|'k3'|'k4'} classKey
+ * @returns {number} multiplier (1.0 for base)
+ */
+function getStripeComplexityRatio(lengthCm, classKey) {
+  if (classKey === 'base') return 1.0;
+  const tableBase = interpolatePriceByLength(lengthCm, 'base');
+  if (!tableBase) return 1.0;
+  const tableClass = interpolatePriceByLength(lengthCm, classKey);
+  return tableClass / tableBase;
+}
+
+/**
+ * PUBLIC API: calculate stripe/scratch price from user base (interpolated by area).
+ * Use when basePriceK1 comes from userSettings.prices (via area interpolation).
+ * @param {{ lengthCm: number, heightCm: number, coeffClass: string, basePriceK1: number }}
+ * @returns {{ price: number, debug?: object }}
+ */
+export function calculateStripePriceFromUserBase({ lengthCm, heightCm, coeffClass, basePriceK1 }) {
+  const raw = String(coeffClass || '').trim();
+  const classKey = CLASS_KEY_MAP[raw] ?? CLASS_KEY_MAP[raw.toLowerCase()] ?? 'base';
+  const ratio = getStripeComplexityRatio(lengthCm, classKey);
+  const hScale = heightScaleFactor(heightCm);
+  const price = (Number(basePriceK1) || 0) * ratio * hScale;
+  return { price };
+}
+
+/**
+ * PUBLIC API: calculate stripe/scratch price (uses internal STRIPE_TABLE).
  * @param {{ lengthCm: number, heightCm: number, coeffClass: string }}
  * @returns {{ price: number, debug?: object }}
  */

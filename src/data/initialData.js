@@ -48,14 +48,13 @@ export const initialData = {
         { code: 'S11', name: 'два мяча', basePrice: 15000, radius: 75, area: 17671 }
     ],
     stripSizes: [
-        { code: 'LS1', name: 'с спич. коробок', basePrice: 4000, w: 40, h: 20, area: 800 },
-        { code: 'LS2', name: 'с карандаш', basePrice: 6000, w: 80, h: 10, area: 800 },
-        { code: 'LS3', name: 'с линейку', basePrice: 9000, w: 120, h: 10, area: 1200 },
-        { code: 'LS4', name: 'с книгу', basePrice: 13000, w: 150, h: 50, area: 7500 },
-        { code: 'LS5', name: 'с ноутбук', basePrice: 16000, w: 200, h: 100, area: 20000 },
-        { code: 'LS6', name: 'с полдвери', basePrice: 22000, w: 250, h: 150, area: 37500 },
-        { code: 'LS7', name: 'с дверь', basePrice: 30000, w: 280, h: 200, area: 56000 },
-        { code: 'LS8', name: 'весь элемент', basePrice: 42000, w: 300, h: 300, area: 90000 }
+        { code: 'L5', name: '5 см', basePrice: 4000, w: 50, h: 20, area: 1000 },
+        { code: 'L18', name: '18 см', basePrice: 8000, w: 180, h: 20, area: 3600 },
+        { code: 'L20', name: '20 см', basePrice: 9000, w: 200, h: 20, area: 4000 },
+        { code: 'L21', name: '21 см', basePrice: 12000, w: 210, h: 20, area: 4200 },
+        { code: 'L36', name: '36 см', basePrice: 15000, w: 360, h: 20, area: 7200 },
+        { code: 'L50', name: '50 см', basePrice: 15000, w: 500, h: 20, area: 10000 },
+        { code: 'L100', name: '100 см', basePrice: 22000, w: 1000, h: 20, area: 20000 }
     ],
 
     complexityMatrix: {

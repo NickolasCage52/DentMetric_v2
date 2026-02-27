@@ -1254,7 +1254,7 @@ function getInterpolatedPriceByAreaPx(areaPx, type, sizes) {
     }
     return priceMax;
   }
-  /** Площадь > LS8: убираем потолок 42 000. Условия считаются от фактической предварительной цены. */
+  /** Площадь > макс. пресета: убираем потолок. Условия считаются от фактической предварительной цены. */
   const extraArea = areaPx - areaMax;
   const markup = Math.max(500, 5000 * Math.log(1 + extraArea / 50000));
   return priceMax + markup;

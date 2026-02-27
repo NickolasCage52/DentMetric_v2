@@ -710,8 +710,16 @@
       </div>
       <h2 class="text-xl font-bold text-white px-1">Настройки</h2>
 
-      <section class="card-metallic rounded-2xl p-5 space-y-4">
-        <h3 class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Ценообразование</h3>
+      <div class="space-y-3">
+      <details class="group card-metallic rounded-2xl overflow-hidden transition-all" open>
+        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
+          <div class="flex items-center space-x-3">
+            <span class="text-lg opacity-80">💰</span>
+            <span class="font-bold text-sm text-white">Ценообразование</span>
+          </div>
+          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </summary>
+        <div class="px-5 pb-5 pt-0 space-y-4 border-t border-white/5 mt-2 pt-4">
         <div>
           <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Округление цены</p>
           <div class="flex flex-wrap gap-2">
@@ -748,50 +756,60 @@
           <p class="text-[10px] text-gray-500 mt-2">Отображение в списках. Ввод всегда в мм.</p>
         </div>
         <div class="border-t border-white/10 pt-4 mt-2">
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Быстрое изменение цен</p>
-          <p class="text-[10px] text-gray-500 mb-2">Разово применить ±10% ко всем базовым ценам (круг и полосы).</p>
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Регулятор цен: Круг / Овал</p>
+          <p class="text-[10px] text-gray-500 mb-2">Множитель применяется к базовым ценам при расчёте.</p>
           <div class="flex gap-2">
-            <button
-              type="button"
-              data-testid="bulk-price-minus-10"
-              class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]"
-              @click="applyBulkPriceAdjustment(-10)"
-            >
-              −10%
-            </button>
-            <button
-              type="button"
-              data-testid="bulk-price-plus-10"
-              class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]"
-              @click="applyBulkPriceAdjustment(10)"
-            >
-              +10%
-            </button>
+            <button type="button" data-testid="price-regulator-round-minus" class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]" @click="applyPriceRegulator('roundOval', -10)">−10%</button>
+            <button type="button" class="flex-1 py-2.5 rounded-xl border border-white/20 text-sm font-semibold text-gray-500 min-h-[44px]" @click="applyPriceRegulator('roundOval', 0)">0%</button>
+            <button type="button" data-testid="price-regulator-round-plus" class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]" @click="applyPriceRegulator('roundOval', 10)">+10%</button>
           </div>
+          <p class="text-[10px] text-gray-500 mt-1">Множитель: {{ effectivePriceMultiplierRoundOval }}%</p>
         </div>
         <div class="border-t border-white/10 pt-4 mt-2">
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Скидка на 2-ю вмятину</p>
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Регулятор цен: Полоса / Царапина</p>
+          <p class="text-[10px] text-gray-500 mb-2">Множитель применяется к базовым ценам при расчёте.</p>
+          <div class="flex gap-2">
+            <button type="button" data-testid="price-regulator-stripe-minus" class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]" @click="applyPriceRegulator('stripe', -10)">−10%</button>
+            <button type="button" class="flex-1 py-2.5 rounded-xl border border-white/20 text-sm font-semibold text-gray-500 min-h-[44px]" @click="applyPriceRegulator('stripe', 0)">0%</button>
+            <button type="button" data-testid="price-regulator-stripe-plus" class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]" @click="applyPriceRegulator('stripe', 10)">+10%</button>
+          </div>
+          <p class="text-[10px] text-gray-500 mt-1">Множитель: {{ effectivePriceMultiplierStripe }}%</p>
+        </div>
+        <div class="border-t border-white/10 pt-4 mt-2">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Скидка на 2-ю вмятину (один элемент)</p>
           <div class="flex items-center justify-between gap-3 py-1">
-            <span class="text-sm text-gray-300 flex-1">Включить настраиваемую скидку</span>
+            <span class="text-sm text-gray-300 flex-1">Включить</span>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input data-testid="settings-enable-second-dent-discount" v-model="userSettings.enableSecondDentDiscount" type="checkbox" class="sr-only peer">
+              <input data-testid="settings-discount-same-part" v-model="userSettings.discountSamePartEnabled" type="checkbox" class="sr-only peer">
               <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
               <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
             </label>
           </div>
-          <div v-if="userSettings.enableSecondDentDiscount" class="flex items-center justify-between gap-3 py-2 mt-1">
-            <span class="text-sm text-gray-300 flex-1">Размер скидки (%)</span>
-            <button
-              type="button"
-              data-testid="settings-second-dent-discount-percent"
-              class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-sm text-white min-h-[44px] min-w-[100px] touch-manipulation"
-              @click="openSecondDentDiscountModal"
-            >
-              <span>{{ userSettings.secondDentDiscountPercent }}</span>
+          <div v-if="userSettings.discountSamePartEnabled" class="flex items-center justify-between gap-3 py-2">
+            <span class="text-sm text-gray-300 flex-1">Скидка (%)</span>
+            <button type="button" data-testid="settings-discount-same-part-percent" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-sm text-white min-h-[44px] min-w-[100px] touch-manipulation" @click="openDiscountSamePartModal">
+              <span>{{ userSettings.discountSamePartValue }}</span>
               <span class="text-gray-500 shrink-0">✎</span>
             </button>
           </div>
-          <p class="text-[10px] text-gray-500 mt-1">Выкл: 50% для доп. вмятин. Вкл: задайте свой %.</p>
+        </div>
+        <div class="border-t border-white/10 pt-4 mt-2">
+          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Скидка на 2-ю вмятину (другой элемент)</p>
+          <div class="flex items-center justify-between gap-3 py-1">
+            <span class="text-sm text-gray-300 flex-1">Включить</span>
+            <label class="relative inline-flex items-center cursor-pointer shrink-0">
+              <input data-testid="settings-discount-diff-part" v-model="userSettings.discountDiffPartEnabled" type="checkbox" class="sr-only peer">
+              <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
+              <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+            </label>
+          </div>
+          <div v-if="userSettings.discountDiffPartEnabled" class="flex items-center justify-between gap-3 py-2">
+            <span class="text-sm text-gray-300 flex-1">Скидка (%)</span>
+            <button type="button" data-testid="settings-discount-diff-part-percent" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-sm text-white min-h-[44px] min-w-[100px] touch-manipulation" @click="openDiscountDiffPartModal">
+              <span>{{ userSettings.discountDiffPartValue }}</span>
+              <span class="text-gray-500 shrink-0">✎</span>
+            </button>
+          </div>
         </div>
         <div class="border-t border-white/10 pt-4 mt-2">
           <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">1.2 Базовый прайс</p>
@@ -803,27 +821,34 @@
                 <span class="font-medium text-sm text-gray-300">{{ size.code }}</span>
                 <span class="text-xs text-gray-500">{{ size.name }}</span>
               </div>
-              <input type="number" v-model.number="userSettings.prices[size.code]" inputmode="numeric" class="w-28 bg-[#151515] border border-[#333] rounded-lg p-2.5 text-right font-medium text-white focus:border-metric-green/50 outline-none shrink-0">
+              <input type="number" v-model.number="userSettings.prices[size.code]" inputmode="numeric" class="dm-price-box w-28 min-w-[7rem] min-h-[44px] bg-[#151515] border border-[#333] rounded-lg p-2.5 text-right font-medium text-white focus:border-metric-green/50 outline-none shrink-0">
             </div>
           </div>
         </div>
         <div class="border-t border-white/10 pt-4 mt-2">
-          <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-3">Полосы</p>
+          <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Полоса / Царапина</p>
           <div class="space-y-3">
             <div v-for="size in initialData.stripSizes" :key="size.code" class="flex items-center justify-between gap-3">
               <div class="flex flex-col min-w-0">
                 <span class="font-medium text-sm text-gray-300">{{ size.code }}</span>
                 <span class="text-xs text-gray-500">{{ size.name }}</span>
               </div>
-              <input type="number" v-model.number="userSettings.prices[size.code]" inputmode="numeric" class="w-28 bg-[#151515] border border-[#333] rounded-lg p-2.5 text-right font-medium text-white focus:border-metric-green/50 outline-none shrink-0">
+              <input type="number" v-model.number="userSettings.prices[size.code]" inputmode="numeric" class="dm-price-box w-28 min-w-[7rem] min-h-[44px] bg-[#151515] border border-[#333] rounded-lg p-2.5 text-right font-medium text-white focus:border-metric-green/50 outline-none shrink-0">
             </div>
           </div>
         </div>
-      </section>
+        </div>
+      </details>
 
-      <section class="card-metallic rounded-2xl p-5 space-y-4">
-        <h3 class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Интерфейс</h3>
-        <div class="space-y-4">
+      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
+        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
+          <div class="flex items-center space-x-3">
+            <span class="text-lg opacity-80">⚙️</span>
+            <span class="font-bold text-sm text-white">Интерфейс</span>
+          </div>
+          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </summary>
+        <div class="px-5 pb-5 pt-0 space-y-4 border-t border-white/5 mt-2 pt-4">
           <div class="flex items-center justify-between gap-3 py-1">
             <span class="text-sm text-gray-300 flex-1">Показывать подсказки (i)</span>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
@@ -849,11 +874,17 @@
             </label>
           </div>
         </div>
-      </section>
+      </details>
 
-      <section class="card-metallic rounded-2xl p-5 space-y-4">
-        <h3 class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Клиент</h3>
-        <div class="space-y-4">
+      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
+        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
+          <div class="flex items-center space-x-3">
+            <span class="text-lg opacity-80">👤</span>
+            <span class="font-bold text-sm text-white">Клиент</span>
+          </div>
+          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </summary>
+        <div class="px-5 pb-5 pt-0 space-y-4 border-t border-white/5 mt-2 pt-4">
           <div class="flex items-center justify-between gap-3 py-1">
             <span class="text-sm text-gray-300 flex-1">Данные клиента обязательны</span>
             <label class="relative inline-flex items-center cursor-pointer shrink-0">
@@ -889,10 +920,17 @@
             </div>
           </div>
         </div>
-      </section>
+      </details>
 
-      <section class="card-metallic rounded-2xl p-5 space-y-4">
-        <h3 class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Обязательные поля</h3>
+      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
+        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
+          <div class="flex items-center space-x-3">
+            <span class="text-lg opacity-80">📋</span>
+            <span class="font-bold text-sm text-white">Обязательные поля</span>
+          </div>
+          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </summary>
+        <div class="px-5 pb-5 pt-0 space-y-4 border-t border-white/5 mt-2 pt-4">
         <p class="text-[10px] text-gray-500">Включите только нужные параметры, чтобы ускорить быстрый расчёт.</p>
         <div class="space-y-4">
           <div class="flex items-center justify-between gap-3 py-1">
@@ -920,10 +958,18 @@
             </label>
           </div>
         </div>
-      </section>
+        </div>
+      </details>
 
-      <section class="card-metallic rounded-2xl p-5 space-y-4">
-        <h3 class="text-[10px] font-bold text-metric-green uppercase tracking-widest">История</h3>
+      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
+        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
+          <div class="flex items-center space-x-3">
+            <span class="text-lg opacity-80">📁</span>
+            <span class="font-bold text-sm text-white">История</span>
+          </div>
+          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </summary>
+        <div class="px-5 pb-5 pt-0 border-t border-white/5 mt-2 pt-4">
         <div class="flex items-center justify-between gap-3 py-1">
           <span class="text-sm text-gray-300 flex-1">Автосохранение в историю</span>
           <label class="relative inline-flex items-center cursor-pointer shrink-0">
@@ -932,10 +978,18 @@
             <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
           </label>
         </div>
-      </section>
+        </div>
+      </details>
 
-      <section class="card-metallic rounded-2xl p-5 space-y-4">
-        <h3 class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Мастера</h3>
+      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
+        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
+          <div class="flex items-center space-x-3">
+            <span class="text-lg opacity-80">👷</span>
+            <span class="font-bold text-sm text-white">Мастера</span>
+          </div>
+          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+        </summary>
+        <div class="px-5 pb-5 pt-0 space-y-4 border-t border-white/5 mt-2 pt-4">
         <div class="flex justify-between items-center">
           <span class="text-sm text-gray-400">Имя и ставка (₽/час)</span>
           <button @click="addMaster" class="text-xs text-metric-green border border-metric-green px-2.5 py-1.5 rounded-lg hover:bg-metric-green hover:text-black transition-colors">+ Добавить</button>
@@ -949,7 +1003,10 @@
             </button>
           </div>
         </div>
-      </section>
+        </div>
+      </details>
+
+      </div>
 
       <div class="flex flex-col space-y-3 pt-2">
         <button @click="saveSettings" class="cta-primary w-full bg-metric-green text-black font-bold py-3.5 rounded-xl active:opacity-90 shadow-[0_0_15px_rgba(136,229,35,0.4)] min-h-[48px]">Сохранить настройки</button>
@@ -1202,6 +1259,7 @@ import { calculateDentPrice as calcDentViaAdapter, normalizeGraphicsDentsForPric
 import { applyPriceRoundingCeil, PRICE_ROUND_OPTIONS } from './utils/priceRounding';
 import { applyDiscount, clampDiscount } from './utils/discount';
 import { calculateSessionTotalWithMultiDentRule } from './utils/multiDentAggregation';
+import { migrateSettings, validateSettings, getPriceMultiplier, SETTINGS_KEY } from './utils/settingsUtils';
 import { classifyDamageShapeByRatio } from './utils/shapeClassification';
 import GraphicsWizard from './components/graphics/GraphicsWizard.vue';
 import StepDots from './components/graphics/StepDots.vue';
@@ -1250,6 +1308,8 @@ const metricScrollRef = ref(null);
 const historyScrollRef = ref(null);
 const settingsScrollRef = ref(null);
 const infoScrollRef = ref(null);
+const settingsAccordionPricing = ref(true);
+const settingsAccordionIndividual = ref(true);
 
 function scrollToTop(el) {
   if (!el?.scrollTo) return;
@@ -1613,14 +1673,23 @@ const userSettings = reactive({
   showSoundInsulation: true,
   enableSecondDentDiscount: false,
   secondDentDiscountPercent: 50,
+  discountSamePartEnabled: false,
+  discountSamePartValue: 50,
+  discountDiffPartEnabled: false,
+  discountDiffPartValue: 0,
+  priceAdjustmentRoundOval: 1.0,
+  priceAdjustmentStripe: 1.0,
   useQuickUiInDetail: true
 });
 
 function loadUserSettings() {
-  const v6 = localStorage.getItem('dentRepairSettings_v6');
-  const v5 = localStorage.getItem('dentRepairSettings_v5');
   try {
-    const p = (v6 ? JSON.parse(v6) : null) || (v5 ? JSON.parse(v5) : null) || {};
+    const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {};
+    const v5 = localStorage.getItem('dentRepairSettings_v5');
+    const p = (typeof raw === 'object' && raw !== null && (raw.prices || raw.clientRequired != null))
+      ? raw
+      : (v5 ? JSON.parse(v5) : null) || {};
+    const migrated = migrateSettings(p);
     if (p.prices) Object.assign(userSettings.prices, p.prices);
     if (p.masters) userSettings.masters = p.masters;
     if (typeof p.clientRequired === 'boolean') userSettings.clientRequired = p.clientRequired;
@@ -1639,6 +1708,17 @@ function loadUserSettings() {
     if (typeof p.enableSecondDentDiscount === 'boolean') userSettings.enableSecondDentDiscount = p.enableSecondDentDiscount;
     if (typeof p.secondDentDiscountPercent === 'number' && p.secondDentDiscountPercent >= 0 && p.secondDentDiscountPercent <= 100) userSettings.secondDentDiscountPercent = p.secondDentDiscountPercent;
     if (typeof p.useQuickUiInDetail === 'boolean') userSettings.useQuickUiInDetail = p.useQuickUiInDetail;
+    userSettings.priceAdjustmentRoundOval = migrated.priceAdjustmentRoundOval ?? 1.0;
+    userSettings.priceAdjustmentStripe = migrated.priceAdjustmentStripe ?? 1.0;
+    userSettings.discountSamePartEnabled = migrated.discountSamePartEnabled ?? false;
+    userSettings.discountSamePartValue = migrated.discountSamePartValue ?? 50;
+    userSettings.discountDiffPartEnabled = migrated.discountDiffPartEnabled ?? false;
+    userSettings.discountDiffPartValue = migrated.discountDiffPartValue ?? 0;
+    const validated = validateSettings({ ...userSettings });
+    userSettings.priceAdjustmentRoundOval = validated.priceAdjustmentRoundOval;
+    userSettings.priceAdjustmentStripe = validated.priceAdjustmentStripe;
+    userSettings.discountSamePartValue = validated.discountSamePartValue;
+    userSettings.discountDiffPartValue = validated.discountDiffPartValue;
   } catch (e) {
     if (import.meta.env?.DEV) console.error('Failed to load settings', e);
   }
@@ -1655,6 +1735,38 @@ const metricScrollPaddingBottom = computed(() => {
       : `calc(${footer} + ${safe} + 100px)`;
   }
   return `calc(${footer} + ${safe} + 1rem)`;
+});
+
+/** Эффективный множитель цен Круг/Овал: среднее отношение текущих цен к базовым (initialData). */
+const effectivePriceMultiplierRoundOval = computed(() => {
+  const sizes = initialData.circleSizes;
+  let sumRatio = 0;
+  let count = 0;
+  for (const s of sizes) {
+    const base = Number(s.basePrice);
+    const current = Number(userSettings.prices[s.code]);
+    if (base > 0 && Number.isFinite(current)) {
+      sumRatio += current / base;
+      count++;
+    }
+  }
+  return count === 0 ? 100 : Math.round((sumRatio / count) * 100);
+});
+
+/** Эффективный множитель цен Полоса/Царапина: среднее отношение текущих цен к базовым (initialData). */
+const effectivePriceMultiplierStripe = computed(() => {
+  const sizes = initialData.stripSizes;
+  let sumRatio = 0;
+  let count = 0;
+  for (const s of sizes) {
+    const base = Number(s.basePrice);
+    const current = Number(userSettings.prices[s.code]);
+    if (base > 0 && Number.isFinite(current)) {
+      sumRatio += current / base;
+      count++;
+    }
+  }
+  return count === 0 ? 100 : Math.round((sumRatio / count) * 100);
 });
 
 // Graphics state
@@ -1751,14 +1863,25 @@ const quickDentTotals = computed(() => estimateDraft.quickDents.map((dent) => {
     { shape, widthMm: w, heightMm: h, conditions: conditionsForCalc, panelElement: dent.panelElement },
     ctx
   );
-  return { dent, sizeCode: result.sizeCode, base: result.base, total: result.total, breakdown: result.breakdown };
+  const mult = getPriceMultiplier(shape, userSettings);
+  return {
+    dent,
+    sizeCode: result.sizeCode,
+    base: result.base * mult,
+    total: result.total * mult,
+    breakdown: result.breakdown
+  };
 }));
 
 const quickLineItems = computed(() => {
   const list = quickDentTotals.value.filter((d) => d.total > 0).sort((a, b) => b.total - a.total);
   if (list.length === 0) return [];
-  const totals = list.map((d) => d.total);
-  const { weightedTotals } = calculateSessionTotalWithMultiDentRule(totals, {
+  const dentItems = list.map((d) => ({ total: d.total, panelElement: d.dent?.panelElement ?? null, dent: d.dent }));
+  const { weightedTotals } = calculateSessionTotalWithMultiDentRule(dentItems, {
+    discountSamePartEnabled: userSettings.discountSamePartEnabled,
+    discountSamePartValue: userSettings.discountSamePartValue,
+    discountDiffPartEnabled: userSettings.discountDiffPartEnabled,
+    discountDiffPartValue: userSettings.discountDiffPartValue,
     enableSecondDentDiscount: userSettings.enableSecondDentDiscount,
     secondDentDiscountPercent: userSettings.secondDentDiscountPercent
   });
@@ -1783,12 +1906,16 @@ const quickTotal = computed(() => {
 const graphicsDentsForPricing = computed(() => {
   const ctx = {
     circleSizes: graphicsCircleSizes.value,
-    stripSizes: graphicsStripSizes.value,
+    stripSizes: stripSizesWithArea,
     prices: userSettings.prices,
     initialData,
     conditions: graphicsConditions.value
   };
-  return normalizeGraphicsDentsForPricing(graphicsState.dents || [], ctx);
+  const normalized = normalizeGraphicsDentsForPricing(graphicsState.dents || [], ctx);
+  return normalized.map((d) => {
+    const mult = getPriceMultiplier(d.type || 'circle', userSettings);
+    return { ...d, price: (d.price || 0) * mult };
+  });
 });
 
 /** База от вмятин: сумма базовых цен (каждая вмятина отдельно). Единый источник: priceCalc.calcBasePriceFromDents. */
@@ -1843,8 +1970,10 @@ const estimatedRepairTime = computed(() => {
 });
 
 const multiDentDiscountLabel = computed(() => {
-  if (!userSettings.enableSecondDentDiscount) return '50%';
-  return `${userSettings.secondDentDiscountPercent}%`;
+  if (userSettings.discountSamePartEnabled) return `${userSettings.discountSamePartValue}%`;
+  if (userSettings.discountDiffPartEnabled) return `${userSettings.discountDiffPartValue}% (др. элем.)`;
+  if (userSettings.enableSecondDentDiscount) return `${userSettings.secondDentDiscountPercent}%`;
+  return '50%';
 });
 
 const quickBreakdownItems = computed(() => {
@@ -1991,6 +2120,36 @@ async function openDiscountModal() {
     return;
   }
   estimateDraft.discountPercent = clampDiscount(value);
+}
+
+async function openDiscountSamePartModal() {
+  const value = await openInputModal({
+    title: 'Скидка (один элемент)',
+    label: 'Скидка (%)',
+    value: userSettings.discountSamePartValue ?? 50,
+    inputType: 'number',
+    placeholder: '50',
+    min: 0,
+    max: 100
+  });
+  if (value !== undefined && value !== null && Number.isFinite(Number(value))) {
+    userSettings.discountSamePartValue = Math.max(0, Math.min(100, Number(value)));
+  }
+}
+
+async function openDiscountDiffPartModal() {
+  const value = await openInputModal({
+    title: 'Скидка (другой элемент)',
+    label: 'Скидка (%)',
+    value: userSettings.discountDiffPartValue ?? 0,
+    inputType: 'number',
+    placeholder: '0',
+    min: 0,
+    max: 100
+  });
+  if (value !== undefined && value !== null && Number.isFinite(Number(value))) {
+    userSettings.discountDiffPartValue = Math.max(0, Math.min(100, Number(value)));
+  }
 }
 
 async function openSecondDentDiscountModal() {
@@ -2211,34 +2370,53 @@ function getEditablePriceKeys() {
   return keys;
 }
 
-function applyBulkPriceAdjustment(percentDelta) {
-  const keys = getEditablePriceKeys();
-  const factor = 1 + percentDelta / 100;
-  const snapshot = {};
-  keys.forEach((k) => {
-    const v = userSettings.prices[k];
-    if (v != null && Number.isFinite(Number(v))) {
-      snapshot[k] = Number(v);
-    }
-  });
-  if (Object.keys(snapshot).length === 0) return;
-  keys.forEach((k) => {
-    const oldVal = userSettings.prices[k];
-    if (oldVal != null && Number.isFinite(Number(oldVal))) {
-      const raw = Number(oldVal) * factor;
-      userSettings.prices[k] = Math.max(0, Math.round(raw));
-    }
-  });
-  saveSettings();
-  haptic('success');
-  const label = percentDelta > 0 ? '+10%' : '−10%';
-  showUndoToast(`Цены изменены на ${label}`, () => {
+function applyPriceRegulator(type, percentDelta) {
+  const factor = Math.max(0.5, Math.min(2, 1 + percentDelta / 100));
+  if (type === 'roundOval') {
+    const keys = initialData.circleSizes.map((s) => s.code);
+    const snapshot = {};
     keys.forEach((k) => {
-      if (snapshot[k] != null) userSettings.prices[k] = snapshot[k];
+      const v = userSettings.prices[k];
+      if (v != null && Number.isFinite(Number(v))) snapshot[k] = Number(v);
+    });
+    if (Object.keys(snapshot).length === 0) return;
+    keys.forEach((k) => {
+      const oldVal = userSettings.prices[k];
+      if (oldVal != null && Number.isFinite(Number(oldVal))) {
+        userSettings.prices[k] = Math.max(0, Math.round(Number(oldVal) * factor));
+      }
     });
     saveSettings();
     haptic('success');
-  });
+    const label = percentDelta > 0 ? '+10%' : (percentDelta < 0 ? '−10%' : '0%');
+    showUndoToast(`Круг/Овал: цены ${label}`, () => {
+      keys.forEach((k) => { if (snapshot[k] != null) userSettings.prices[k] = snapshot[k]; });
+      saveSettings();
+      haptic('success');
+    });
+  } else {
+    const keys = initialData.stripSizes.map((s) => s.code);
+    const snapshot = {};
+    keys.forEach((k) => {
+      const v = userSettings.prices[k];
+      if (v != null && Number.isFinite(Number(v))) snapshot[k] = Number(v);
+    });
+    if (Object.keys(snapshot).length === 0) return;
+    keys.forEach((k) => {
+      const oldVal = userSettings.prices[k];
+      if (oldVal != null && Number.isFinite(Number(oldVal))) {
+        userSettings.prices[k] = Math.max(0, Math.round(Number(oldVal) * factor));
+      }
+    });
+    saveSettings();
+    haptic('success');
+    const label = percentDelta > 0 ? '+10%' : (percentDelta < 0 ? '−10%' : '0%');
+    showUndoToast(`Полоса/Царапина: цены ${label}`, () => {
+      keys.forEach((k) => { if (snapshot[k] != null) userSettings.prices[k] = snapshot[k]; });
+      saveSettings();
+      haptic('success');
+    });
+  }
 }
 
 function startHistoryEdit() {
@@ -2614,6 +2792,7 @@ const addMaster = () => userSettings.masters.push({ name: '', rate: 0 });
 const removeMaster = (i) => userSettings.masters.splice(i, 1);
 
 const saveSettings = () => {
+  const validated = validateSettings({ ...userSettings });
   const dataToSave = {
     prices: userSettings.prices,
     masters: userSettings.masters,
@@ -2632,9 +2811,15 @@ const saveSettings = () => {
     showSoundInsulation: userSettings.showSoundInsulation,
     enableSecondDentDiscount: userSettings.enableSecondDentDiscount,
     secondDentDiscountPercent: userSettings.secondDentDiscountPercent,
+    discountSamePartEnabled: userSettings.discountSamePartEnabled,
+    discountSamePartValue: validated.discountSamePartValue,
+    discountDiffPartEnabled: userSettings.discountDiffPartEnabled,
+    discountDiffPartValue: validated.discountDiffPartValue,
+    priceAdjustmentRoundOval: validated.priceAdjustmentRoundOval,
+    priceAdjustmentStripe: validated.priceAdjustmentStripe,
     useQuickUiInDetail: userSettings.useQuickUiInDetail
   };
-  localStorage.setItem('dentRepairSettings_v6', JSON.stringify(dataToSave));
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(dataToSave));
   const tg = window.Telegram?.WebApp;
   if (tg?.showPopup && tg?.isVersionAtLeast && tg.isVersionAtLeast('6.2')) {
     tg.showPopup({ title: 'Готово', message: 'Настройки сохранены', buttons: [{ type: 'ok' }] });
@@ -2657,6 +2842,12 @@ const resetDefaults = () => {
     userSettings.showInfoTooltips = true;
     userSettings.priceRoundStep = 0;
     userSettings.sizeUnit = 'mm';
+    userSettings.priceAdjustmentRoundOval = 1.0;
+    userSettings.priceAdjustmentStripe = 1.0;
+    userSettings.discountSamePartEnabled = false;
+    userSettings.discountSamePartValue = 50;
+    userSettings.discountDiffPartEnabled = false;
+    userSettings.discountDiffPartValue = 0;
     saveSettings();
   }
 };

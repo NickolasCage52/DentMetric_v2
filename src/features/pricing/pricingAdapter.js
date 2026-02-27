@@ -6,7 +6,7 @@
 import { getBasePriceByMm, getSizeCodeForMatrix } from '../../utils/priceAdapter';
 import { applyConditionsToBase, buildBreakdown, roundPrice } from '../../utils/priceCalc';
 import { getArmaturnayaTotalPrice } from '../../data/armaturnayaWorks';
-import { calculateStripePrice } from '../../utils/stripeCalc';
+import { calculateStripePrice, calculateStripePriceFromUserBase } from '../../utils/stripeCalc';
 
 /** Округление размеров в мм до 1 знака для консистентности */
 const MM_ROUND = 1;
@@ -61,7 +61,8 @@ export function calculateDentBasePrice(shape, widthMm, heightMm, sizesWithArea, 
     const lengthCm = Math.max(w, h) / 10;
     const heightCm = Math.min(w, h) / 10;
     const coeffClass = getStripeCoeffClass(options.conditions, options.initialData);
-    const { price } = calculateStripePrice({ lengthCm, heightCm, coeffClass });
+    const basePriceK1 = getBasePriceByMm(type, w, h, sizesWithArea, prices);
+    const { price } = calculateStripePriceFromUserBase({ lengthCm, heightCm, coeffClass, basePriceK1 });
     return price;
   }
   return getBasePriceByMm(type, w, h, sizesWithArea, prices);
