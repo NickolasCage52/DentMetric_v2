@@ -1,17 +1,19 @@
 <template>
-  <header class="graphics-header shrink-0 flex flex-wrap items-center gap-2 px-2 py-1.5 border-b border-white/10 bg-black/60">
-    <button
-      type="button"
-      @click="$emit('home')"
-      class="text-xs text-gray-300 hover:text-white border border-white/10 rounded-lg px-2 py-2 min-h-[36px] flex items-center gap-1"
-    >
-      <span>←</span>
-      <span class="hidden sm:inline">Домой</span>
-    </button>
+  <header class="graphics-header app-header-logo-bar shrink-0 flex flex-wrap items-center gap-2 px-2 py-1.5 border-b border-white/10 bg-black/60">
+    <div class="app-header-logo-bar__left">
+      <button
+        type="button"
+        @click="$emit('home')"
+        class="text-xs text-gray-300 hover:text-white border border-white/10 rounded-lg px-2 py-2 min-h-[36px] flex items-center gap-1"
+      >
+        <span>←</span>
+        <span class="hidden sm:inline">Домой</span>
+      </button>
+    </div>
     <img
       src="/dm-small.png"
       alt="DentMetric"
-      class="graphics-header-logo h-7 w-auto max-w-full object-contain min-w-0"
+      class="app-header-logo-bar__logo"
       style="border:none;box-shadow:none"
       onerror="this.style.display='none'"
     >
@@ -78,10 +80,5 @@ defineEmits(['update:selectedClassId', 'update:selectedPartId', 'reset', 'reset-
   min-height: 44px;
   padding-left: max(8px, env(safe-area-inset-left));
   padding-right: max(8px, env(safe-area-inset-right));
-}
-@media (max-width: 380px) {
-  .graphics-header-logo {
-    display: none;
-  }
 }
 </style>

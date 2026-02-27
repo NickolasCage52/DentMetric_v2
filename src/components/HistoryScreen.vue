@@ -1,15 +1,6 @@
 <template>
   <div class="hs-root">
-    <!-- Top bar -->
-    <div class="hs-topbar">
-      <button type="button" class="hs-back-btn" @click="$emit('back')">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><polyline points="12 19 5 12 12 5"/></svg>
-      </button>
-      <img src="/dm-small.png" alt="DM" class="hs-logo" onerror="this.style.display='none'">
-      <div style="width:36px"></div>
-    </div>
-
-    <!-- Date range tabs -->
+    <!-- Date range tabs (header with logo is in App.vue for identical position with Settings/Info) -->
     <div class="hs-range-row">
       <div class="hs-range-tabs">
         <button
@@ -460,22 +451,6 @@ function fmtK(v) {
   overflow: hidden;
   color: #e5e7eb;
 }
-
-.hs-topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px 6px;
-  flex-shrink: 0;
-}
-.hs-back-btn {
-  width: 36px; height: 36px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 8px; border: 1px solid rgba(255,255,255,0.08);
-  background: transparent; color: #9ca3af;
-}
-.hs-back-btn:active { background: rgba(255,255,255,0.05); }
-.hs-logo { height: 28px; width: auto; }
 
 .hs-range-row {
   display: flex; align-items: center; gap: 6px;

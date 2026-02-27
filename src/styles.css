@@ -54,6 +54,11 @@ img {
   --tiles-gap: 1rem;
   --tile-radius: 1rem;
   --tile-h: 120px;
+
+  /* Unified header bar: logo centered, same position across all screens */
+  --header-logo-bar-px: 1rem;
+  --header-logo-bar-min-h: 52px;
+  --header-logo-side-w: 70px;
 }
 
 /* Part C: Background gradient animation */
@@ -67,6 +72,41 @@ img {
   0% { box-shadow: 0 0 20px 0 var(--metric-green-glow); }
   50% { box-shadow: 0 0 35px 5px var(--metric-green-glow-strong); }
   100% { box-shadow: 0 0 20px 0 var(--metric-green-glow); }
+}
+
+/* Unified header bar with centered logo — same position on all screens */
+.app-header-logo-bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: var(--header-logo-bar-min-h);
+  padding: 0 var(--header-logo-bar-px);
+  padding-left: max(var(--header-logo-bar-px), env(safe-area-inset-left, 0px));
+  padding-right: max(var(--header-logo-bar-px), env(safe-area-inset-right, 0px));
+}
+.app-header-logo-bar__left {
+  width: var(--header-logo-side-w);
+  min-width: var(--header-logo-side-w);
+  flex-shrink: 0;
+  display: flex;
+  justify-content: flex-start;
+}
+.app-header-logo-bar__right {
+  width: var(--header-logo-side-w);
+  min-width: var(--header-logo-side-w);
+  flex-shrink: 0;
+}
+.app-header-logo-bar__logo {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  height: 1.75rem;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+  pointer-events: none;
 }
 
 /* Global styles: dvh with vh fallback for mobile viewport */

@@ -113,9 +113,11 @@
       </WowScreenShell>
 
       <template v-else>
-      <div v-if="calcMode !== 'graphics'" class="shrink-0 z-20 bg-black" :class="(calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))) ? 'px-4 pt-2 pb-1' : 'p-4 space-y-3'">
-        <div class="flex items-center justify-center">
-          <img src="/dm-small.png" alt="DentMetric" :class="(calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))) ? 'h-5' : 'h-7'" class="w-auto max-w-full object-contain drop-shadow-2xl" onerror="this.style.display='none'">
+      <div v-if="calcMode !== 'graphics'" class="shrink-0 z-20 bg-black px-4" :class="(calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))) ? 'pt-2 pb-1' : 'pt-4 pb-0 space-y-3'">
+        <div class="app-header-logo-bar" :class="(calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))) ? '' : 'pb-2'">
+          <div class="app-header-logo-bar__left"></div>
+          <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo drop-shadow-2xl" :style="(calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))) ? 'height:1.25rem' : ''" onerror="this.style.display='none'">
+          <div class="app-header-logo-bar__right"></div>
         </div>
       </div>
 
@@ -603,15 +605,31 @@
       </template>
     </div>
 
-    <!-- Section: History -->
-    <HistoryScreen
-      v-if="currentSection === 'history' && !selectedHistory"
-      :history-items="historyItems"
-      :footer-height="'var(--app-footer-height, 64px)'"
-      @back="goHome"
-      @select="selectedHistoryId = $event"
-      @update-status="handleHistoryStatusUpdate"
-    />
+    <!-- Section: History: same structure as Settings/Info — header first, then content -->
+    <div v-if="currentSection === 'history' && !selectedHistory" class="content-padding-bottom p-4 flex flex-col min-h-0 overflow-hidden" style="flex:1">
+      <div class="app-header-logo-bar shrink-0">
+        <div class="app-header-logo-bar__left">
+          <button
+            type="button"
+            @click="goHome"
+            class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
+          >
+            <span>←</span>
+            <span>Домой</span>
+          </button>
+        </div>
+        <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" onerror="this.style.display='none'">
+        <div class="app-header-logo-bar__right"></div>
+      </div>
+      <HistoryScreen
+        class="flex-1 min-h-0"
+        :history-items="historyItems"
+        :footer-height="'var(--app-footer-height, 64px)'"
+        @back="goHome"
+        @select="selectedHistoryId = $event"
+        @update-status="handleHistoryStatusUpdate"
+      />
+    </div>
     <!-- DEV-only: QA history generator -->
     <div
       v-if="isDev && qaEnabled && currentSection === 'history' && !selectedHistory"
@@ -627,6 +645,20 @@
     </div>
     <!-- History Detail overlay -->
     <div v-if="currentSection === 'history' && selectedHistory" class="content-padding-bottom p-4 space-y-3 overflow-y-auto" style="flex:1">
+      <div class="app-header-logo-bar">
+        <div class="app-header-logo-bar__left">
+          <button
+            type="button"
+            @click="goHome"
+            class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
+          >
+            <span>←</span>
+            <span>Домой</span>
+          </button>
+        </div>
+        <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" onerror="this.style.display='none'">
+        <div class="app-header-logo-bar__right"></div>
+      </div>
       <div class="card-metallic rounded-2xl p-4 space-y-2">
         <div class="text-xs text-gray-400 uppercase tracking-widest">Сохранённая оценка</div>
         <div class="flex justify-between text-sm"><span class="text-gray-400">Дата:</span><span class="text-white font-medium">{{ formatDateTime(selectedHistory.createdAt) }}</span></div>
@@ -696,17 +728,19 @@
 
     <!-- Section: Settings -->
     <div ref="settingsScrollRef" v-if="currentSection === 'settings'" class="content-padding-bottom p-4 space-y-5 overflow-y-auto">
-      <div class="flex items-center justify-between">
-        <button
-          type="button"
-          @click="goHome"
-          class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
-        >
-          <span>←</span>
-          <span>Домой</span>
-        </button>
-        <img src="/logo.png" alt="DentMetric" class="h-7 w-auto max-w-full object-contain" style="border:none;box-shadow:none" onerror="this.style.display='none'">
-        <div class="w-[70px]"></div>
+      <div class="app-header-logo-bar">
+        <div class="app-header-logo-bar__left">
+          <button
+            type="button"
+            @click="goHome"
+            class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
+          >
+            <span>←</span>
+            <span>Домой</span>
+          </button>
+        </div>
+        <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" style="border:none;box-shadow:none" onerror="this.style.display='none'">
+        <div class="app-header-logo-bar__right"></div>
       </div>
       <h2 class="text-xl font-bold text-white px-1">Настройки</h2>
 
@@ -1016,17 +1050,19 @@
 
     <!-- Section: Info -->
     <div ref="infoScrollRef" v-if="currentSection === 'info'" class="content-padding-bottom p-4 space-y-3 overflow-y-auto">
-      <div class="flex items-center justify-between">
-        <button
-          type="button"
-          @click="goHome"
-          class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
-        >
-          <span>←</span>
-          <span>Домой</span>
-        </button>
-        <img src="/dm-small.png" alt="DentMetric" class="h-7 w-auto max-w-full object-contain" onerror="this.style.display='none'">
-        <div class="w-[70px]"></div>
+      <div class="app-header-logo-bar">
+        <div class="app-header-logo-bar__left">
+          <button
+            type="button"
+            @click="goHome"
+            class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
+          >
+            <span>←</span>
+            <span>Домой</span>
+          </button>
+        </div>
+        <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" onerror="this.style.display='none'">
+        <div class="app-header-logo-bar__right"></div>
       </div>
       <div class="flex items-center justify-center pb-4">
         <div class="px-5 py-1.5 rounded-full border border-white/10 bg-[#1a1a1a] shadow-lg">
@@ -1138,17 +1174,19 @@
 
     <!-- Locked sections (analytics, journal) -->
     <div v-if="currentSection === 'analytics' || currentSection === 'journal'" class="p-4 flex flex-col h-full pb-24">
-      <div class="flex items-center justify-between">
-        <button
-          type="button"
-          @click="goHome"
-          class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
-        >
-          <span>←</span>
-          <span>Домой</span>
-        </button>
-        <img src="/dm-small.png" alt="DentMetric" class="h-7 w-auto max-w-full object-contain" onerror="this.style.display='none'">
-        <div class="w-[70px]"></div>
+      <div class="app-header-logo-bar">
+        <div class="app-header-logo-bar__left">
+          <button
+            type="button"
+            @click="goHome"
+            class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
+          >
+            <span>←</span>
+            <span>Домой</span>
+          </button>
+        </div>
+        <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" onerror="this.style.display='none'">
+        <div class="app-header-logo-bar__right"></div>
       </div>
       <div class="card-metallic rounded-2xl p-6 text-center text-gray-400 mt-6">
         <div class="text-2xl mb-2">🔒</div>
