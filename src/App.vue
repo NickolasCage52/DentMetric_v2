@@ -1464,27 +1464,26 @@ function removeActiveQuickDent() {
   }
 }
 
-/** Сброс значений вмятин до начального вида. Карточки не удаляются. */
+/** Сброс значений выбранной вмятины до начального вида. Остальные вмятины не трогаются. */
 function resetQuickDentsValues() {
-  const list = estimateDraft.quickDents || [];
-  list.forEach((dent) => {
-    dent.shape = 'circle';
-    dent.sizeInputMode = 'preset';
-    dent.sizeCode = null;
-    dent.sizeLengthMm = null;
-    dent.sizeWidthMm = null;
-    dent.panelSide = 'left';
-    dent.panelElement = null;
-    if (dent.conditions) {
-      dent.conditions.repairCode = null;
-      dent.conditions.riskCode = null;
-      dent.conditions.materialCode = null;
-      dent.conditions.carClassCode = null;
-      dent.conditions.disassemblyCodes = ['Z0'];
-      dent.conditions.paintMaterialCode = null;
-      dent.conditions.soundInsulationCode = null;
-    }
-  });
+  const dent = activeQuickDent.value;
+  if (!dent) return;
+  dent.shape = 'circle';
+  dent.sizeInputMode = 'preset';
+  dent.sizeCode = null;
+  dent.sizeLengthMm = null;
+  dent.sizeWidthMm = null;
+  dent.panelSide = 'left';
+  dent.panelElement = null;
+  if (dent.conditions) {
+    dent.conditions.repairCode = null;
+    dent.conditions.riskCode = null;
+    dent.conditions.materialCode = null;
+    dent.conditions.carClassCode = null;
+    dent.conditions.disassemblyCodes = ['Z0'];
+    dent.conditions.paintMaterialCode = null;
+    dent.conditions.soundInsulationCode = null;
+  }
   haptic('selection');
 }
 
