@@ -2587,9 +2587,11 @@ function buildEstimatePayload(mode) {
         bboxMm: { width: w, height: h },
         areaMm2: d.areaMm2,
         sizeCode: norm?.sizeCode ?? d.sizeCode,
-        conditions
+        conditions,
+        photoAssetKey: d.photoAssetKey ?? null
       };
     });
+    const photoAssets = [...new Set((graphicsState.dents || []).map((d) => d.photoAssetKey).filter(Boolean))];
     return {
       id: estimateDraft.id,
       mode: 'detail',
@@ -2597,6 +2599,7 @@ function buildEstimatePayload(mode) {
       vehicleClass,
       element,
       dents: { count: dentItems.length, items: dentItems },
+      photoAssets,
       breakdown: estimateDraft.breakdown || [],
       total: displayTotal.value,
       rawTotal: totalPrice.value,

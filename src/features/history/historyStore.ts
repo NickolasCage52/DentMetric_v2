@@ -117,6 +117,9 @@ export function normalizeHistoryRecord(raw: any): any | null {
     if (normalized.attachments == null || !Array.isArray(normalized.attachments)) {
       normalized.attachments = [];
     }
+    if (normalized.photoAssets == null || !Array.isArray(normalized.photoAssets)) {
+      normalized.photoAssets = [];
+    }
     if (normalized.master == null) normalized.master = '';
 
     if (!normalized.dents || typeof normalized.dents !== 'object') {
@@ -135,6 +138,7 @@ export function normalizeHistoryRecord(raw: any): any | null {
         dent.type = 'strip';
         dent.shape = 'strip';
       }
+      if (dent.photoAssetKey == null) dent.photoAssetKey = null;
     }
 
     if (normalized.mode == null) normalized.mode = 'quick';

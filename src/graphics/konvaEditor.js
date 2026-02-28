@@ -84,6 +84,9 @@ const FIT_SIZE_TOLERANCE_PX = 4;
 let heatZonesPx = [];
 /** Тёмный фон stage в режиме мм (под contentGroup) */
 let bgRect = null;
+/** Фото-фон для режима «Произвольно» (поверх bgRect, под contentGroup) */
+let layerPhoto = null;
+let photoImageNode = null;
 /** B) Handle для перемещения выбранной вмятины (крестик снизу). Только в mm-режиме. */
 let handleGroup = null;
 let activeDent = null;
@@ -134,7 +137,10 @@ function getDentShape(node) {
 
 /** Create or update W×H label inside dent. Hide until sizes known. */
 function updateDentDimLabel(dentNode, widthMm, heightMm) {
-  if (!dentNode || !useMmMode || !pxPerMm) return;
+  if (!dentNode) return;
+  if (!useMmMode) return;
+  const hasMm = (Number(widthMm) || 0) > 0 && (Number(heightMm) || 0) > 0;
+  if (!pxPerMm && !hasMm) return;
   const w = Number(widthMm) || 0;
   const h = Number(heightMm) || 0;
   const shape = getDentShape(dentNode);
@@ -969,6 +975,75 @@ export function resizeStage(w, h) {
 }
 
 /**
+ * Загрузить фото как фон (режим «Произвольно»).
+ * Фото добавляется в contentGroup вместо детали — система координат совпадает с рисованием.
+ * pxPerMm не задаётся (размеры вводит пользователь вручную).
+ * @param {Blob} blob
+ * @returns {Promise<{width:number,height:number}>} размеры оригинала
+ */
+export function setPhotoBackground(blob) {
+  return new Promise((resolve, reject) => {
+    if (!stage || !blob || !contentGroup || !layerParts) {
+      resolve({ width: 0, height: 0 });
+      return;
+    }
+    clearPhotoBackground();
+    const url = URL.createObjectURL(blob);
+    const img = new window.Image();
+    img.onload = () => {
+      try {
+        layerParts.destroyChildren();
+        layerParts.visible(true);
+        photoImageNode = new Konva.Image({
+          image: img,
+          x: 0,
+          y: 0,
+          width: img.width,
+          height: img.height,
+          listening: false
+        });
+        layerParts.add(photoImageNode);
+
+        contentWidth = img.width;
+        contentHeight = img.height;
+        imageRect = { x: 0, y: 0, width: img.width, height: img.height };
+        pxPerMm = null;
+        imageNode = null;
+        gridRectRef = null;
+        partBounds = { x: 0, y: 0, width: img.width, height: img.height };
+        if (contentGroup.clip()) contentGroup.clip(null);
+        if (layerGrid) layerGrid.visible(false);
+
+        lastFitW = 0;
+        lastFitH = 0;
+        doResizeAndFitOnce();
+
+        URL.revokeObjectURL(url);
+        resolve({ width: img.width, height: img.height });
+      } catch (e) {
+        URL.revokeObjectURL(url);
+        reject(e);
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Photo load failed'));
+    };
+    img.src = url;
+  });
+}
+
+export function clearPhotoBackground() {
+  if (photoImageNode) {
+    photoImageNode.destroy();
+    photoImageNode = null;
+  }
+  layerPhoto = null;
+  if (layerGrid) layerGrid.visible(true);
+  if (contentGroup) contentGroup.batchDraw();
+}
+
+/**
  * Resize stage to current container dimensions (getBoundingClientRect для точности).
  * Для fullscreen/fit вызывать scheduleFit.
  */
@@ -1599,7 +1674,14 @@ function updateShapeCalc(shape, type, id, sizes) {
   let areaMm2 = null;
   let areaMm2ForPrice = null;
   let cellsCount = null;
-  if (useMmMode && pxPerMm != null && pxPerMm > 0) {
+  const userBboxMm = (meta.userWidthMm != null && meta.userHeightMm != null)
+    ? { width: meta.userWidthMm, height: meta.userHeightMm }
+    : null;
+  if (userBboxMm && isFreeformType) {
+    areaMm2 = userBboxMm.width * userBboxMm.height;
+    areaMm2ForPrice = areaMm2;
+    if (CELL_MM > 0) cellsCount = areaMm2 / (CELL_MM * CELL_MM);
+  } else if (useMmMode && pxPerMm != null && pxPerMm > 0) {
     areaMm2 = areaPxGeom / (pxPerMm * pxPerMm);
     areaMm2ForPrice = areaPxForPrice / (pxPerMm * pxPerMm);
     cellsCount = areaMm2 / (CELL_MM * CELL_MM);
@@ -1623,9 +1705,12 @@ function updateShapeCalc(shape, type, id, sizes) {
   let price;
   const typeForPrice = isFreeformType ? 'circle' : baseType;
   let sizeCode = 'STRIP_DEFAULT';
-  if (isFreeformType && useMmMode && pxPerMm && sizes) {
-    const wMm = (bbox?.width ?? 0) / pxPerMm;
-    const hMm = (bbox?.height ?? 0) / pxPerMm;
+  const bboxMmForPrice = userBboxMm || (useMmMode && pxPerMm && bbox
+    ? { width: (bbox?.width ?? 0) / pxPerMm, height: (bbox?.height ?? 0) / pxPerMm }
+    : null);
+  if (isFreeformType && bboxMmForPrice && sizes) {
+    const wMm = bboxMmForPrice.width;
+    const hMm = bboxMmForPrice.height;
     sizeCode = getClosestSizeCodeByMm(sizes, wMm, hMm) || 'S2';
     price = prices[sizeCode] ?? 0;
   } else if (useMmMode && areaMm2ForPrice != null && sizes && sizes[0] && sizes[0].areaMm2 != null) {
@@ -1672,10 +1757,13 @@ function updateShapeCalc(shape, type, id, sizes) {
     id,
     type: dentType,
     sizeCode,
+    photoAssetKey: meta.photoAssetKey ?? null,
     areaPx: areaPxGeom,
     areaMm2: areaMm2 ?? undefined,
     bboxPx: { width: bbox?.width ?? 0, height: bbox?.height ?? 0 },
-    bboxMm: useMmMode && pxPerMm ? { width: (bbox?.width ?? 0) / pxPerMm, height: (bbox?.height ?? 0) / pxPerMm } : undefined,
+    bboxMm: (userBboxMm || (useMmMode && pxPerMm && bbox))
+      ? (userBboxMm || { width: (bbox?.width ?? 0) / pxPerMm, height: (bbox?.height ?? 0) / pxPerMm })
+      : undefined,
     cellsCount: cellsCount != null ? Math.round(cellsCount * 100) / 100 : undefined,
     isComplex,
     price,
@@ -1692,11 +1780,53 @@ function updateShapeCalc(shape, type, id, sizes) {
   if (onDentChangeCallback) {
     onDentChangeCallback(Array.from(dentsMap.values()));
   }
-  if (useMmMode && pxPerMm && pxPerMm > 0) {
-    const widthMm = (bbox?.width ?? 0) / pxPerMm;
-    const heightMm = (bbox?.height ?? 0) / pxPerMm;
-    updateDentDimLabel(shape, widthMm, heightMm);
+  const wMmForLabel = userBboxMm?.width ?? (useMmMode && pxPerMm ? (bbox?.width ?? 0) / pxPerMm : 0);
+  const hMmForLabel = userBboxMm?.height ?? (useMmMode && pxPerMm ? (bbox?.height ?? 0) / pxPerMm : 0);
+  if (useMmMode && (wMmForLabel > 0 || hMmForLabel > 0)) {
+    updateDentDimLabel(shape, wMmForLabel, hMmForLabel);
   }
+}
+
+/**
+ * Установить размеры вмятины из ручного ввода (режим фото без pxPerMm).
+ * Физически масштабирует Line, чтобы форма визуально соответствовала введённым мм.
+ * @param {number} widthMm
+ * @param {number} heightMm
+ */
+export function setSelectedDentUserDimensions(widthMm, heightMm) {
+  const node = getActiveNode();
+  if (!node || !node._dentMeta || node._dentMeta.type !== 'freeform') return;
+  const w = clamp(normalizeNumber(widthMm, 0), SIZE_MM_MIN, SIZE_MM_MAX);
+  const h = clamp(normalizeNumber(heightMm, 0), SIZE_MM_MIN, SIZE_MM_MAX);
+  const meta = node._dentMeta;
+
+  if (node.className === 'Line' && node.points) {
+    normalizeLinePointsToTopLeft(node);
+    const bounds = getLineLocalBounds(node);
+    const curW = Math.max(1, bounds.width);
+    const curH = Math.max(1, bounds.height);
+    const refW = (meta.userWidthMm != null && meta.userWidthMm > 0) ? meta.userWidthMm : curW;
+    const refH = (meta.userHeightMm != null && meta.userHeightMm > 0) ? meta.userHeightMm : curH;
+    const sx = w / refW;
+    const sy = h / refH;
+    const curPts = node.points();
+    const next = [];
+    for (let i = 0; i < curPts.length; i += 2) {
+      next.push(curPts[i] * sx, curPts[i + 1] * sy);
+    }
+    node.points(next);
+    meta.freeformPoints = [...next];
+  }
+
+  meta.userWidthMm = w;
+  meta.userHeightMm = h;
+  updateShapeCalc(node, meta.baseType, meta.id, meta.sizes);
+  updateStroke(node);
+  updateHitArea(node);
+  if (handleGroup) positionHandle(node);
+  const layer = node.getLayer();
+  if (layer) layer.batchDraw();
+  if (onSelectedDentChangeCallback) onSelectedDentChangeCallback(getSelectedDentSizeMm());
 }
 
 /** Макс. размер по оси в мм для UI (защита от багов). */
@@ -1732,14 +1862,32 @@ function normalizeFreeformPoints(line, rect) {
  */
 export function getSelectedDentSizeMm() {
   const node = getActiveNode();
-  if (!node || !node._dentMeta || !useMmMode || pxPerMm == null || pxPerMm <= 0) return null;
+  if (!node || !node._dentMeta || !useMmMode) return null;
+  const meta = node._dentMeta;
+  if (meta.type === 'freeform' && (pxPerMm == null || pxPerMm <= 0)) {
+    const w = meta.userWidthMm ?? 0;
+    const h = meta.userHeightMm ?? 0;
+    return {
+      id: meta.id,
+      type: meta.type,
+      shapeVariant: 'freeform',
+      widthMm: w,
+      heightMm: h,
+      freeformEnabled: true,
+      shapeKind: meta.shapeKind,
+      areaMm2: w > 0 && h > 0 ? w * h : undefined,
+      isShapeFixed: meta.isShapeFixed === true,
+      freeStretchEnabled: meta.isFreeStretchEnabled === true,
+      fixedAspectRatio: meta.fixedAspectRatio ?? null
+    };
+  }
+  if (pxPerMm == null || pxPerMm <= 0) return null;
   const r = getShapeRectLocal(node);
   const wPx = normalizeNumber(r?.width, 0);
   const hPx = normalizeNumber(r?.height, 0);
   const px = Math.max(0.01, pxPerMm);
   const widthMm = clamp(wPx / px, SIZE_MM_MIN, SIZE_MM_MAX);
   const heightMm = clamp(hPx / px, SIZE_MM_MIN, SIZE_MM_MAX);
-  const meta = node._dentMeta;
   const type = meta.type || meta.baseType;
   const shapeVariant = inferShapeVariant(type, widthMm, heightMm);
   meta.shapeVariant = shapeVariant;
@@ -1776,7 +1924,7 @@ export function setSelectedDentSizeMm(widthMm, heightMm) {
   const node = getActiveNode();
   if (!node || !node._dentMeta || !useMmMode || pxPerMm == null || pxPerMm <= 0) return;
   const meta = node._dentMeta;
-  if (meta.type === 'freeform' && !meta.isShapeFixed) return;
+  /* freeform: разрешаем менять размер при ручном вводе (Своб. растяж. или зафиксирована форма) */
   const wMm = clamp(normalizeNumber(widthMm, SIZE_MM_MIN), SIZE_MM_MIN, SIZE_MM_MAX);
   const hMm = clamp(normalizeNumber(heightMm, SIZE_MM_MIN), SIZE_MM_MIN, SIZE_MM_MAX);
   const wPx = wMm * pxPerMm;
@@ -2373,7 +2521,7 @@ export function startFreeformRedrawForSelectedDent() {
   startFreeformDrawingSession(target, target._dentMeta);
 }
 
-export function addFreeformDentFromPoints(points, sizes) {
+export function addFreeformDentFromPoints(points, sizes, photoAssetKey = null) {
   if (!stage || !layerDents || !tr) return;
   if (!Array.isArray(points) || points.length < 3) return;
   const inv = layerDents.getAbsoluteTransform().copy().invert();
@@ -2437,7 +2585,8 @@ export function addFreeformDentFromPoints(points, sizes) {
     freeformPoints: [...localPoints],
     isFreeStretchEnabled: false,
     isShapeFixed: false,
-    fixedAspectRatio: null
+    fixedAspectRatio: null,
+    photoAssetKey: photoAssetKey || null
   };
   setupDentInteractions(line, 'strip', id, sizes);
 }
@@ -2648,6 +2797,30 @@ export function resetDents() {
   }
 }
 
+/**
+ * Экспортировать матрицу (только contentGroup) как PNG Blob в высоком разрешении.
+ * Для сохранения в вложения истории и отображения в лайтбоксе на полный экран.
+ * @returns {Promise<Blob|null>}
+ */
+export function exportStageAsBlob() {
+  if (!stage) return Promise.resolve(null);
+  try {
+    // Экспортируем только contentGroup (матрица без лишних отступов stage)
+    const targetNode = contentGroup && contentWidth > 0 && contentHeight > 0 ? contentGroup : stage;
+    const pixelRatio = targetNode === contentGroup ? 3 : 1; // Высокое разрешение для матрицы
+    const dataURL = targetNode.toDataURL({ mimeType: 'image/png', pixelRatio });
+    if (!dataURL || typeof dataURL !== 'string') return Promise.resolve(null);
+    const arr = dataURL.split(',');
+    const mime = (arr[0].match(/:(.*?);/) || [])[1] || 'image/png';
+    const bstr = atob(arr[1] || '');
+    const u8arr = new Uint8Array(bstr.length);
+    for (let i = 0; i < bstr.length; i++) u8arr[i] = bstr.charCodeAt(i);
+    return Promise.resolve(new Blob([u8arr], { type: mime }));
+  } catch {
+    return Promise.resolve(null);
+  }
+}
+
 export function getDents() {
   return Array.from(dentsMap.values());
 }
@@ -2694,6 +2867,9 @@ export function destroyKonva() {
   contentHeight = 0;
   heatZonesPx = [];
   bgRect = null;
+  clearPhotoBackground();
+  layerPhoto = null;
+  photoImageNode = null;
   handleGroup = null;
   activeDent = null;
   transformerKeepRatio = true;

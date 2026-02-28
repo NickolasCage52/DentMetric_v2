@@ -1,6 +1,6 @@
 <template>
-  <header class="graphics-header app-header-logo-bar shrink-0 flex flex-wrap items-center gap-2 px-2 py-1.5 border-b border-white/10 bg-black/60">
-    <div class="app-header-logo-bar__left">
+  <header class="graphics-header graphics-header-bar shrink-0 flex flex-wrap items-center gap-2 px-2 py-1.5 border-b border-white/10 bg-black/60">
+    <div class="graphics-header__left">
       <button
         type="button"
         @click="$emit('home')"
@@ -13,7 +13,7 @@
     <img
       src="/dm-small.png"
       alt="DentMetric"
-      class="app-header-logo-bar__logo"
+      class="graphics-header__logo"
       style="border:none;box-shadow:none"
       onerror="this.style.display='none'"
     >
@@ -80,5 +80,23 @@ defineEmits(['update:selectedClassId', 'update:selectedPartId', 'reset', 'reset-
   min-height: 44px;
   padding-left: max(8px, env(safe-area-inset-left));
   padding-right: max(8px, env(safe-area-inset-right));
+}
+
+.graphics-header-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.graphics-header__left {
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.graphics-header__logo {
+  flex-shrink: 0;
+  height: 1.5rem;
+  width: auto;
 }
 </style>

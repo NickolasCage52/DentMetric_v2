@@ -29,13 +29,15 @@ import { ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue';
 const props = defineProps({
   open: { type: Boolean, default: false },
   canvasSize: { type: Object, default: () => ({ width: 320, height: 240 }) },
-  initialPoints: { type: Array, default: () => [] }
+  initialPoints: { type: Array, default: () => [] },
+  photoUrl: { type: String, default: '' }
 });
 
 const emit = defineEmits(['confirm', 'cancel']);
 
 const canvasRef = ref(null);
 let ctx = null;
+let bgImage = null;
 let drawing = false;
 let points = [];
 let activePointerId = null;
@@ -55,10 +57,27 @@ function toCanvasPoint(e) {
   };
 }
 
+function drawBackground() {
+  const canvas = canvasRef.value;
+  if (!canvas || !ctx) return;
+  ctx.fillStyle = '#0b0f14';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (bgImage && bgImage.complete && bgImage.naturalWidth > 0) {
+    const cw = canvas.width;
+    const ch = canvas.height;
+    const scale = Math.min(cw / bgImage.naturalWidth, ch / bgImage.naturalHeight);
+    const w = bgImage.naturalWidth * scale;
+    const h = bgImage.naturalHeight * scale;
+    const x = (cw - w) / 2;
+    const y = (ch - h) / 2;
+    ctx.drawImage(bgImage, x, y, w, h);
+  }
+}
+
 function drawPath() {
   const canvas = canvasRef.value;
   if (!canvas || !ctx) return;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  drawBackground();
   if (points.length < 2) return;
   ctx.lineWidth = 2;
   ctx.lineJoin = 'round';
@@ -226,6 +245,14 @@ function setupCanvas() {
   canvas.height = h;
   ctx = canvas.getContext('2d');
   points = Array.isArray(props.initialPoints) ? [...props.initialPoints] : [];
+  if (props.photoUrl) {
+    bgImage = new Image();
+    bgImage.onload = () => drawPath();
+    bgImage.onerror = () => { bgImage = null; drawPath(); };
+    bgImage.src = props.photoUrl;
+  } else {
+    bgImage = null;
+  }
   drawPath();
 }
 
@@ -277,6 +304,11 @@ watch(() => props.canvasSize, () => {
   if (!props.open) return;
   nextTick(() => setupCanvas());
 }, { deep: true });
+
+watch(() => props.photoUrl, () => {
+  if (!props.open) return;
+  nextTick(() => setupCanvas());
+});
 
 onMounted(() => {
   if (props.open) {

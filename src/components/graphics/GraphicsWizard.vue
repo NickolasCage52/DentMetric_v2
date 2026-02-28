@@ -2,7 +2,7 @@
   <div
     ref="graphicsRoot"
     class="graphics-fullscreen-wrapper"
-    :class="`graphics-step-${wizardStep}`"
+    :class="['graphics-step-' + wizardStep, { 'graphics-step-photo': freeformPhotoMode }]"
     :style="matrixSafeTopStyle"
   >
     <StepHeader
@@ -102,12 +102,19 @@
         @back="goBack"
       />
       <Step1PlacementPanel
-        v-else-if="wizardStep === 2 || (wizardStep === 1 && !props.showClientStep)"
+        v-else-if="(wizardStep === 2 || (wizardStep === 1 && !props.showClientStep)) && !freeformPhotoMode"
         :can-next="dents.length >= 1"
         @add-type="openSizeMenu"
-        @add-freeform="openFreeformModal"
+        @add-freeform="onAddFreeform"
         @next="() => goToStep(3)"
         @back="goBack"
+      />
+      <StepPhotoSelect
+        v-else-if="(wizardStep === 2 || (wizardStep === 1 && !props.showClientStep)) && freeformPhotoMode"
+        :model-value="photoAsset"
+        @back="freeformPhotoMode = false"
+        @next="onPhotoSelectNext"
+        @update:model-value="photoAsset = $event"
       />
       <Step2SizePanel
         v-else-if="wizardStep === 3"
@@ -165,8 +172,8 @@
         :record-id="estimateDraft.id || ''"
         :attachments="estimateDraft.attachments || []"
         @back="goBack"
-        @save="emit('save-history')"
-        @book="emit('save-history')"
+        @save="onSaveHistory"
+        @book="onSaveHistory"
         @open-discount="openDetailDiscountModal"
         @open-comment="openDetailCommentModal"
         @update:attachments="(v) => (estimateDraft.attachments = v)"
@@ -244,6 +251,7 @@
     <FreeformDrawModal
       :open="showFreeformModal"
       :canvas-size="freeformCanvasSize"
+      :photo-url="freeformPhotoUrl"
       @confirm="onFreeformConfirm"
       @cancel="closeFreeformModal"
     />
@@ -263,6 +271,7 @@ import {
   deleteSelected,
   scheduleFit,
   setSelectedDentSizeMm,
+  setSelectedDentUserDimensions,
   setDentShapeVariant,
   setKeepRatio,
   setEditable,
@@ -270,7 +279,8 @@ import {
   setSelectedDentFreeStretch,
   setSelectedDentShapeFixed,
   convertSelectedDentToType,
-  setDisplayUnit
+  setDisplayUnit,
+  exportStageAsBlob
 } from '../../graphics/konvaEditor';
 import { classifyDamageShapeByRatio } from '../../utils/shapeClassification';
 import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown, roundPrice, getPerDentCoresAndAddons } from '../../utils/priceCalc';
@@ -282,6 +292,7 @@ import { getPriceMultiplier } from '../../utils/settingsUtils';
 import StepHeader from './StepHeader.vue';
 import Step0ClientPanel from './Step0ClientPanel.vue';
 import Step1PlacementPanel from './Step1PlacementPanel.vue';
+import StepPhotoSelect from './StepPhotoSelect.vue';
 import Step2SizePanel from './Step2SizePanel.vue';
 import Step3ConditionsPanel from './Step3ConditionsPanel.vue';
 import StepDots from './StepDots.vue';
@@ -293,6 +304,7 @@ import { calculateDentPrice as calcDentViaAdapter } from '../../features/pricing
 import { formatArmaturnayaSummary, getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks';
 import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from '../../utils/armatureSelection';
 import { generateRecordId } from '../../features/history/historyStore';
+import { getAttachment, saveAttachment, generateMatrixAttachmentKey } from '../../utils/attachmentStorage';
 
 const props = defineProps({
   form: { type: Object, required: true },
@@ -359,6 +371,9 @@ const sizeEditAxis = ref(null);
 const sizeAdjusting = ref(false);
 const dents = ref([]);
 const showFreeformModal = ref(false);
+const freeformPhotoMode = ref(false);
+const photoAsset = ref(null);
+const freeformPhotoUrl = ref('');
 const freeformCanvasSize = ref({ width: 320, height: 240 });
 let sizeApplyTimeout = null;
 let sizeEditByUser = false;
@@ -649,6 +664,7 @@ const dentsValid = computed(() => {
 });
 
 const stepHintText = computed(() => {
+  if (freeformPhotoMode.value && wizardStep.value === 2) return 'Добавьте фото повреждения для обводки вмятины.';
   switch (wizardStep.value) {
     case 2:
       return 'Выберите деталь. Добавьте вмятины и перетащите на место.';
@@ -680,8 +696,16 @@ watch([sizeWidthMm, sizeHeightMm], () => {
   if (sizeAdjusting.value) return;
   if (sizeApplyTimeout) clearTimeout(sizeApplyTimeout);
   sizeApplyTimeout = setTimeout(() => {
+    const cur = selectedDentSize.value;
     let w = Number(sizeWidthMm.value);
     let h = Number(sizeHeightMm.value);
+    // Если изменена только одна ось — используем текущее значение второй из выбранной вмятины
+    if (Number.isFinite(w) && w > 0 && (!Number.isFinite(h) || h <= 0) && cur?.heightMm > 0) {
+      h = cur.heightMm;
+    }
+    if (Number.isFinite(h) && h > 0 && (!Number.isFinite(w) || w <= 0) && cur?.widthMm > 0) {
+      w = cur.widthMm;
+    }
     if (!Number.isFinite(w) || !Number.isFinite(h) || w <= 0 || h <= 0) {
       sizeEditByUser = false;
       sizeApplyTimeout = null;
@@ -703,14 +727,17 @@ watch([sizeWidthMm, sizeHeightMm], () => {
         sizeAdjusting.value = false;
       }
     }
-    const cur = selectedDentSize.value;
     if (cur && Math.abs(cur.widthMm - w) < 0.01 && Math.abs(cur.heightMm - h) < 0.01) {
       sizeEditByUser = false;
       sizeApplyTimeout = null;
       return;
     }
     const curType = cur?.type;
-    setSelectedDentSizeMm(w, h);
+    if (curType === 'freeform' && freeformPhotoMode.value) {
+      setSelectedDentUserDimensions(w, h);
+    } else {
+      setSelectedDentSizeMm(w, h);
+    }
     if (curType && curType !== 'freeform') {
       const classified = classifyDamageShapeByRatio(w, h);
       const targetType = classified === 'stripe' ? 'strip' : 'circle';
@@ -732,8 +759,11 @@ watch(wizardStep, (step, prev) => {
   if (step === 5 && props.estimateDraft && !props.estimateDraft.id) {
     props.estimateDraft.id = generateRecordId();
   }
+  if (step === 5 && props.estimateDraft) {
+    syncFreeformPhotosToAttachments();
+  }
   if (props.autoSave && step === 5 && prev === 4 && totalPrice.value > 0 && !props.historySaving) {
-    nextTick(() => emit('save-history'));
+    nextTick(() => onSaveHistory());
   }
 });
 
@@ -776,6 +806,55 @@ function goToStep(step) {
 }
 
 /**
+ * Сохранить в историю: добавляет скриншот матрицы в вложения, затем эмитит save-history.
+ */
+async function onSaveHistory() {
+  const draft = props.estimateDraft;
+  if (draft && dents.value?.length > 0) {
+    const blob = await exportStageAsBlob();
+    if (blob) {
+      const recordId = draft.id || generateRecordId();
+      if (!draft.id) draft.id = recordId;
+      const key = generateMatrixAttachmentKey(recordId);
+      try {
+        await saveAttachment(key, blob);
+        const attachments = draft.attachments || [];
+        const hasMatrix = attachments.some((a) => a?.idbKey?.startsWith('dm_matrix_'));
+        if (!hasMatrix) {
+          draft.attachments = [...attachments, { dentIndex: 0, idbKey: key }];
+        }
+      } catch (e) {
+        console.warn('[DentMetric] Matrix screenshot save failed', e);
+      }
+    }
+  }
+  emit('save-history');
+}
+
+/**
+ * Синхронизирует фото из freeform-вмятин в estimateDraft.attachments.
+ * Фото, добавленные через режим произвольной формы (галерея/камера), отображаются в панели «прикрепить файл».
+ */
+function syncFreeformPhotosToAttachments() {
+  const draft = props.estimateDraft;
+  if (!draft) return;
+  const keys = new Set((dents.value || []).map((d) => d?.photoAssetKey).filter(Boolean));
+  if (keys.size === 0) return;
+  const current = draft.attachments || [];
+  const currentKeys = new Set(current.map((a) => a?.idbKey).filter(Boolean));
+  const toAdd = [];
+  for (const key of keys) {
+    if (!currentKeys.has(key)) {
+      toAdd.push({ dentIndex: 0, idbKey: key });
+      currentKeys.add(key);
+    }
+  }
+  if (toAdd.length > 0) {
+    draft.attachments = [...current, ...toAdd];
+  }
+}
+
+/**
  * Сброс только вмятин и шага (данные клиента в estimateDraft не трогаем).
  * Вызывается из App при нажатии «Сброс вмятин».
  */
@@ -795,6 +874,12 @@ function resetDentsOnly() {
   freeStretchMode.value = true;
   setKeepRatio(false);
   showSizeMenu.value = false;
+  freeformPhotoMode.value = false;
+  photoAsset.value = null;
+  if (freeformPhotoUrl.value) {
+    URL.revokeObjectURL(freeformPhotoUrl.value);
+    freeformPhotoUrl.value = '';
+  }
   props.form.repairCode = null;
   props.form.riskCode = null;
   props.form.materialCode = null;
@@ -875,8 +960,31 @@ function openFreeformModal() {
   showFreeformModal.value = true;
 }
 
+function onAddFreeform() {
+  freeformPhotoMode.value = true;
+}
+
+async function onPhotoSelectNext() {
+  if (!photoAsset.value?.key) return;
+  try {
+    const blob = await getAttachment(photoAsset.value.key);
+    if (blob) {
+      if (freeformPhotoUrl.value) URL.revokeObjectURL(freeformPhotoUrl.value);
+      freeformPhotoUrl.value = URL.createObjectURL(blob);
+    }
+  } catch (e) {
+    console.error('[DentMetric] Photo load for modal failed', e);
+  }
+  updateFreeformCanvasSize();
+  showFreeformModal.value = true;
+}
+
 function closeFreeformModal() {
   showFreeformModal.value = false;
+  if (freeformPhotoUrl.value) {
+    URL.revokeObjectURL(freeformPhotoUrl.value);
+    freeformPhotoUrl.value = '';
+  }
 }
 
 function onFreeformConfirm(points) {
@@ -884,8 +992,9 @@ function onFreeformConfirm(points) {
     closeFreeformModal();
     return;
   }
-  addFreeformDentFromPoints(points, props.circleSizes);
+  addFreeformDentFromPoints(points, props.circleSizes, photoAsset.value?.key ?? null);
   closeFreeformModal();
+  if (freeformPhotoMode.value) goToStep(3);
 }
 
 const formatCurrency = (v) => new Intl.NumberFormat('ru-RU').format(v);
@@ -934,8 +1043,6 @@ watch(
       if (step === 3) {
         setKeepRatio(!freeStretchMode.value);
         setTimeout(() => scheduleFit('step2-show'), 200);
-      }
-      if (step >= 4) {
       }
       if (step >= 4) setTimeout(() => scheduleFit('resize'), 150);
     });
@@ -1024,14 +1131,15 @@ defineExpose({ resetDentsOnly });
   width: 100vw;
   max-width: none;
   overflow: hidden;
+  overflow-x: hidden;
   padding: 0 0 var(--app-footer-height, 0px) 0;
   margin: 0;
   background: #000;
-  --bottomH: 34%;
+  --bottomH: 30%;
   --matrixSafeTop: 60px;
   --matrixHeight: auto;
-  --actionbar-height: calc(112px + env(safe-area-inset-bottom, 0px) + var(--app-footer-height, 0px));
-  --controlsMaxH: clamp(230px, 28vh, 340px);
+  --actionbar-height: calc(100px + env(safe-area-inset-bottom, 0px) + var(--app-footer-height, 0px));
+  --controlsMaxH: clamp(190px, 24vh, 300px);
 }
 
 /* Верхняя панель: flex 0 0 auto, safe area */
@@ -1186,11 +1294,13 @@ defineExpose({ resetDentsOnly });
 }
 
 .graphics-step-1 .graphics-stage-area,
-.graphics-step-4 .graphics-stage-area {
+.graphics-step-4 .graphics-stage-area,
+.graphics-step-2.graphics-step-photo .graphics-stage-area {
   display: none;
 }
 
-.graphics-step-1 .graphics-controls-area {
+.graphics-step-1 .graphics-controls-area,
+.graphics-step-2.graphics-step-photo .graphics-controls-area {
   flex: 1 1 auto;
   min-height: 0;
   max-height: none;
@@ -1298,6 +1408,8 @@ defineExpose({ resetDentsOnly });
 
 :deep(.graphics-panel-content) {
   padding-bottom: var(--actionbar-height);
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 :deep(.graphics-action-bar) {

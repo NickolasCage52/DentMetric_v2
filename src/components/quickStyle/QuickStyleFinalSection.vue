@@ -99,8 +99,8 @@ function getDetailedRows(dentItem) {
 
 function getDentLabel(dent) {
   if (!dent) return '—';
-  const shape = dent.shape === 'circle' || dent.type === 'circle' ? 'Круг/Овал' : 'Полоса';
-  return shape;
+  if (dent.type === 'freeform' || dent.shape === 'freeform') return 'Произвольная';
+  return dent.shape === 'circle' || dent.type === 'circle' ? 'Круг/Овал' : 'Полоса';
 }
 
 function formatDim(v) {

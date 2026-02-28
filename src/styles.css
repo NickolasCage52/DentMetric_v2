@@ -40,6 +40,15 @@ img {
   --wow-vignette-opacity: 0.55;
   --bottom-nav-h: calc(64px + env(safe-area-inset-bottom, 0px));
 
+  /* Detail mode (Graphics Wizard) — типографика и отступы */
+  --dm-detail-font-xs: 10px;
+  --dm-detail-font-sm: 11px;
+  --dm-detail-font-md: 13px;
+  --dm-detail-gap-sm: 6px;
+  --dm-detail-gap-md: 10px;
+  --dm-detail-btn-min-height: 88px;
+  --dm-detail-input-min-height: 44px;
+
   /* Shared screen shell layout (Home + Mode selection) — single source of truth */
   --screen-padding-x: 1rem;
   --screen-gap-y: 1rem;

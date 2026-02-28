@@ -1,11 +1,11 @@
 <template>
   <div class="step2-panel flex flex-col min-h-0">
     <div class="graphics-panel-content p-2 space-y-1.5">
-      <div class="step2-row">
+      <div class="step2-row step-geometry">
         <!-- Форма вмятины: фиксированная высота, не меняется при выборе вмятины -->
-        <div class="step2-block step2-form-block rounded-lg bg-black/35 border border-white/10 p-2">
-          <div class="step2-form-head">
-            <div class="text-[10px] uppercase font-bold text-metric-green tracking-widest">Геометрия повреждения</div>
+        <div class="step2-block step2-form-block rounded-lg bg-black/35 border border-white/10 p-1.5">
+          <div class="step2-form-head step-geometry__section-title-row">
+            <div class="step-geometry__section-title">Геометрия повреждения</div>
             <label
               v-if="showFreeStretch"
               class="step2-checkbox"
@@ -29,7 +29,7 @@
                 <div class="flex gap-0.5 p-0.5 rounded-lg bg-white/5">
                   <button
                     type="button"
-                    class="px-2.5 py-1 min-h-[32px] rounded text-[10px] font-medium bg-metric-green text-black"
+                    class="step2-shape-btn step2-shape-btn--freeform px-2 py-1 min-h-[28px] rounded text-[9px] font-medium bg-metric-green text-black"
                   >
                     Произвольная форма
                   </button>
@@ -43,7 +43,7 @@
                 <button
                   type="button"
                   @click="$emit('update:shapeVariant', 'circle')"
-                  class="px-2.5 py-1 min-h-[32px] rounded text-[10px] font-medium transition-all touch-manipulation"
+                  class="step2-shape-btn px-2 py-1 min-h-[28px] rounded text-[9px] font-medium transition-all touch-manipulation"
                   :class="shapeVariant === 'circle' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
                 >
                   Круг
@@ -51,7 +51,7 @@
                 <button
                   type="button"
                   @click="$emit('update:shapeVariant', 'oval')"
-                  class="px-2.5 py-1 min-h-[32px] rounded text-[10px] font-medium transition-all touch-manipulation"
+                  class="step2-shape-btn px-2 py-1 min-h-[28px] rounded text-[9px] font-medium transition-all touch-manipulation"
                   :class="shapeVariant === 'oval' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
                 >
                   Овал
@@ -64,7 +64,7 @@
                 <button
                   type="button"
                   @click="$emit('update:shapeVariant', 'strip')"
-                  class="px-2.5 py-1 min-h-[32px] rounded text-[10px] font-medium transition-all touch-manipulation"
+                  class="step2-shape-btn px-2 py-1 min-h-[28px] rounded text-[9px] font-medium transition-all touch-manipulation"
                   :class="shapeVariant === 'strip' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
                 >
                   Полоса
@@ -72,7 +72,7 @@
                 <button
                   type="button"
                   @click="$emit('update:shapeVariant', 'scratch')"
-                  class="px-2.5 py-1 min-h-[32px] rounded text-[10px] font-medium transition-all touch-manipulation"
+                  class="step2-shape-btn px-2 py-1 min-h-[28px] rounded text-[9px] font-medium transition-all touch-manipulation"
                   :class="shapeVariant === 'scratch' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
                 >
                   Царапина
@@ -85,47 +85,46 @@
             <button
               type="button"
               @click="$emit('fix-freeform')"
-              class="w-full px-2.5 py-2 min-h-[36px] rounded-lg text-[10px] font-bold uppercase tracking-widest bg-metric-green text-black shadow-[0_0_12px_rgba(136,229,35,0.3)] active:opacity-90"
+              class="w-full px-2 py-1.5 min-h-[30px] rounded-lg text-[9px] font-bold uppercase tracking-widest bg-metric-green text-black shadow-[0_0_12px_rgba(136,229,35,0.3)] active:opacity-90"
             >
               Зафиксировать форму
             </button>
           </div>
         </div>
         <!-- Размер повреждения -->
-        <div ref="sizesPanel" class="step2-block step2-sizes-block rounded-lg bg-black/35 border border-white/10 p-2">
-          <div class="text-[10px] uppercase font-bold text-metric-green tracking-widest mb-1.5">Размер повреждения (мм)</div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <label class="block text-[10px] text-gray-500 mb-0.5">
-                Длина
-              </label>
+        <div ref="sizesPanel" class="step2-block step2-sizes-block rounded-lg bg-black/35 border border-white/10 p-1.5">
+          <div class="step-geometry__section-title mb-1.5">Размер повреждения (мм)</div>
+          <div class="step-geometry__inputs-row">
+            <div class="step-geometry__input-block">
+              <label class="step-geometry__input-label">Длина</label>
               <button
                 type="button"
                 :disabled="inputsDisabled"
-                class="step2-input w-full rounded-lg bg-white/5 border border-white/20 px-2 py-2 min-h-[44px] text-[16px] text-white text-left flex items-center justify-between gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="step2-input step-geometry__input-value w-full rounded-lg bg-white/5 border border-white/20 px-2 py-1.5 min-h-[36px] text-[14px] text-white text-left flex items-center justify-between gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 @click="openWidthModal"
               >
-                <span>{{ displayWidthVal || (selectedDentSize ? '' : '—') }}</span>
+                <span class="step-geometry__value-text">{{ displayWidthVal || (selectedDentSize ? '' : '—') }}</span>
                 <span class="text-gray-500 shrink-0 text-sm">✎</span>
               </button>
             </div>
-            <div>
-              <label class="block text-[10px] text-gray-500 mb-0.5">
-                Высота
-              </label>
+            <div class="step-geometry__input-block">
+              <label class="step-geometry__input-label">Высота</label>
               <button
                 type="button"
                 :disabled="inputsDisabled"
-                class="step2-input w-full rounded-lg bg-white/5 border border-white/20 px-2 py-2 min-h-[44px] text-[16px] text-white text-left flex items-center justify-between gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="step2-input step-geometry__input-value w-full rounded-lg bg-white/5 border border-white/20 px-2 py-1.5 min-h-[36px] text-[14px] text-white text-left flex items-center justify-between gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
                 @click="openHeightModal"
               >
-                <span>{{ displayHeightVal || (selectedDentSize ? '' : '—') }}</span>
+                <span class="step-geometry__value-text">{{ displayHeightVal || (selectedDentSize ? '' : '—') }}</span>
                 <span class="text-gray-500 shrink-0 text-sm">✎</span>
               </button>
             </div>
           </div>
-          <div v-if="areaMm2" class="mt-1 text-[10px] text-gray-500">
-            Площадь (справочно): <span class="text-white">{{ formatArea(areaMm2) }}</span> мм²
+          <div class="step-geometry__computed">
+            <div class="step-geometry__computed-row">
+              <span class="step-geometry__computed-label">Площадь (справочно):</span>
+              <span class="step-geometry__computed-value">{{ areaMm2 != null ? formatArea(areaMm2) + ' мм²' : '—' }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -248,20 +247,120 @@ const formatArea = (v) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits
 </script>
 
 <style scoped>
+.step-geometry {
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.step-geometry__section-title {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #88e523;
+  line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  word-break: break-word;
+}
+
+.step-geometry__section-title-row {
+  margin-bottom: 6px;
+}
+
+.step-geometry__inputs-row {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  width: 100%;
+}
+
+.step-geometry__input-block {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.step-geometry__input-label {
+  font-size: 9px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.step-geometry__value-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-height: 20px;
+  min-width: 0;
+  flex: 1;
+}
+
+.step-geometry__computed {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.step-geometry__computed-row {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1.3;
+  flex-wrap: nowrap;
+  overflow: hidden;
+}
+
+.step-geometry__computed-label {
+  font-size: 9px;
+  color: #6b7280;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.step-geometry__computed-value {
+  font-size: 9px;
+  color: #ffffff;
+  font-weight: 500;
+  min-width: 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .step2-row {
   display: flex;
   gap: 0.5rem;
   align-items: stretch;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
 }
+
 .step2-form-block {
   flex: 0 0 34%;
-  min-width: 34%;
+  min-width: 0;
 }
+
 .step2-sizes-block {
   flex: 1 1 auto;
   min-width: 0;
 }
+
 .step2-form-head {
   display: flex;
   align-items: center;
@@ -269,19 +368,41 @@ const formatArea = (v) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits
   gap: 0.35rem;
   margin-bottom: 0.35rem;
 }
+
 .step2-checkbox {
   display: inline-flex;
   align-items: center;
   gap: 0.3rem;
-  font-size: 10px;
+  font-size: 9px;
   color: #9aa3ad;
   cursor: pointer;
   user-select: none;
+  flex-shrink: 0;
 }
+
 .step2-checkbox input {
   width: 16px;
   height: 16px;
 }
+
+.step2-shape-btn--freeform {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* На узких экранах — колонка, без overlap (34% на 320px слишком узко) */
+@media (max-width: 400px) {
+  .step2-row {
+    flex-direction: column;
+  }
+  .step2-form-block {
+    flex: 1 1 auto;
+    min-width: 100%;
+  }
+}
+
 /* Мобильная версия: компактные плашки */
 @media (max-width: 480px) {
   .step2-panel {
@@ -297,10 +418,10 @@ const formatArea = (v) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits
     margin-bottom: 0.25rem !important;
   }
   .step2-form-block > div:last-child {
-    min-height: 32px !important;
+    min-height: 28px !important;
   }
   .step2-input {
-    min-height: 36px !important;
+    min-height: 32px !important;
     padding: 0.35rem 0.5rem !important;
   }
 }

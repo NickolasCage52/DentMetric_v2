@@ -78,3 +78,12 @@ export async function deleteAttachment(key) {
 export function generateAttachmentKey(recordId, dentIndex) {
   return `dm_attach_${recordId}_dent${dentIndex}_${Date.now()}`;
 }
+
+/**
+ * Ключ для скриншота матрицы (размещение вмятин).
+ * @param {string} recordId
+ * @returns {string}
+ */
+export function generateMatrixAttachmentKey(recordId) {
+  return `dm_matrix_${recordId || 'draft'}_${Date.now()}`;
+}
