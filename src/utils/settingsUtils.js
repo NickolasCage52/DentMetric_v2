@@ -36,7 +36,7 @@ export function migrateSettings(raw) {
     settings.discountDiffPartEnabled = false;
     settings.discountDiffPartValue = 0;
   }
-  if (!('discountSamePartEnabled' in settings)) settings.discountSamePartEnabled = false;
+  if (!('discountSamePartEnabled' in settings)) settings.discountSamePartEnabled = true;
   if (!('discountSamePartValue' in settings)) settings.discountSamePartValue = 50;
   if (!('discountDiffPartEnabled' in settings)) settings.discountDiffPartEnabled = false;
   if (!('discountDiffPartValue' in settings)) settings.discountDiffPartValue = 0;
@@ -60,10 +60,13 @@ export function validateSettings(s) {
 
 /**
  * Get price multiplier for dent type.
- * Circle/Oval and Stripe/Scratch: adjustment applied directly to base prices in list → return 1.0.
+ * isStripe → priceAdjustmentStripe; otherwise → priceAdjustmentRoundOval.
  */
 export function getPriceMultiplier(dentType, settings = {}) {
-  return 1.0;
+  const s = settings || {};
+  const isStripe = ['strip', 'stripe', 'scratch'].includes(String(dentType || '').toLowerCase());
+  if (isStripe) return Number(s.priceAdjustmentStripe) || 1.0;
+  return Number(s.priceAdjustmentRoundOval) || 1.0;
 }
 
 /**
@@ -79,11 +82,19 @@ export function getDiscountRate(dent, primaryDent, settings = {}) {
   const samePart = el && primaryEl && String(el) === String(primaryEl);
 
   if (samePart) {
-    return settings.discountSamePartEnabled
-      ? (Number(settings.discountSamePartValue) || 0) / 100
-      : 0;
+    if (settings.discountSamePartEnabled !== undefined) {
+      return settings.discountSamePartEnabled ? (Number(settings.discountSamePartValue) || 0) / 100 : 0;
+    }
+    if (settings.enableSecondDentDiscount) {
+      return (Number(settings.secondDentDiscountPercent) || 50) / 100;
+    }
+    return 0;
   }
-  return settings.discountDiffPartEnabled
-    ? (Number(settings.discountDiffPartValue) || 0) / 100
-    : 0;
+  if (el != null || primaryEl != null) {
+    return settings.discountDiffPartEnabled ? (Number(settings.discountDiffPartValue) || 0) / 100 : 0;
+  }
+  if (settings.enableSecondDentDiscount) {
+    return (Number(settings.secondDentDiscountPercent) || 50) / 100;
+  }
+  return settings.discountSamePartEnabled ? (Number(settings.discountSamePartValue) || 0) / 100 : 0;
 }

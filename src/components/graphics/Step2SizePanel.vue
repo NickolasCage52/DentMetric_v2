@@ -125,6 +125,14 @@
               <span class="step-geometry__computed-label">Площадь (справочно):</span>
               <span class="step-geometry__computed-value">{{ areaMm2 != null ? formatArea(areaMm2) + ' мм²' : '—' }}</span>
             </div>
+            <div class="step-geometry__computed-row">
+              <span class="step-geometry__computed-label">Соотношение сторон:</span>
+              <span class="step-geometry__computed-value">{{ computedRatio ?? '—' }}</span>
+            </div>
+            <div class="step-geometry__computed-row">
+              <span class="step-geometry__computed-label">Тип формы:</span>
+              <span class="step-geometry__computed-value">{{ computedShapeType ?? '—' }}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -208,6 +216,25 @@ const freeformBboxHint = computed(() => {
   if (classified === 'stripe') return 'Полоса';
   if (classified === 'round') return 'Круг';
   return 'Овал';
+});
+
+const computedRatio = computed(() => {
+  const w = Number(props.sizeWidthMm) || 0;
+  const h = Number(props.sizeHeightMm) || 0;
+  if (w <= 0 || h <= 0) return null;
+  const r = Math.max(w, h) / Math.min(w, h);
+  return Number.isFinite(r) ? r.toFixed(2) : null;
+});
+
+const computedShapeType = computed(() => {
+  const w = Number(props.sizeWidthMm) || 0;
+  const h = Number(props.sizeHeightMm) || 0;
+  if (w <= 0 || h <= 0) return null;
+  const classified = classifyDamageShapeByRatio(w, h);
+  if (classified === 'stripe') return 'Полоса';
+  if (classified === 'round') return 'Круг';
+  if (classified === 'oval') return 'Овал';
+  return null;
 });
 
 async function openWidthModal() {

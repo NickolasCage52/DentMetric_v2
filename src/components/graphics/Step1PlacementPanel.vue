@@ -79,7 +79,7 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
 .dent-type-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 6px;
+  gap: 8px;
   width: 100%;
   overflow: hidden;
 }
@@ -89,9 +89,9 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  min-height: 72px;
+  min-height: 88px;
   width: 100%;
-  padding: 8px 6px;
+  padding: 10px 8px;
   box-sizing: border-box;
   overflow: hidden;
   border-radius: 0.75rem;
@@ -154,9 +154,9 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 1.25;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
   text-align: center;
   color: #ffffff;
   width: 100%;
@@ -169,7 +169,7 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 9px;
+  font-size: 11px;
   line-height: 1.2;
   text-align: center;
   color: #6b7280;
@@ -179,17 +179,13 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
 
 @media (max-width: 340px) {
   .dent-type-grid {
-    gap: 5px;
+    gap: 6px;
   }
   .dent-type-btn {
-    padding: 6px 4px;
-    min-height: 66px;
+    padding: 8px 4px;
   }
   .dent-type-btn__title {
-    font-size: 9px;
-  }
-  .dent-type-btn__subtitle {
-    font-size: 8px;
+    font-size: 11px;
   }
 }
 </style>

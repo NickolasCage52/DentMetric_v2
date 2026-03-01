@@ -26,14 +26,14 @@ export function runDevAuditSettings() {
   });
   console.log('[DM Settings] Stripe presets: OK');
 
-  // 2. Price multipliers: both circle and stripe use direct price adjustment → 1.0
-  const mockSettings = { priceAdjustmentStripe: 0.9 };
+  // 2. Price multipliers: circle → priceAdjustmentRoundOval, stripe → priceAdjustmentStripe
+  const mockSettings = { priceAdjustmentRoundOval: 1.1, priceAdjustmentStripe: 0.9 };
   console.assert(
-    getPriceMultiplier('circle', mockSettings) === 1.0,
+    getPriceMultiplier('circle', mockSettings) === 1.1,
     '[DM Settings] Circle multiplier must be 1.0'
   );
   console.assert(
-    getPriceMultiplier('stripe', mockSettings) === 1.0,
+    getPriceMultiplier('stripe', mockSettings) === 0.9,
     '[DM Settings] Stripe multiplier must be 1.0 (direct price adjustment)'
   );
   console.log('[DM Settings] Price multipliers: OK');

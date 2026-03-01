@@ -1,10 +1,12 @@
+import { getDiscountRate, migrateSettings } from './settingsUtils';
+
 /**
  * Shared multi-dent aggregation: applies discount factor to 2nd+ dents (by price).
  * Single source of truth for Quick, Detail, and History.
  *
  * Rules:
  * - Most expensive dent (max total) → weight 1.0
- * - Others: discount based on same/different element (discountSamePart vs discountDiffPart)
+ * - Others: discount based on same/different element (getDiscountRate from settingsUtils)
  * - Ties: first max index wins (deterministic)
  *
  * @param {Array<number|{ total: number, panelElement?: string, dent?: { panelElement?: string } }>} dentItems - per-dent totals (number[]) or items with total+panelElement
@@ -12,6 +14,7 @@
  * @returns {{ total: number, weightedTotals: number[], factorForSecond: number }}
  */
 export function calculateSessionTotalWithMultiDentRule(dentItems, settings = {}) {
+  const s = migrateSettings(settings || {});
   const raw = Array.isArray(dentItems) ? dentItems : [];
   const arr = raw.map((it) => (typeof it === 'number' ? { total: it } : it)).filter((it) => {
     const t = Number(it?.total) ?? (typeof it === 'number' ? it : NaN);
@@ -25,31 +28,17 @@ export function calculateSessionTotalWithMultiDentRule(dentItems, settings = {})
   const maxVal = Math.max(...totals);
   const maxIdx = totals.findIndex((v) => v === maxVal);
   const primaryItem = arr[maxIdx];
+  const primaryDent = primaryItem?.dent ?? primaryItem;
 
   const getFactor = (item, idx) => {
     if (idx === maxIdx) return 1.0;
-    const el = item?.panelElement ?? item?.dent?.panelElement ?? null;
-    const primaryEl = primaryItem?.panelElement ?? primaryItem?.dent?.panelElement ?? null;
-
-    if (el != null && primaryEl != null) {
-      const samePart = String(el) === String(primaryEl);
-      if (samePart) {
-        return settings.discountSamePartEnabled
-          ? Math.max(0, 1 - (Number(settings.discountSamePartValue) || 0) / 100)
-          : 0.5;
-      }
-      return settings.discountDiffPartEnabled
-        ? Math.max(0, 1 - (Number(settings.discountDiffPartValue) || 0) / 100)
-        : 0.5;
-    }
-    if (settings.discountSamePartEnabled !== undefined) {
-      return settings.discountSamePartEnabled
-        ? Math.max(0, 1 - (Number(settings.discountSamePartValue) || 0) / 100)
-        : 0.5;
-    }
-    return settings.enableSecondDentDiscount
-      ? Math.max(0, 1 - (Number(settings.secondDentDiscountPercent) || 0) / 100)
-      : 0.5;
+    const dent = item?.dent ?? item;
+    const el = item?.panelElement ?? dent?.panelElement ?? dent?.element ?? null;
+    const primaryEl = primaryItem?.panelElement ?? primaryDent?.panelElement ?? primaryDent?.element ?? null;
+    const dentWithEl = { ...dent, panelElement: el, element: el };
+    const primaryWithEl = { ...primaryDent, panelElement: primaryEl, element: primaryEl };
+    const rate = getDiscountRate(dentWithEl, primaryWithEl, s);
+    return Math.max(0, 1 - rate);
   };
 
   const firstNonMaxIdx = arr.findIndex((_, i) => i !== maxIdx);

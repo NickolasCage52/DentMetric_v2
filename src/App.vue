@@ -5,7 +5,7 @@
       v-if="currentSection === 'home'"
       :show-background="true"
       :show-profile-button="true"
-      @profile-click="showLockedStub('Раздел в разработке 🔒')"
+      @profile-click="onProfileClick"
     >
       <div class="wow-tile-grid wow-screen-shell__tiles">
           <button
@@ -34,7 +34,7 @@
           </button>
           <button
             data-testid="btn-history"
-            @click="switchSection('history')"
+            @click="goToHistory"
             class="wow-tile home-btn home-btn-primary"
           >
             <svg class="home-btn-icon w-8 h-8 text-metric-green shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -67,7 +67,7 @@
         :show-background="true"
         :show-profile-button="true"
         :has-subtitle="true"
-        @profile-click="showLockedStub('Скоро 🔒')"
+        @profile-click="onProfileClick"
       >
         <template #subtitle>
           <h2 class="text-metric-green text-xs font-bold uppercase tracking-[0.2em]">ВЫБОР РЕЖИМА РАСЧЁТА</h2>
@@ -1172,6 +1172,45 @@
       </div>
     </div>
 
+    <!-- Section: Account / Plans / Onboarding / Referral / Payments / Stats -->
+    <div v-if="currentSection === 'account'" class="flex flex-col min-h-0 flex-1">
+      <AccountScreen view="profile" @back="switchSection('home')">
+        <ProfileSection
+          @edit="switchSection('onboarding')"
+          @plans="switchSection('plans')"
+          @payments="switchSection('payments')"
+          @referral="switchSection('referral')"
+          @stats="switchSection('stats')"
+          @logout="switchSection('home')"
+        />
+      </AccountScreen>
+    </div>
+    <div v-else-if="currentSection === 'plans'" class="flex flex-col min-h-0 flex-1">
+      <AccountScreen view="plans" @back="switchSection('account')">
+        <PlansSection />
+      </AccountScreen>
+    </div>
+    <div v-else-if="currentSection === 'onboarding'" class="flex flex-col min-h-0 flex-1">
+      <AccountScreen view="onboarding" @back="switchSection('home')">
+        <OnboardingSection @complete="switchSection('account')" />
+      </AccountScreen>
+    </div>
+    <div v-else-if="currentSection === 'referral'" class="flex flex-col min-h-0 flex-1">
+      <AccountScreen view="referral" @back="switchSection('account')">
+        <ReferralSection />
+      </AccountScreen>
+    </div>
+    <div v-else-if="currentSection === 'payments'" class="flex flex-col min-h-0 flex-1">
+      <AccountScreen view="payments" @back="switchSection('account')">
+        <PaymentsSection />
+      </AccountScreen>
+    </div>
+    <div v-else-if="currentSection === 'stats'" class="flex flex-col min-h-0 flex-1">
+      <AccountScreen view="stats" @back="switchSection('account')">
+        <MasterStatsSection @upgrade="switchSection('plans')" />
+      </AccountScreen>
+    </div>
+
     <!-- Locked sections (analytics, journal) -->
     <div v-if="currentSection === 'analytics' || currentSection === 'journal'" class="p-4 flex flex-col h-full pb-24">
       <div class="app-header-logo-bar">
@@ -1203,7 +1242,7 @@
     >
       <button
         type="button"
-        @click="switchSection('history')"
+        @click="goToHistory"
         class="bottom-nav-btn flex-1 min-w-0 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[52px] touch-manipulation"
         :class="currentSection === 'history' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
         :aria-current="currentSection === 'history' ? 'page' : undefined"
@@ -1276,6 +1315,8 @@
         </button>
       </div>
     </Transition>
+    <PaywallModal :visible="paywallVisible" :min-plan="paywallMinPlan" @close="closePaywall" @go-plans="switchSection('plans'); closePaywall();" />
+    <NotificationStack />
     <InputModal :model-value="inputModalOpen" :config="inputModalConfig" @confirm="inputModalConfirm" @cancel="inputModalCancel" />
     <SelectModal :model-value="selectModalOpen" :config="selectModalConfig" @confirm="selectModalConfirm" @cancel="selectModalCancel" />
     <PresetsModal v-model="presetsModalOpen" @select="onPresetSelected" />
@@ -1318,6 +1359,21 @@ import { hideTelegramButtons } from './utils/telegramButtons';
 import HistoryScreen from './components/HistoryScreen.vue';
 import AttachmentPicker from './components/AttachmentPicker.vue';
 import HistoryAttachmentsView from './components/HistoryAttachmentsView.vue';
+import { useAccount } from './modules/account/useAccount';
+import { useFeatureGate } from './modules/account/useFeatureGate';
+import { expandTelegramWebApp } from './modules/account/utils/telegram';
+import AccountScreen from './modules/account/components/AccountScreen.vue';
+import ProfileSection from './modules/account/components/ProfileSection.vue';
+import PlansSection from './modules/account/components/PlansSection.vue';
+import OnboardingSection from './modules/account/components/OnboardingSection.vue';
+import PaywallModal from './modules/account/components/PaywallModal.vue';
+import ReferralSection from './modules/account/components/ReferralSection.vue';
+import PaymentsSection from './modules/account/components/PaymentsSection.vue';
+import MasterStatsSection from './modules/account/components/MasterStatsSection.vue';
+import NotificationStack from './modules/account/components/NotificationStack.vue';
+
+const account = useAccount();
+const { requireFeature, checkHistoryLimit, paywallVisible, paywallMinPlan, closePaywall } = useFeatureGate();
 
 const isDev = import.meta.env?.DEV === true;
 // DEV-only QA overlay (?qa=1). Must not ship in production bundles.
@@ -2638,6 +2694,8 @@ function buildEstimatePayload(mode) {
 
 async function saveCurrentEstimate(modeOverride) {
   if (isSavingHistory.value) return;
+  if (!requireFeature('historyEnabled')) return;
+  if (!checkHistoryLimit(historyItems.value.length)) return;
   const mode = modeOverride || (calcMode.value === 'graphics' ? 'detail' : 'quick');
   if (totalPrice.value <= 0) return;
   isSavingHistory.value = true;
@@ -2660,6 +2718,8 @@ async function saveCurrentEstimate(modeOverride) {
 
 async function saveAndBookEstimate(modeOverride) {
   if (isSavingHistory.value) return;
+  if (!requireFeature('historyEnabled')) return;
+  if (!checkHistoryLimit(historyItems.value.length)) return;
   const mode = modeOverride || (calcMode.value === 'graphics' ? 'detail' : 'quick');
   if (totalPrice.value <= 0) return;
   isSavingHistory.value = true;
@@ -2778,6 +2838,21 @@ const selectMetricMode = (mode) => {
     closeEditor();
   }
   setMode(mode);
+};
+
+const goToHistory = () => {
+  if (requireFeature('historyEnabled')) {
+    switchSection('history');
+  }
+};
+
+const onProfileClick = async () => {
+  await account.initialize();
+  if (!account.isAuthenticated.value || !account.isProfileComplete.value) {
+    switchSection('onboarding');
+  } else {
+    switchSection('account');
+  }
 };
 
 const switchSection = (section) => {
@@ -3084,12 +3159,13 @@ const handleKeyDown = (e) => {
   }
 };
 
-onMounted(() => {
+onMounted(async () => {
+  expandTelegramWebApp();
   if (window.Telegram?.WebApp) {
     window.Telegram.WebApp.ready();
-    window.Telegram.WebApp.expand();
   }
   hideTelegramButtons();
+  await account.initialize();
   window.addEventListener('keydown', handleKeyDown);
   updateFooterHeight();
   footerResizeObserver = new ResizeObserver(() => updateFooterHeight());

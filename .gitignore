@@ -12,6 +12,8 @@ dist
 dist-ssr
 .gh-pages-worktree
 *.local
+.env.local
+.env.*.local
 
 # Editor directories and files
 .vscode/*

@@ -36,6 +36,8 @@ if (typeof window !== 'undefined') {
 if (import.meta.env?.DEV) {
   runDevAudit()
   runDevAuditSettings()
+  import('./utils/devAuditFull').then((m) => m.runFullAudit())
+  import('./utils/devAuditAccount').then((m) => m.runAccountAudit())
   fetch('/meta.json')
     .then((r) => (r.ok ? null : Promise.reject(new Error(`${r.status}`))))
     .catch(() => console.warn('[dev] meta.json not found or failed to load (404 is OK in dev)'))
