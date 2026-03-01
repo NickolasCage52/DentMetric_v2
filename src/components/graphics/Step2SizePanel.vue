@@ -1,142 +1,138 @@
 <template>
   <div class="step2-panel flex flex-col min-h-0">
-    <div class="graphics-panel-content p-2 space-y-1.5">
-      <div class="step2-row step-geometry">
-        <!-- Форма вмятины: фиксированная высота, не меняется при выборе вмятины -->
-        <div class="step2-block step2-form-block rounded-lg bg-black/35 border border-white/10 p-1.5">
-          <div class="step2-form-head step-geometry__section-title-row">
-            <div class="step-geometry__section-title">Геометрия повреждения</div>
-            <label
-              v-if="showFreeStretch"
-              class="step2-checkbox"
-            >
-              <input
-                type="checkbox"
-                :checked="freeStretch"
-                @change="$emit('update:freeStretch', $event.target.checked)"
-                class="rounded border-white/20 bg-[#151515] text-metric-green focus:ring-metric-green/50"
-                :disabled="selectedDentSize?.type === 'freeform' && selectedDentSize?.isShapeFixed"
-              />
-              <span>Своб. растяж.</span>
-            </label>
+    <div class="graphics-panel-content step2-panel-content p-2 space-y-1.5">
+      <!-- Единый компактный блок: header | [Размер Дл/Выс] [Геометрия] -->
+      <div class="step2-unified-block rounded-lg bg-black/35 border border-white/10 p-1.5">
+        <div class="step-geometry__header-row">
+          <span class="step-geometry__section-title">Геометрия повреждения</span>
+          <label
+            v-if="showFreeStretch"
+            class="step2-checkbox"
+          >
+            <input
+              type="checkbox"
+              :checked="freeStretch"
+              @change="$emit('update:freeStretch', $event.target.checked)"
+              class="rounded border-white/20 bg-[#151515] text-metric-green focus:ring-metric-green/50"
+              :disabled="selectedDentSize?.type === 'freeform' && selectedDentSize?.isShapeFixed"
+            />
+            <span>Своб. растяж.</span>
+          </label>
+        </div>
+        <div class="step2-controls-grid">
+          <!-- Левая колонка: ввод размера (приоритет — всегда виден на мобильном) -->
+          <div ref="sizesPanel" class="step2-sizes-col">
+            <div class="step-geometry__size-label">Размер (мм)</div>
+            <div class="step-geometry__inputs-row">
+              <div class="step-geometry__input-block">
+                <label class="step-geometry__input-label">Дл.</label>
+                <button
+                  type="button"
+                  :disabled="inputsDisabled"
+                  class="step2-action-btn step2-input step-geometry__input-value w-full rounded-lg bg-white/5 border border-white/20 px-2 py-1.5 text-[13px] text-white text-left flex items-center justify-between gap-1 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                  @click="openWidthModal"
+                >
+                  <span class="step-geometry__value-text">{{ displayWidthVal || (selectedDentSize ? '' : '—') }}</span>
+                  <span class="text-gray-500 shrink-0 text-xs">✎</span>
+                </button>
+              </div>
+              <div class="step-geometry__input-block">
+                <label class="step-geometry__input-label">Выс.</label>
+                <button
+                  type="button"
+                  :disabled="inputsDisabled"
+                  class="step2-action-btn step2-input step-geometry__input-value w-full rounded-lg bg-white/5 border border-white/20 px-2 py-1.5 text-[13px] text-white text-left flex items-center justify-between gap-1 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation"
+                  @click="openHeightModal"
+                >
+                  <span class="step-geometry__value-text">{{ displayHeightVal || (selectedDentSize ? '' : '—') }}</span>
+                  <span class="text-gray-500 shrink-0 text-xs">✎</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <div class="flex items-center min-h-[36px]">
-            <template v-if="selectedDentSize">
-              <div
-                v-if="selectedDentSize.type === 'freeform'"
-                class="flex flex-col gap-0.5"
-              >
-                <div class="flex gap-0.5 p-0.5 rounded-lg bg-white/5">
+          <!-- Правая колонка: геометрия (форма) -->
+          <div class="step2-form-col">
+            <div class="step-geometry__size-label">Форма</div>
+            <div class="flex items-center min-h-[40px]">
+              <template v-if="selectedDentSize">
+                <div
+                  v-if="selectedDentSize.type === 'freeform'"
+                  class="flex flex-col gap-0.5 w-full"
+                >
                   <button
                     type="button"
-                    class="step2-shape-btn step2-shape-btn--freeform px-2 py-1 min-h-[28px] rounded text-[9px] font-medium bg-metric-green text-black"
+                    class="step2-action-btn step2-shape-btn step2-shape-btn--freeform w-full px-2 py-1.5 rounded text-[11px] font-medium bg-metric-green text-black whitespace-nowrap overflow-hidden text-ellipsis"
                   >
                     Произвольная форма
                   </button>
+                  <span v-if="freeformBboxHint" class="text-[8px] text-gray-500">По габаритам: {{ freeformBboxHint }}</span>
                 </div>
-                <span v-if="freeformBboxHint" class="text-[9px] text-gray-500">По габаритам: {{ freeformBboxHint }}</span>
-              </div>
-              <div
-                v-else-if="selectedDentSize.type === 'circle'"
-                class="flex gap-0.5 p-0.5 rounded-lg bg-white/5"
-              >
-                <button
-                  type="button"
-                  @click="$emit('update:shapeVariant', 'circle')"
-                  class="step2-shape-btn px-2 py-1 min-h-[28px] rounded text-[9px] font-medium transition-all touch-manipulation"
-                  :class="shapeVariant === 'circle' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
+                <div
+                  v-else-if="selectedDentSize.type === 'circle'"
+                  class="flex gap-0.5 p-0.5 rounded-lg bg-white/5 w-full flex-wrap"
                 >
-                  Круг
-                </button>
-                <button
-                  type="button"
-                  @click="$emit('update:shapeVariant', 'oval')"
-                  class="step2-shape-btn px-2 py-1 min-h-[28px] rounded text-[9px] font-medium transition-all touch-manipulation"
-                  :class="shapeVariant === 'oval' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
+                  <button
+                    type="button"
+                    @click="$emit('update:shapeVariant', 'circle')"
+                    class="step2-action-btn step2-shape-btn flex-1 min-w-0 px-2 py-1.5 rounded text-[11px] font-medium transition-all touch-manipulation whitespace-nowrap overflow-hidden text-ellipsis"
+                    :class="shapeVariant === 'circle' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
+                  >
+                    Круг
+                  </button>
+                  <button
+                    type="button"
+                    @click="$emit('update:shapeVariant', 'oval')"
+                    class="step2-action-btn step2-shape-btn flex-1 min-w-0 px-2 py-1.5 rounded text-[11px] font-medium transition-all touch-manipulation whitespace-nowrap overflow-hidden text-ellipsis"
+                    :class="shapeVariant === 'oval' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
+                  >
+                    Овал
+                  </button>
+                </div>
+                <div
+                  v-else-if="selectedDentSize.type === 'strip'"
+                  class="flex gap-0.5 p-0.5 rounded-lg bg-white/5 w-full flex-wrap"
                 >
-                  Овал
-                </button>
-              </div>
-              <div
-                v-else-if="selectedDentSize.type === 'strip'"
-                class="flex gap-0.5 p-0.5 rounded-lg bg-white/5"
-              >
-                <button
-                  type="button"
-                  @click="$emit('update:shapeVariant', 'strip')"
-                  class="step2-shape-btn px-2 py-1 min-h-[28px] rounded text-[9px] font-medium transition-all touch-manipulation"
-                  :class="shapeVariant === 'strip' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
-                >
-                  Полоса
-                </button>
-                <button
-                  type="button"
-                  @click="$emit('update:shapeVariant', 'scratch')"
-                  class="step2-shape-btn px-2 py-1 min-h-[28px] rounded text-[9px] font-medium transition-all touch-manipulation"
-                  :class="shapeVariant === 'scratch' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
-                >
-                  Царапина
-                </button>
-              </div>
-            </template>
-            <span v-else class="text-[10px] text-gray-500 leading-[36px]">Выберите вмятину</span>
-          </div>
-          <div v-if="selectedDentSize?.type === 'freeform' && !selectedDentSize?.isShapeFixed" class="mt-2">
-            <button
-              type="button"
-              @click="$emit('fix-freeform')"
-              class="w-full px-2 py-1.5 min-h-[30px] rounded-lg text-[9px] font-bold uppercase tracking-widest bg-metric-green text-black shadow-[0_0_12px_rgba(136,229,35,0.3)] active:opacity-90"
-            >
-              Зафиксировать форму
-            </button>
+                  <button
+                    type="button"
+                    @click="$emit('update:shapeVariant', 'strip')"
+                    class="step2-action-btn step2-shape-btn flex-1 min-w-0 px-2 py-1.5 rounded text-[11px] font-medium transition-all touch-manipulation whitespace-nowrap overflow-hidden text-ellipsis"
+                    :class="shapeVariant === 'strip' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
+                  >
+                    Полоса
+                  </button>
+                  <button
+                    type="button"
+                    @click="$emit('update:shapeVariant', 'scratch')"
+                    class="step2-action-btn step2-shape-btn flex-1 min-w-0 px-2 py-1.5 rounded text-[11px] font-medium transition-all touch-manipulation whitespace-nowrap overflow-hidden text-ellipsis"
+                    :class="shapeVariant === 'scratch' ? 'bg-metric-green text-black' : 'text-gray-400 hover:text-white'"
+                  >
+                    Царапина
+                  </button>
+                </div>
+              </template>
+              <span v-else class="text-[10px] text-gray-500">Выберите вмятину</span>
+            </div>
           </div>
         </div>
-        <!-- Размер повреждения -->
-        <div ref="sizesPanel" class="step2-block step2-sizes-block rounded-lg bg-black/35 border border-white/10 p-1.5">
-          <div class="step-geometry__section-title mb-1.5">Размер повреждения (мм)</div>
-          <div class="step-geometry__inputs-row">
-            <div class="step-geometry__input-block">
-              <label class="step-geometry__input-label">Длина</label>
-              <button
-                type="button"
-                :disabled="inputsDisabled"
-                class="step2-input step-geometry__input-value w-full rounded-lg bg-white/5 border border-white/20 px-2 py-1.5 min-h-[36px] text-[14px] text-white text-left flex items-center justify-between gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                @click="openWidthModal"
-              >
-                <span class="step-geometry__value-text">{{ displayWidthVal || (selectedDentSize ? '' : '—') }}</span>
-                <span class="text-gray-500 shrink-0 text-sm">✎</span>
-              </button>
-            </div>
-            <div class="step-geometry__input-block">
-              <label class="step-geometry__input-label">Высота</label>
-              <button
-                type="button"
-                :disabled="inputsDisabled"
-                class="step2-input step-geometry__input-value w-full rounded-lg bg-white/5 border border-white/20 px-2 py-1.5 min-h-[36px] text-[14px] text-white text-left flex items-center justify-between gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                @click="openHeightModal"
-              >
-                <span class="step-geometry__value-text">{{ displayHeightVal || (selectedDentSize ? '' : '—') }}</span>
-                <span class="text-gray-500 shrink-0 text-sm">✎</span>
-              </button>
-            </div>
-          </div>
-          <div class="step-geometry__computed">
-            <div class="step-geometry__computed-row">
-              <span class="step-geometry__computed-label">Площадь (справочно):</span>
-              <span class="step-geometry__computed-value">{{ areaMm2 != null ? formatArea(areaMm2) + ' мм²' : '—' }}</span>
-            </div>
-            <div class="step-geometry__computed-row">
-              <span class="step-geometry__computed-label">Соотношение сторон:</span>
-              <span class="step-geometry__computed-value">{{ computedRatio ?? '—' }}</span>
-            </div>
-            <div class="step-geometry__computed-row">
-              <span class="step-geometry__computed-label">Тип формы:</span>
-              <span class="step-geometry__computed-value">{{ computedShapeType ?? '—' }}</span>
-            </div>
-          </div>
+        <!-- Справочная строка: площадь · соотношение · тип -->
+        <div class="step-geometry__computed step-geometry__computed--compact">
+          <span class="step-geometry__computed-inline">{{ areaMm2 != null ? formatArea(areaMm2) + ' мм²' : '—' }}</span>
+          <span class="step-geometry__computed-sep">·</span>
+          <span class="step-geometry__computed-inline">{{ computedRatio ?? '—' }}</span>
+          <span class="step-geometry__computed-sep">·</span>
+          <span class="step-geometry__computed-inline">{{ computedShapeType ?? '—' }}</span>
+        </div>
+        <div v-if="selectedDentSize?.type === 'freeform' && !selectedDentSize?.isShapeFixed" class="mt-1.5">
+          <button
+            type="button"
+            @click="$emit('fix-freeform')"
+            class="step2-action-btn w-full px-2 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest bg-metric-green text-black shadow-[0_0_12px_rgba(136,229,35,0.3)] active:opacity-90 whitespace-nowrap overflow-hidden text-ellipsis touch-manipulation"
+          >
+            Зафиксировать форму
+          </button>
         </div>
       </div>
-    <p v-if="!canNext" class="text-[10px] text-gray-500 text-center">Размер повреждения должен быть больше 0</p>
+    <p v-if="!canNext" class="text-[10px] text-gray-500 text-center py-0.5">Размер повреждения должен быть больше 0</p>
     </div>
     <div class="graphics-action-bar wizard-step-controls space-y-2">
       <div class="flex items-center gap-2 w-full">
@@ -274,16 +270,24 @@ const formatArea = (v) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits
 </script>
 
 <style scoped>
-.step-geometry {
+/* Единый блок: header + 2-колоночная сетка */
+.step2-unified-block {
   display: flex;
-  flex-direction: row;
-  gap: 12px;
-  width: 100%;
-  box-sizing: border-box;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 0;
+}
+
+.step-geometry__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
 }
 
 .step-geometry__section-title {
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -291,21 +295,39 @@ const formatArea = (v) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits
   line-height: 1.2;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
   min-width: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  word-break: break-word;
 }
 
-.step-geometry__section-title-row {
-  margin-bottom: 6px;
+.step-geometry__size-label {
+  font-size: 9px;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.25rem;
+  line-height: 1;
+}
+
+/* 2-колоночная сетка: размер (Дл/Выс) | форма */
+.step2-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  min-height: 0;
+}
+
+.step2-sizes-col,
+.step2-form-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .step-geometry__inputs-row {
   display: flex;
   flex-direction: row;
-  gap: 8px;
+  gap: 0.5rem;
   width: 100%;
 }
 
@@ -314,86 +336,60 @@ const formatArea = (v) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .step-geometry__input-label {
-  font-size: 9px;
+  font-size: 8px;
   color: #6b7280;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.05em;
   line-height: 1;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .step-geometry__value-text {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  min-height: 20px;
+  min-height: 18px;
   min-width: 0;
   flex: 1;
 }
 
-.step-geometry__computed {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 6px;
+/* Единый размер кнопок */
+.step2-action-btn {
+  min-height: 40px;
+  height: 40px;
+  line-height: 1.2;
 }
 
-.step-geometry__computed-row {
+.step2-input {
+  min-height: 40px !important;
+}
+
+/* Компактная справочная строка */
+.step-geometry__computed--compact {
   display: flex;
   flex-direction: row;
-  align-items: baseline;
-  gap: 4px;
-  line-height: 1.3;
-  flex-wrap: nowrap;
-  overflow: hidden;
-}
-
-.step-geometry__computed-label {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
   font-size: 9px;
   color: #6b7280;
-  flex-shrink: 0;
-  white-space: nowrap;
+  line-height: 1.3;
 }
 
-.step-geometry__computed-value {
-  font-size: 9px;
-  color: #ffffff;
+.step-geometry__computed-inline {
+  color: #e5e7eb;
   font-weight: 500;
-  min-width: 24px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.step2-row {
-  display: flex;
-  gap: 0.5rem;
-  align-items: stretch;
-  flex-wrap: wrap;
-}
-
-.step2-form-block {
-  flex: 0 0 34%;
-  min-width: 0;
-}
-
-.step2-sizes-block {
-  flex: 1 1 auto;
-  min-width: 0;
-}
-
-.step2-form-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.35rem;
-  margin-bottom: 0.35rem;
+.step-geometry__computed-sep {
+  color: #4b5563;
+  font-weight: 400;
+  user-select: none;
 }
 
 .step2-checkbox {
@@ -405,51 +401,79 @@ const formatArea = (v) => new Intl.NumberFormat('ru-RU', { maximumFractionDigits
   cursor: pointer;
   user-select: none;
   flex-shrink: 0;
+  white-space: nowrap;
 }
 
 .step2-checkbox input {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
 }
 
 .step2-shape-btn--freeform {
   max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
-/* На узких экранах — колонка, без overlap (34% на 320px слишком узко) */
-@media (max-width: 400px) {
-  .step2-row {
-    flex-direction: column;
-  }
-  .step2-form-block {
-    flex: 1 1 auto;
-    min-width: 100%;
-  }
-}
-
-/* Мобильная версия: компактные плашки */
+/* Мобильная версия: компактнее, меньше отступы */
 @media (max-width: 480px) {
-  .step2-panel {
-    padding: 0.25rem !important;
-  }
-  .step2-panel > * + * {
-    margin-top: 0.25rem !important;
-  }
-  .step2-block {
-    padding: 0.4rem 0.5rem !important;
-  }
-  .step2-form-block > div:first-child {
-    margin-bottom: 0.25rem !important;
-  }
-  .step2-form-block > div:last-child {
-    min-height: 28px !important;
-  }
-  .step2-input {
-    min-height: 32px !important;
+  .step2-panel-content {
     padding: 0.35rem 0.5rem !important;
+  }
+
+  .step2-unified-block {
+    padding: 0.5rem 0.6rem !important;
+    gap: 0.4rem;
+  }
+
+  .step-geometry__header-row {
+    margin-bottom: 0.2rem;
+  }
+
+  .step-geometry__section-title {
+    font-size: 9px;
+  }
+
+  .step2-controls-grid {
+    gap: 0.5rem;
+  }
+
+  .step-geometry__inputs-row {
+    gap: 0.4rem;
+  }
+
+  .step2-action-btn {
+    min-height: 38px;
+    height: 38px;
+  }
+
+  .step2-input {
+    min-height: 38px !important;
+    padding: 0.3rem 0.4rem !important;
+    font-size: 12px !important;
+  }
+
+  .step-geometry__computed--compact {
+    margin-top: 0.25rem;
+    font-size: 8px;
+  }
+
+  .step2-shape-btn {
+    font-size: 10px !important;
+    padding: 0.35rem 0.4rem !important;
+  }
+}
+
+/* Очень узкие экраны: колонка, размер сверху */
+@media (max-width: 360px) {
+  .step2-controls-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .step2-sizes-col {
+    order: 0;
+  }
+
+  .step2-form-col {
+    order: 1;
   }
 }
 </style>

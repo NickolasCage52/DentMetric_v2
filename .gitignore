@@ -12,6 +12,7 @@ dist
 dist-ssr
 .gh-pages-worktree
 *.local
+.env
 .env.local
 .env.*.local
 
