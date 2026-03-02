@@ -5,7 +5,7 @@
 
 import { ref, computed, readonly } from 'vue'
 import type { UserProfile, Subscription, PlanId, FeatureGates } from './types'
-import { canUse, getLimit, TRIAL_DAYS } from './planFeatures'
+import { canUse, getLimit, TRIAL_DAYS, TARIFF_BYPASS_ENABLED } from './planFeatures'
 import type { FeatureKey } from './planFeatures'
 import { getEffectiveTelegramUser } from './utils/telegram'
 
@@ -42,10 +42,12 @@ const isSubscriptionActive = computed(
 )
 
 function can(featureKey: FeatureKey): boolean {
+  if (TARIFF_BYPASS_ENABLED) return true
   return canUse(featureKey, currentPlan.value)
 }
 
 function limit(featureKey: FeatureKey): number {
+  if (TARIFF_BYPASS_ENABLED) return 999
   return getLimit(featureKey, currentPlan.value)
 }
 

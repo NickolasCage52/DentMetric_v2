@@ -5,6 +5,9 @@
 
 import type { PlanId, FeatureGates, PlanInfo } from './types'
 
+/** Временно отключить ограничения по тарифу. Приложение работает полностью без выбранного тарифа. */
+export const TARIFF_BYPASS_ENABLED = true
+
 /** По ТЗ-3: Free/Demo — 10 расчётов по умолчанию, без истории и аналитики */
 const FREE_FEATURES: FeatureGates = {
   calcLimit: 10,
