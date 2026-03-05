@@ -145,6 +145,17 @@ export function normalizeHistoryRecord(raw: any): any | null {
     if (normalized.discountPercent == null) normalized.discountPercent = 0;
     else normalized.discountPercent = Number(normalized.discountPercent) || 0;
 
+    normalized.clientMood = normalized.clientMood ?? null;
+    normalized.orderDiscount = normalized.orderDiscount ?? { enabled: false, value: 0 };
+
+    const dentsObj = normalized.dents as Record<string, unknown>;
+    if (dentsObj?.items && Array.isArray(dentsObj.items)) {
+      (dentsObj.items as any[]) = (dentsObj.items as any[]).map((d) => {
+        if (!d || typeof d !== 'object') return d;
+        return { ...d, dentDiscount: d.dentDiscount ?? { enabled: false, value: 0 } };
+      });
+    }
+
     return normalized as any;
   } catch (_e) {
     if (import.meta.env?.DEV) console.warn('[DentMetric] normalizeHistoryRecord threw', _e);
@@ -308,6 +319,9 @@ export function updateEstimate(id: string, partial: any) {
     if (partial.status != null) merged.status = mapStatusForSave(partial.status);
     if (partial.bookingAt !== undefined) merged.bookingAt = partial.bookingAt;
     if (partial.attachments !== undefined) merged.attachments = partial.attachments;
+    if (partial.clientMood !== undefined) merged.clientMood = partial.clientMood;
+    if (partial.orderDiscount !== undefined) merged.orderDiscount = partial.orderDiscount;
+    if (partial.dents !== undefined) merged.dents = partial.dents;
     return merged;
   });
   persist(items);

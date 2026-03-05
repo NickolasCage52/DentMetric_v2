@@ -46,17 +46,16 @@ export async function runFullAudit() {
   // === STRIPE MATH ===
   try {
     const S = (l, h, cls) => calculateStripePrice({ lengthCm: l, heightCm: h, coeffClass: cls }).price;
-    if (Math.abs(S(5, 2, 'base') - 4000) >= 1) throw new Error('Stripe L=5 h=2');
-    if (Math.abs(S(18, 2, 'base') - 8000) >= 1) throw new Error('Stripe L=18 h=2');
-    if (Math.abs(S(20, 2, 'base') - 9000) >= 1) throw new Error('Stripe L=20 h=2');
-    if (Math.abs(S(21, 2, 'base') - 12000) >= 1) throw new Error('Stripe L=21 h=2');
-    if (Math.abs(S(36, 2, 'base') - 15000) >= 1) throw new Error('Stripe L=36 h=2');
-    if (Math.abs(S(50, 2, 'base') - 15000) >= 1) throw new Error('Stripe L=50 h=2');
-    if (Math.abs(S(100, 2, 'base') - 22000) >= 1) throw new Error('Stripe L=100 h=2');
-    if (S(10, 2, 'base') <= 4000 || S(10, 2, 'base') >= 8000) throw new Error('Stripe interpolation L=10');
-    if (S(18, 4, 'base') <= 8000 || S(18, 4, 'base') >= 16000) throw new Error('Stripe h=4');
-    if (S(2, 2, 'base') !== S(5, 2, 'base')) throw new Error('Stripe clamp min');
+    if (Math.abs(S(8, 2, 'base') - 5000) >= 1) throw new Error('Stripe L=8 h=2');
+    if (Math.abs(S(18, 2, 'base') - 11000) >= 1) throw new Error('Stripe L=18 h=2');
+    if (Math.abs(S(20, 2, 'base') - 12000) >= 1) throw new Error('Stripe L=20 h=2');
+    if (Math.abs(S(50, 2, 'base') - 18000) >= 1) throw new Error('Stripe L=50 h=2');
+    if (Math.abs(S(100, 2, 'base') - 28000) >= 1) throw new Error('Stripe L=100 h=2');
+    if (S(10, 2, 'base') <= 6000 || S(10, 2, 'base') >= 11000) throw new Error('Stripe interpolation L=10');
+    if (S(18, 4, 'base') <= 11000 || S(18, 4, 'base') >= 20000) throw new Error('Stripe h=4');
+    if (S(2, 2, 'base') !== S(8, 2, 'base')) throw new Error('Stripe clamp min');
     if (S(150, 2, 'base') !== S(100, 2, 'base')) throw new Error('Stripe clamp max');
+    if (S(12, 4, 'k3') > 15000) throw new Error('Stripe BUG: len=12 h=4 высокая must be ≤15000');
     if (!isFinite(S(18, 0.1, 'base')) || !isFinite(S(18, 100, 'base'))) throw new Error('Stripe NaN');
     console.log('Stripe math: OK');
   } catch (e) {
@@ -114,13 +113,11 @@ export async function runFullAudit() {
   // === ПРАЙС ПОЛОС ===
   try {
     const expected = [
-      [5, 4000],
-      [18, 8000],
-      [20, 9000],
-      [21, 12000],
-      [36, 15000],
-      [50, 15000],
-      [100, 22000]
+      [8, 5000],
+      [18, 11000],
+      [20, 12000],
+      [50, 18000],
+      [100, 28000]
     ];
     for (const [l, p] of expected) {
       const row = STRIPE_PRESETS_DISPLAY.find((r) => r.lengthCm === l);

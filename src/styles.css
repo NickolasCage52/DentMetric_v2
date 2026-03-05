@@ -377,6 +377,15 @@ h3 { font-size: clamp(1rem, 2.5vw, 1.25rem); }
 .graphics-step-5 .qc-bk-row .qc-bk-value {
   min-width: 0;
 }
+/* Same for history detail breakdown cards */
+.history-detail-content .qc-bk-row .qc-bk-label {
+  white-space: normal;
+  word-break: break-word;
+  min-width: 0;
+}
+.history-detail-content .qc-bk-row .qc-bk-value {
+  min-width: 0;
+}
 
 /* ── Quick/Detail final: breakdown card + action row (global for QuickStyleFinalSection in GraphicsWizard) ── */
 .qc-breakdown-card {

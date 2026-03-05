@@ -8,15 +8,13 @@ import { getPriceMultiplier, migrateSettings, getDiscountRate } from './settings
 export function runDevAuditSettings() {
   if (!import.meta.env?.DEV) return;
 
-  // 1. Stripe presets match PDF
+  // 1. Stripe presets match tables (h=2, severity=легкая)
   const expectedStripe = [
-    [5, 4000],
-    [18, 8000],
-    [20, 9000],
-    [21, 12000],
-    [36, 15000],
-    [50, 15000],
-    [100, 22000]
+    [8, 5000],
+    [18, 11000],
+    [20, 12000],
+    [50, 18000],
+    [100, 28000]
   ];
   expectedStripe.forEach(([len, price]) => {
     const preset = STRIPE_PRESETS_DISPLAY.find((p) => p.lengthCm === len);

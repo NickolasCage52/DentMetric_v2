@@ -193,9 +193,33 @@
             </div>
 
             <div v-else-if="quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)" data-testid="quick-step2" class="qc-compact" style="display:flex;flex-direction:column;gap:var(--qc-section-gap)">
-              <div class="mb-2">
-                <div class="flex items-center justify-between gap-2 mb-1.5">
-                  <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">ПОВРЕЖДЕНИЯ</div>
+              <div class="mb-2 flex items-start justify-between gap-2">
+                <div class="flex-1 min-w-0">
+                  <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">ПОВРЕЖДЕНИЯ</div>
+                  <div class="flex gap-1.5 flex-wrap items-center">
+                    <button
+                      v-for="(d, i) in estimateDraft.quickDents"
+                      :key="d.id"
+                      type="button"
+                      class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all touch-manipulation"
+                      :class="activeQuickDentId === d.id ? 'bg-metric-green text-black' : 'bg-white/10 text-gray-400 hover:bg-white/15 hover:text-white border border-white/10'"
+                      @click="setActiveQuickDent(d.id)"
+                    >
+                      Вмятина {{ i + 1 }}
+                    </button>
+                    <button
+                      v-if="estimateDraft.quickDents.length > 1"
+                      type="button"
+                      data-testid="quick-remove-dent"
+                      class="p-1.5 rounded-lg text-red-400 hover:bg-red-500/20 transition-all touch-manipulation"
+                      aria-label="Удалить повреждение"
+                      @click="removeActiveQuickDent"
+                    >
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="flex flex-col items-center gap-2 shrink-0 self-start">
                   <button
                     type="button"
                     class="client-reset-btn qc-reset-btn"
@@ -205,35 +229,14 @@
                   >
                     СБРОС
                   </button>
-                </div>
-                <div class="flex gap-1.5 flex-wrap items-center">
-                  <button
-                    v-for="(d, i) in estimateDraft.quickDents"
-                    :key="d.id"
-                    type="button"
-                    class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all touch-manipulation"
-                    :class="activeQuickDentId === d.id ? 'bg-metric-green text-black' : 'bg-white/10 text-gray-400 hover:bg-white/15 hover:text-white border border-white/10'"
-                    @click="setActiveQuickDent(d.id)"
-                  >
-                    Вмятина {{ i + 1 }}
-                  </button>
                   <button
                     type="button"
                     data-testid="quick-add-dent"
                     class="px-3 py-1.5 rounded-lg text-xs font-bold bg-metric-green/20 text-metric-green border border-metric-green/40 hover:bg-metric-green/30 transition-all touch-manipulation"
+                    aria-label="Добавить повреждение"
                     @click="addQuickDent(); nextTick(() => metricScrollRef?.value?.scrollTo?.({ top: 0, behavior: 'smooth' }))"
                   >
                     +
-                  </button>
-                  <button
-                    v-if="estimateDraft.quickDents.length > 1"
-                    type="button"
-                    data-testid="quick-remove-dent"
-                    class="p-1.5 rounded-lg text-red-400 hover:bg-red-500/20 transition-all touch-manipulation"
-                    aria-label="Удалить повреждение"
-                    @click="removeActiveQuickDent"
-                  >
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                   </button>
                 </div>
               </div>
@@ -241,12 +244,12 @@
                 Повреждение не выбрано
               </div>
               <template v-else>
-                <!-- 1. СТОРОНА АВТОМОБИЛЯ -->
+                <!-- 1. СТОРОНА АВТОМОБИЛЯ (ЛЕВАЯ | ВЕРХ | ПРАВАЯ) -->
                 <div style="padding:0 2px">
                   <div class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">СТОРОНА АВТОМОБИЛЯ</div>
                   <SegmentedControl
                     :model-value="activeQuickDent.panelSide"
-                    :options="[{ value: 'left', label: 'ЛЕВАЯ' }, { value: 'right', label: 'ПРАВАЯ' }]"
+                    :options="[{ value: 'left', label: 'ЛЕВАЯ' }, { value: 'top', label: 'ВЕРХ' }, { value: 'right', label: 'ПРАВАЯ' }]"
                     @update:modelValue="setQuickDentSide(activeQuickDent, $event)"
                   />
                 </div>
@@ -418,21 +421,29 @@
                         <div class="qc-sr-value text-[12px] font-semibold truncate" :class="activeQuickDent?.conditions?.soundInsulationCode ? 'text-white' : 'text-gray-400'">{{ getSoundInsulationLabel(activeQuickDent?.conditions?.soundInsulationCode) || 'Шумоизоляция' }}</div>
                       </div>
                       <div class="shrink-0 flex items-center gap-1.5">
+                        <div v-if="activeQuickDent?.conditions?.soundInsulationCode" class="w-3 h-3 rounded-full bg-metric-green/80" aria-hidden="true"></div>
                         <svg class="w-3 h-3 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M19 9l-7 7-7-7" /></svg>
                       </div>
                     </button>
                   </div>
                 </div>
 
-                <!-- 6. ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ (кнопка Вперёд в nav bar) -->
-                <div class="qc-price-block">
-                  <div class="qc-price-label">ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ</div>
-                  <div class="qc-price-value">{{ formatCurrency(displayTotal) }} ₽</div>
-                </div>
               </template>
             </div>
 
             <div v-else-if="quickStep === 3" class="qc-step3 space-y-2">
+              <!-- Данные клиента — первым блоком, с кнопкой редактирования -->
+              <ClientInfoBlock
+                :client="quickClientForDisplay"
+                :editable="true"
+                @edit="onQuickStep3EditClient"
+                @edit-field="onQuickStep3EditClientField"
+              />
+              <!-- Итого по всем повреждениям (PDF стр. 4) -->
+              <div class="price-grand-total card-metallic rounded-xl flex justify-between items-center px-5 py-4 mb-4">
+                <span class="pgt-label text-[14px] text-gray-500">Итого по всем повреждениям</span>
+                <span class="pgt-amount text-[24px] font-bold text-metric-green tabular-nums">{{ formatCurrency(quickGrandTotal) }} ₽</span>
+              </div>
               <template v-for="(dentItem, idx) in quickLineItems" :key="dentItem.dent.id">
                 <!-- Header: dent title + shape/size + repair time -->
                 <div class="px-1">
@@ -510,6 +521,8 @@
                   @update:model-value="(v) => (estimateDraft.attachments = v)"
                 />
               </div>
+              <!-- Смайлики адекватности клиента (PDF стр. 6-7) -->
+              <ClientMoodPicker v-model="estimateDraft.clientMood" />
             </div>
           </div>
         </div>
@@ -554,23 +567,27 @@
       <!-- Панель Назад/Вперёд быстрого расчёта — вне скролла, всегда видна внизу -->
       <div
         v-if="calcMode === 'standard'"
-        class="quick-nav-bar fixed left-0 right-0 max-w-md mx-auto px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] bg-black/95 border-t border-white/10 shrink-0 z-[230]"
-        style="bottom: var(--app-footer-height, calc(64px + env(safe-area-inset-bottom, 0px)));"
+        class="quick-nav-bar fixed left-0 right-0 max-w-md mx-auto px-4 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] bg-[#080808] border-t border-white/10 shrink-0 z-[230]"
+        style="bottom: var(--app-footer-height, var(--bottom-nav-h, calc(64px + env(safe-area-inset-bottom, 0px))));"
       >
-        <div v-if="quickStep < 3" class="quick-nav-buttons flex">
+        <div v-if="quickStep < 3" class="quick-nav-buttons quick-nav-step grid gap-1" style="grid-template-columns: auto 1fr auto; align-items: center;">
           <button
             type="button"
             @click="goQuickBack"
-            class="quick-nav-btn quick-nav-btn-back flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[40px]"
+            class="quick-nav-btn quick-nav-btn-back shrink-0 py-2.5 px-3 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[40px] rounded-xl"
           >
             <span class="inline-flex items-center gap-1"><span aria-hidden="true">&lsaquo;</span> Назад</span>
           </button>
+          <div class="quick-nav-price text-center overflow-hidden px-1 min-w-0">
+            <div class="quick-nav-price-label text-[9px] uppercase tracking-[0.07em] text-gray-500 leading-tight">ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ</div>
+            <div class="quick-nav-price-value text-[17px] font-bold text-metric-green tabular-nums truncate">{{ animatedQuickPrice.toLocaleString('ru-RU') }} ₽</div>
+          </div>
           <button
             data-testid="btn-go-next"
             type="button"
             @click="goQuickNext"
             :disabled="(quickStep === 1 && userSettings.showClientQuick && !clientDataValid) || ((quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)) && !quickStep2Valid)"
-            class="quick-nav-btn quick-nav-btn-next flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 transition-all hover:bg-metric-green/10 min-h-[40px] disabled:opacity-50 disabled:cursor-not-allowed"
+            class="quick-nav-btn quick-nav-btn-next shrink-0 py-2.5 px-3 text-[11px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 transition-all hover:bg-metric-green/10 min-h-[40px] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <span class="inline-flex items-center gap-1">Вперёд <span aria-hidden="true">&rsaquo;</span></span>
           </button>
@@ -644,7 +661,7 @@
       </button>
     </div>
     <!-- History Detail overlay -->
-    <div v-if="currentSection === 'history' && selectedHistory" class="content-padding-bottom p-4 space-y-3 overflow-y-auto" style="flex:1">
+    <div v-if="currentSection === 'history' && selectedHistory" class="history-detail-content content-padding-bottom p-4 space-y-3 overflow-y-auto" style="flex:1">
       <div class="app-header-logo-bar">
         <div class="app-header-logo-bar__left">
           <button
@@ -659,6 +676,8 @@
         <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" onerror="this.style.display='none'">
         <div class="app-header-logo-bar__right"></div>
       </div>
+      <!-- Данные клиента — первым блоком (PDF стр. 5-6) -->
+      <ClientInfoBlock :client="selectedHistory.client || {}" />
       <div class="card-metallic rounded-2xl p-4 space-y-2">
         <div class="text-xs text-gray-400 uppercase tracking-widest">Сохранённая оценка</div>
         <div class="flex justify-between text-sm"><span class="text-gray-400">Дата:</span><span class="text-white font-medium">{{ formatDateTime(selectedHistory.createdAt) }}</span></div>
@@ -710,15 +729,54 @@
           >{{ st.label }}</button>
         </div>
       </div>
-      <div v-if="selectedHistory.breakdown?.length" class="card-metallic rounded-2xl p-4 space-y-2">
-        <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Расчёт</div>
-        <div v-for="(item, idx) in selectedHistory.breakdown" :key="idx" class="flex justify-between text-[11px]"><span class="text-gray-400">{{ item.name }}:</span><span class="text-white font-medium">{{ item.value }}</span></div>
-      </div>
+      <template v-for="group in groupedHistoryBreakdown" :key="group.dentNum">
+        <div class="space-y-1">
+          <!-- Заголовок как на экране итогового расчёта -->
+          <div v-if="group.dentNum === 0" class="px-1">
+            <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-1.5">Расчёт</div>
+          </div>
+          <div v-else class="px-1">
+            <div class="flex items-baseline gap-2 mb-0.5">
+              <span class="text-white font-bold text-[15px]">Вмятина ‑{{ group.dentNum }}</span>
+              <span v-if="getHistoryDentPanelElement(group.dentNum)" class="text-gray-300 font-semibold text-[14px] truncate">{{ getHistoryDentPanelElement(group.dentNum) }}</span>
+            </div>
+            <div v-if="getHistoryDentSizeLabel(group.dentNum)" class="text-[11px] text-gray-400 leading-snug">{{ getHistoryDentSizeLabel(group.dentNum) }}</div>
+          </div>
+          <!-- Карточка расчёта в стиле qc-breakdown-card -->
+          <div class="card-metallic rounded-xl qc-breakdown-card">
+            <template v-for="(row, ri) in parseHistoryBreakdownRows(group.items)" :key="ri">
+              <div v-if="row.type === 'base'" class="qc-bk-row qc-bk-row--base">
+                <span class="qc-bk-label font-semibold text-white">{{ row.label }}:</span>
+                <span class="qc-bk-delta text-metric-green font-bold">{{ row.value }}</span>
+              </div>
+              <div v-else-if="row.type === 'sep'" class="qc-bk-sep"></div>
+              <div v-else-if="row.type === 'sepStrong'" class="qc-bk-sep qc-bk-sep--strong"></div>
+              <div v-else-if="row.type === 'param'" class="qc-bk-row">
+                <span class="qc-bk-label">{{ row.label }}</span>
+                <span class="qc-bk-value"></span>
+                <span class="qc-bk-delta" :class="historyBreakdownDeltaClass(row.value)">{{ row.value }}</span>
+              </div>
+              <div v-else-if="row.type === 'discount'" class="qc-bk-row">
+                <span class="qc-bk-label">Скидка:</span>
+                <span class="qc-bk-value flex-1 text-gray-500 text-[11px]">{{ row.value }}</span>
+              </div>
+              <div v-else-if="row.type === 'total'" class="qc-bk-row qc-bk-row--total">
+                <span class="font-bold text-white text-[13px]">Итог по вмятине:</span>
+                <span class="text-metric-green font-bold text-[18px] tabular-nums">{{ row.value }}</span>
+              </div>
+            </template>
+          </div>
+        </div>
+      </template>
       <div v-if="selectedHistory.comment && !isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-2">
         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Комментарий</div>
         <div class="text-sm text-gray-300">{{ selectedHistory.comment }}</div>
       </div>
       <HistoryAttachmentsView v-if="(selectedHistory.attachments || []).length > 0" :attachments="selectedHistory.attachments" />
+      <!-- Смайлики адекватности клиента (PDF стр. 6-7) -->
+      <div class="card-metallic rounded-2xl p-4">
+        <ClientMoodPicker :model-value="historyEditDraft.clientMood ?? selectedHistory.clientMood ?? null" @update:model-value="onHistoryMoodChange($event)" />
+      </div>
       <div class="flex gap-2">
         <button type="button" @click="selectedHistoryId = null" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[40px]">Назад</button>
         <button v-if="!isEditingHistory" type="button" @click="startHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[40px]">Редакт.</button>
@@ -1352,6 +1410,7 @@ import InputModal from './components/InputModal.vue';
 import { useInputModal } from './composables/useInputModal';
 import SelectModal from './components/SelectModal.vue';
 import { useSelectModal } from './composables/useSelectModal';
+import { useAnimatedNumber } from './composables/useAnimatedNumber';
 import PresetsModal from './components/PresetsModal.vue';
 import SegmentedControl from './components/ui/SegmentedControl.vue';
 import SelectRow from './components/ui/SelectRow.vue';
@@ -1359,6 +1418,8 @@ import { hideTelegramButtons } from './utils/telegramButtons';
 import HistoryScreen from './components/HistoryScreen.vue';
 import AttachmentPicker from './components/AttachmentPicker.vue';
 import HistoryAttachmentsView from './components/HistoryAttachmentsView.vue';
+import ClientInfoBlock from './components/ClientInfoBlock.vue';
+import ClientMoodPicker from './components/ClientMoodPicker.vue';
 import { useAccount } from './modules/account/useAccount';
 import { useFeatureGate } from './modules/account/useFeatureGate';
 import { expandTelegramWebApp } from './modules/account/utils/telegram';
@@ -1444,6 +1505,7 @@ const form = reactive({
 const estimateDraft = reactive({
   clientName: '',
   clientCompany: '',
+  clientMood: null,
   clientPhone: '',
   carBrand: '',
   carModel: '',
@@ -1463,6 +1525,84 @@ const estimateDraft = reactive({
 const { historyItems, loadHistory, saveEstimate, updateEstimate, deleteEstimate, clearHistory } = useHistoryStore();
 const selectedHistoryId = ref(null);
 const selectedHistory = computed(() => historyItems.value.find((item) => item.id === selectedHistoryId.value) || null);
+
+/** Группировка breakdown по вмятинам для отображения в истории: [{ dentNum, title, items }] */
+const groupedHistoryBreakdown = computed(() => {
+  const raw = selectedHistory.value?.breakdown || [];
+  if (!raw.length) return [];
+  const dentMap = new Map();
+  for (const item of raw) {
+    const m = item.name?.match(/^Вмятина\s+(\d+)(?:\s+\([^)]+\))?\s*·\s*(.+)$/);
+    if (m) {
+      const dentNum = Number(m[1]);
+      const shortName = m[2].trim();
+      if (!dentMap.has(dentNum)) dentMap.set(dentNum, []);
+      dentMap.get(dentNum).push({ name: shortName, value: item.value });
+    } else {
+      if (!dentMap.has(0)) dentMap.set(0, []);
+      dentMap.get(0).push({ name: item.name, value: item.value });
+    }
+  }
+  const keys = [...dentMap.keys()].sort((a, b) => a - b);
+  return keys.map((k) => ({
+    dentNum: k,
+    title: k === 0 ? 'Расчёт' : `Расчёт по вмятине ${k}`,
+    items: dentMap.get(k) || []
+  }));
+});
+
+/** Разбор items в строки для qc-breakdown-card (только в модуле истории). */
+function parseHistoryBreakdownRows(items) {
+  if (!items?.length) return [];
+  const rows = [];
+  let baseItem = null;
+  let totalItem = null;
+  let discountItem = null;
+  const paramItems = [];
+  for (const item of items) {
+    if (item.name === 'Базовая стоимость') baseItem = item;
+    else if (item.name === 'Итог') totalItem = item;
+    else if (item.name === 'Скидка') discountItem = item;
+    else paramItems.push(item);
+  }
+  if (baseItem) rows.push({ type: 'base', label: baseItem.name, value: baseItem.value });
+  rows.push({ type: 'sep' });
+  for (const item of paramItems) {
+    rows.push({ type: 'param', label: item.name, value: item.value });
+  }
+  if (discountItem) {
+    rows.push({ type: 'sep' });
+    rows.push({ type: 'discount', value: discountItem.value });
+  }
+  rows.push({ type: 'sepStrong' });
+  if (totalItem) rows.push({ type: 'total', value: totalItem.value });
+  return rows;
+}
+
+function historyBreakdownDeltaClass(value) {
+  if (!value || typeof value !== 'string') return '';
+  if (value.startsWith('−') || value.startsWith('-')) return 'text-gray-500';
+  return 'text-white';
+}
+
+function getHistoryDentPanelElement(dentNum) {
+  const items = selectedHistoryDentItems.value;
+  const idx = dentNum > 0 ? dentNum - 1 : 0;
+  return items[idx]?.panelElement || '';
+}
+
+function getHistoryDentSizeLabel(dentNum) {
+  const items = selectedHistoryDentItems.value;
+  const idx = dentNum > 0 ? dentNum - 1 : 0;
+  const d = items[idx];
+  if (!d) return '';
+  const shape = d.type === 'circle' || d.shape === 'circle' ? 'Круг/Овал' : 'Полоса';
+  const bbox = d.bboxMm || {};
+  const w = Number(bbox.width) || 0;
+  const h = Number(bbox.height) || 0;
+  if (!w && !h) return '';
+  return `${shape} длина: ${formatSingleDim(w)}, Высота: ${formatSingleDim(h)}`;
+}
 const historyDetailTelHref = computed(() => {
   const raw = (selectedHistory.value?.client?.phone || '').replace(/\D/g, '');
   if (!raw) return '';
@@ -1503,13 +1643,14 @@ const historyEditDraft = reactive({
   carPlate: '',
   inspectDate: '',
   inspectTime: '',
-  comment: ''
+  comment: '',
+  clientMood: null
 });
 
-const quickPartsLeft = [
-  'Капот',
-  'Крышка багажника',
-  'Крыша',
+/** Элементы только для стороны ВЕРХ (Капот, Крыша, Багажник) */
+const TOP_ONLY_ELEMENTS = ['Капот', 'Крыша', 'Крышка багажника'];
+const quickPartsTop = [...TOP_ONLY_ELEMENTS];
+const quickPartsSide = [
   'Переднее крыло',
   'Передняя дверь',
   'Задняя дверь',
@@ -1518,7 +1659,13 @@ const quickPartsLeft = [
   'Порог',
   'Бампер'
 ];
-const quickPartsRight = [...quickPartsLeft];
+const quickPartsLeft = [...quickPartsSide];
+const quickPartsRight = [...quickPartsSide];
+
+function getElementsForSide(side) {
+  if (side === 'top') return quickPartsTop;
+  return quickPartsSide;
+}
 
 // Quick Calc UI state (active damage)
 const activeQuickDentId = ref(null);
@@ -1561,7 +1708,8 @@ function normalizePanelElement(value) {
   if (!value) return null;
   if (typeof value === 'string' && value.includes(':')) {
     const [side, ...rest] = value.split(':');
-    return { side: side === 'right' ? 'right' : 'left', element: rest.join(':') };
+    const s = side === 'top' ? 'top' : (side === 'right' ? 'right' : 'left');
+    return { side: s, element: rest.join(':') };
   }
   return { side: 'left', element: String(value) };
 }
@@ -1652,11 +1800,14 @@ function setQuickDentShape(dent, shape) {
 function getQuickDefaultPanel() {
   const last = estimateDraft.quickDents[estimateDraft.quickDents.length - 1];
   if (last?.panelElement) return { side: last.panelSide || 'left', element: last.panelElement };
-  return { side: 'left', element: quickPartsLeft.length ? quickPartsLeft[0] : null };
+  const side = last?.panelSide === 'top' ? 'top' : (last?.panelSide === 'right' ? 'right' : 'left');
+  const list = getElementsForSide(side);
+  return { side, element: list.length ? list[0] : null };
 }
 
 function getQuickDefaultSide() {
   const last = estimateDraft.quickDents[estimateDraft.quickDents.length - 1];
+  if (last?.panelSide === 'top') return 'top';
   return last?.panelSide === 'right' ? 'right' : 'left';
 }
 
@@ -1679,7 +1830,15 @@ function onArmaturnayaSelect(dent, code) {
 
 function setQuickDentSide(dent, side) {
   if (!dent) return;
-  dent.panelSide = side === 'right' ? 'right' : 'left';
+  const newSide = side === 'top' ? 'top' : (side === 'right' ? 'right' : 'left');
+  if (dent.panelSide === newSide) return;
+  const availableForNew = getElementsForSide(newSide);
+  const currentElementAvailable = dent.panelElement && availableForNew.includes(dent.panelElement);
+  dent.panelSide = newSide;
+  if (!currentElementAvailable && dent.panelElement) {
+    dent.panelElement = null;
+    showToast('Выберите элемент для этой стороны');
+  }
   haptic('selection');
 }
 
@@ -1996,6 +2155,20 @@ const quickTotal = computed(() => {
   return quickLineItems.value.reduce((acc, item) => acc + item.rawDiscounted, 0);
 });
 
+/** Итого по всем повреждениям для экрана объяснения цен (Quick step 3). */
+const quickGrandTotal = computed(() =>
+  quickLineItems.value.reduce((sum, d) => sum + (d.appliedTotal ?? d.total ?? 0), 0)
+);
+
+/** Клиент для ClientInfoBlock на Quick step 3. */
+const quickClientForDisplay = computed(() => ({
+  name: estimateDraft.clientName || '',
+  phone: estimateDraft.clientPhone || '',
+  brand: estimateDraft.carBrand || '',
+  model: estimateDraft.carModel || '',
+  company: estimateDraft.clientCompany || ''
+}));
+
 /** Нормализованные вмятины для расчёта (устраняет расхождения Quick vs Detail). */
 const graphicsDentsForPricing = computed(() => {
   const ctx = {
@@ -2047,6 +2220,22 @@ const totalPrice = computed(() => {
 const displayTotal = computed(() =>
   applyPriceRoundingCeil(totalPrice.value, userSettings.priceRoundStep)
 );
+
+/** Цена только текущей активной вмятины (для ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ на шагах 1–2). */
+const quickCurrentDentPrice = computed(() => {
+  const id = activeQuickDentId.value;
+  if (!id) return 0;
+  const item = quickLineItems.value.find((i) => i.dent?.id === id);
+  return item?.appliedTotal ?? 0;
+});
+
+/** Анимированная цена для nav-bar (Quick only). На шагах 1–2 — цена текущей карточки, на step 3 — не показывается. */
+const quickPreliminaryPrice = computed(() => {
+  if (calcMode.value !== 'standard') return 0;
+  if (quickStep.value >= 3) return 0; // Step 3: своя панель без цены
+  return quickCurrentDentPrice.value;
+});
+const animatedQuickPrice = useAnimatedNumber(quickPreliminaryPrice, 300);
 
 /** Estimated repair time in hours, updates in real-time from total price and hourly rate. */
 const estimatedRepairTime = computed(() => {
@@ -2263,7 +2452,7 @@ async function openSecondDentDiscountModal() {
 
 async function openQuickPanelElementPicker(dent) {
   if (!dent) return;
-  const list = (dent.panelSide === 'right' ? quickPartsRight : quickPartsLeft) || [];
+  const list = getElementsForSide(dent.panelSide ?? 'left') || [];
   const selected = await openSelectModal({
     title: 'Поврежденный элемент',
     options: list.map((p) => ({ value: p, label: p })),
@@ -2519,6 +2708,7 @@ function startHistoryEdit() {
   historyEditDraft.clientName = client.name || '';
   historyEditDraft.clientCompany = client.company || '';
   historyEditDraft.clientPhone = client.phone || '';
+  historyEditDraft.clientMood = selectedHistory.value.clientMood ?? null;
   historyEditDraft.carBrand = client.brand || '';
   historyEditDraft.carModel = client.model || '';
   historyEditDraft.carPlate = client.plate || '';
@@ -2547,7 +2737,8 @@ async function saveHistoryEdit() {
         date: historyEditDraft.inspectDate,
         time: historyEditDraft.inspectTime
       },
-      comment: historyEditDraft.comment
+      comment: historyEditDraft.comment,
+      clientMood: historyEditDraft.clientMood ?? null
     });
     isEditingHistory.value = false;
     showToast('История обновлена ✅', 'success', 1800);
@@ -2584,6 +2775,7 @@ function resetDentsOnly() {
   estimateDraft.sizeLengthMm = null;
   estimateDraft.sizeWidthMm = null;
   estimateDraft.comment = '';
+  estimateDraft.clientMood = null;
   estimateDraft.breakdown = [];
   estimateDraft.quickDents = [];
   estimateDraft.repairTimeHours = null;
@@ -2661,7 +2853,8 @@ function buildEstimatePayload(mode) {
       rawTotal: totalPrice.value,
       discountPercent: discPct || 0,
       comment: estimateDraft.comment || '',
-      attachments: estimateDraft.attachments || []
+      attachments: estimateDraft.attachments || [],
+      clientMood: estimateDraft.clientMood ?? null
     };
   }
   const dentItems = (estimateDraft.quickDents || []).map((d) => {
@@ -2680,6 +2873,7 @@ function buildEstimatePayload(mode) {
     id: estimateDraft.id,
     mode: 'quick',
     client,
+    clientMood: estimateDraft.clientMood ?? null,
     vehicleClass: null,
     element,
     dents: { count: dentItems.length, items: dentItems },
@@ -2800,6 +2994,14 @@ function changeDetailStatus(status) {
   if (!selectedHistory.value) return;
   const bookingAt = status === 'scheduled' ? new Date().toISOString() : null;
   updateEstimate(selectedHistory.value.id, { status, bookingAt });
+}
+
+function onHistoryMoodChange(mood) {
+  historyEditDraft.clientMood = mood;
+  if (selectedHistory.value?.id) {
+    updateEstimate(selectedHistory.value.id, { clientMood: mood });
+    showToast('Сохранено', 'success', 1200);
+  }
 }
 
 const setMode = (mode) => {
@@ -2979,6 +3181,28 @@ async function openClientField(field, label, inputType, placeholder) {
   if (value !== undefined && value !== null) estimateDraft[field] = value;
 }
 
+/** Редактирование клиента на экране итогового расчёта (step 3): переход на шаг 1 или открытие первого поля */
+function onQuickStep3EditClient() {
+  if (userSettings.showClientQuick) {
+    quickStep.value = 1;
+    nextTick(() => scrollMetricToTop());
+  } else {
+    openClientField('clientName', 'Имя клиента', 'text', 'Имя клиента');
+  }
+}
+
+const QUICK_CLIENT_FIELD_MAP = {
+  name: ['clientName', 'Имя клиента', 'text', 'Имя клиента'],
+  phone: ['clientPhone', 'Телефон', 'tel', 'Телефон'],
+  car: ['carBrand', 'Марка автомобиля', 'text', 'Марка'],
+  company: ['clientCompany', 'Компания (необязательно)', 'text', 'Компания']
+};
+
+function onQuickStep3EditClientField(key) {
+  const [field, label, inputType, placeholder] = QUICK_CLIENT_FIELD_MAP[key] || [];
+  if (field) openClientField(field, label, inputType, placeholder);
+}
+
 async function openRepairHoursModal() {
   const value = await openInputModal({
     title: 'Часы работы',
@@ -3087,6 +3311,21 @@ const closeEditor = () => {
 watch(selectedHistoryId, () => {
   isEditingHistory.value = false;
 });
+
+watch(selectedHistory, (rec) => {
+  if (!rec) return;
+  const client = rec.client || {};
+  historyEditDraft.clientName = client.name || '';
+  historyEditDraft.clientCompany = client.company || '';
+  historyEditDraft.clientPhone = client.phone || '';
+  historyEditDraft.carBrand = client.brand || '';
+  historyEditDraft.carModel = client.model || '';
+  historyEditDraft.carPlate = client.plate || '';
+  historyEditDraft.inspectDate = client.date || '';
+  historyEditDraft.inspectTime = client.time || '';
+  historyEditDraft.comment = rec.comment || '';
+  historyEditDraft.clientMood = rec.clientMood ?? null;
+}, { immediate: true });
 
 watch(
   () => ({
@@ -3410,9 +3649,10 @@ onBeforeUnmount(() => {
   .wow-screen-content { max-width: var(--content-max-w); }
 }
 
-/* Quick Calculation: Back/Next bar — mobile: no gap, attached; desktop: gap and separate rounding */
+/* Quick Calculation: Back/Next bar — прижат к меню, без просветов */
 .quick-nav-bar {
   margin-bottom: 0;
+  box-shadow: 0 2px 0 0 #080808; /* перекрывает субпиксельный зазор с bottom-nav */
 }
 .quick-nav-buttons {
   gap: 0;

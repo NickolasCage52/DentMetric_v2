@@ -15,12 +15,12 @@
     </div>
     <div class="shrink-0 flex items-center gap-2">
       <div
-        v-if="showCheck && active"
-        class="w-5 h-5 rounded-full border border-metric-green/40 bg-metric-green/15 text-metric-green flex items-center justify-center text-[12px] leading-none"
+        v-if="(showCheck || showGreenDot) && active"
+        class="select-row__dot flex items-center justify-center"
         aria-hidden="true"
         title="Заполнено"
       >
-        ✓
+        <svg width="8" height="8" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="var(--metric-green, #4CAF50)"/></svg>
       </div>
       <slot name="right" />
       <svg class="w-3.5 h-3.5 text-metric-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -36,7 +36,8 @@ defineProps({
   valueText: { type: String, default: '' },
   placeholder: { type: String, default: '—' },
   active: { type: Boolean, default: false },
-  showCheck: { type: Boolean, default: false }
+  showCheck: { type: Boolean, default: false },
+  showGreenDot: { type: Boolean, default: false }
 });
 const emit = defineEmits(['click']);
 </script>

@@ -171,12 +171,15 @@
         :history-saving="historySaving"
         :record-id="estimateDraft.id || ''"
         :attachments="estimateDraft.attachments || []"
+        :client="detailClientForDisplay"
+        :client-mood="estimateDraft.clientMood ?? null"
         @back="goBack"
         @save="onSaveHistory"
         @book="onSaveHistory"
         @open-discount="openDetailDiscountModal"
         @open-comment="openDetailCommentModal"
         @update:attachments="(v) => (estimateDraft.attachments = v)"
+        @update:client-mood="(v) => (estimateDraft.clientMood = v)"
       />
     </div>
     <!-- Size menu modal -->
@@ -511,6 +514,18 @@ const breakdown = computed(() => {
   const items = buildBreakdown(basePrice.value, conditionsForCalc.value, props.initialData, sizeCode);
   props.estimateDraft.breakdown = items;
   return items;
+});
+
+/** Клиент для ClientInfoBlock на финальном шаге Detail. */
+const detailClientForDisplay = computed(() => {
+  const d = props.estimateDraft;
+  return {
+    name: d?.clientName ?? '',
+    phone: d?.clientPhone ?? '',
+    brand: d?.carBrand ?? '',
+    model: d?.carModel ?? '',
+    company: d?.clientCompany ?? ''
+  };
 });
 
 /** Per-dent line items for Quick-style final (Detail mode) */

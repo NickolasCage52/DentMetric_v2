@@ -1,6 +1,8 @@
 <template>
   <div class="quick-style-final flex flex-col min-h-0 flex-1 overflow-hidden">
     <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain qc-step3 space-y-2 p-3 pb-24">
+      <!-- Данные клиента — первым блоком (PDF стр. 5-6) -->
+      <ClientInfoBlock :client="clientForDisplay" />
       <template v-for="(dentItem, idx) in lineItems" :key="dentItem.dent?.id ?? idx">
         <div class="px-1">
           <div class="flex items-baseline gap-2 mb-0.5">
@@ -59,6 +61,8 @@
           @update:model-value="$emit('update:attachments', $event)"
         />
       </div>
+      <!-- Смайлики адекватности клиента (PDF стр. 6-7) -->
+      <ClientMoodPicker :model-value="clientMood" @update:model-value="$emit('update:clientMood', $event)" />
     </div>
     <div class="graphics-action-bar flex gap-0 shrink-0 p-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
       <button type="button" @click="$emit('back')" class="qc-s3-btn qc-s3-btn--left flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[40px]">Назад</button>
@@ -73,8 +77,11 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { buildDetailedBreakdownRows, formatBreakdownDelta, deltaClass } from '../../utils/buildDetailedBreakdown';
 import AttachmentPicker from '../AttachmentPicker.vue';
+import ClientInfoBlock from '../ClientInfoBlock.vue';
+import ClientMoodPicker from '../ClientMoodPicker.vue';
 
 const props = defineProps({
   lineItems: { type: Array, default: () => [] },
@@ -86,10 +93,20 @@ const props = defineProps({
   discountPercent: { type: [Number, null], default: null },
   historySaving: { type: Boolean, default: false },
   showRepairTime: { type: Boolean, default: false },
-  estimatedRepairTime: { type: String, default: '—' }
+  estimatedRepairTime: { type: String, default: '—' },
+  client: { type: Object, default: () => ({}) },
+  clientMood: { type: String, default: null }
 });
 
-defineEmits(['back', 'save', 'book', 'open-discount', 'open-comment', 'update:attachments']);
+defineEmits(['back', 'save', 'book', 'open-discount', 'open-comment', 'update:attachments', 'update:clientMood']);
+
+const clientForDisplay = computed(() => ({
+  name: props.client?.name ?? props.client?.clientName ?? '',
+  phone: props.client?.phone ?? props.client?.clientPhone ?? '',
+  brand: props.client?.brand ?? props.client?.carBrand ?? '',
+  model: props.client?.model ?? props.client?.carModel ?? '',
+  company: props.client?.company ?? props.client?.clientCompany ?? ''
+}));
 
 const canSave = () => (props.lineItems?.length ?? 0) > 0;
 

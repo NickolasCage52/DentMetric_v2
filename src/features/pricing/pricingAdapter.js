@@ -61,8 +61,7 @@ export function calculateDentBasePrice(shape, widthMm, heightMm, sizesWithArea, 
     const lengthCm = Math.max(w, h) / 10;
     const heightCm = Math.min(w, h) / 10;
     const coeffClass = getStripeCoeffClass(options.conditions, options.initialData);
-    const basePriceK1 = getBasePriceByMm(type, w, h, sizesWithArea, prices);
-    const { price } = calculateStripePriceFromUserBase({ lengthCm, heightCm, coeffClass, basePriceK1 });
+    const { price } = calculateStripePriceFromUserBase({ lengthCm, heightCm, coeffClass });
     return price;
   }
   return getBasePriceByMm(type, w, h, sizesWithArea, prices);
