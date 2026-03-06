@@ -129,22 +129,37 @@ describe('historyStore', () => {
       expect(Array.isArray(out.dents.items)).toBe(true);
     });
 
-    it('normalizes old oval_long dimensions (R>=3) to stripe type', () => {
+    it('preserves circle type regardless of dimensions (no ratio-based override to strip)', () => {
       const raw = {
         total: 5000,
         client: { name: 'Test', phone: '' },
         dents: {
           items: [
             { id: '1', type: 'circle', shape: 'circle', bboxMm: { width: 100, height: 300 } },
-            { id: '2', type: 'circle', sizeLengthMm: 50, sizeWidthMm: 400 },
+            { id: '2', type: 'circle', shape: 'circle', sizeLengthMm: 50, sizeWidthMm: 400 },
           ],
         },
       };
       const out = normalizeHistoryRecord(raw);
-      expect(out.dents.items[0].type).toBe('strip');
-      expect(out.dents.items[0].shape).toBe('strip');
-      expect(out.dents.items[1].type).toBe('strip');
-      expect(out.dents.items[1].shape).toBe('strip');
+      expect(out.dents.items[0].type).toBe('circle');
+      expect(out.dents.items[0].shape).toBe('circle');
+      expect(out.dents.items[1].type).toBe('circle');
+      expect(out.dents.items[1].shape).toBe('circle');
+    });
+
+    it('converts strip to circle when ratio 1:1 (square dimensions)', () => {
+      const raw = {
+        total: 5000,
+        client: { name: 'Test', phone: '' },
+        dents: {
+          items: [
+            { id: '1', type: 'strip', shape: 'strip', bboxMm: { width: 30, height: 30 } },
+          ],
+        },
+      };
+      const out = normalizeHistoryRecord(raw);
+      expect(out.dents.items[0].type).toBe('circle');
+      expect(out.dents.items[0].shape).toBe('circle');
     });
   });
 

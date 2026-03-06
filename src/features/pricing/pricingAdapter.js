@@ -11,6 +11,69 @@ import { calculateStripePrice, calculateStripePriceFromUserBase } from '../../ut
 /** Округление размеров в мм до 1 знака для консистентности */
 const MM_ROUND = 1;
 
+/** Порог для ratio 1:1 — считаем квадратом/кругом, не полосой */
+const RATIO_ONE_EPS = 0.001;
+
+/**
+ * Проверка: соотношение сторон ≈ 1:1 (квадрат/круг).
+ * Используется для strip→circle fallback: если пользователь выбрал полосу, но ввёл квадратные размеры — считаем кругом.
+ * @param {number} widthMm
+ * @param {number} heightMm
+ * @returns {boolean}
+ */
+export function isRatioOneToOne(widthMm, heightMm) {
+  const w = Number(widthMm) || 0;
+  const h = Number(heightMm) || 0;
+  if (w <= 0 || h <= 0) return false;
+  const L = Math.max(w, h);
+  const H = Math.min(w, h);
+  const ratio = H > 0 ? L / H : 1;
+  return Math.abs(ratio - 1) <= RATIO_ONE_EPS;
+}
+
+/**
+ * Полосный кейс: таблицы полосы применяются ТОЛЬКО когда
+ * 1) пользователь явно выбрал тип "Полоса/Царапина" (strip/stripe/scratch)
+ * 2) AND ratio > 1 (форма не вырождена до квадрата/круга)
+ * ratio 1:1 и все не-полосные → круг/овал.
+ *
+ * @param {string} shapeType - 'circle' | 'strip' | 'freeform' | 'stripe' | 'scratch'
+ * @param {number} widthMm
+ * @param {number} heightMm
+ * @returns {boolean}
+ */
+export function isStripeCase(shapeType, widthMm, heightMm) {
+  const t = String(shapeType || '').toLowerCase();
+  const isStripeType = ['strip', 'stripe', 'scratch', 'полоса', 'царапина'].some((k) => t.includes(k));
+  if (!isStripeType) return false;
+  const w = Number(widthMm) || 0;
+  const h = Number(heightMm) || 0;
+  if (w <= 0 || h <= 0) return false;
+  const L = Math.max(w, h);
+  const H = Math.min(w, h);
+  const ratio = H > 0 ? L / H : 1;
+  const isNotSquare = Math.abs(ratio - 1) > RATIO_ONE_EPS;
+  return isNotSquare;
+}
+
+/**
+ * Метка типа формы для отображения (Тип формы: Круг/Овал/Полоса).
+ * Правила: ratio 1:1 → всегда Круг; реальная полоса (strip + ratio>1) → Полоса; остальное → Овал.
+ * @param {string} shapeType - 'circle' | 'strip' | 'freeform' | 'stripe' | 'scratch'
+ * @param {number} widthMm
+ * @param {number} heightMm
+ * @returns {'Круг' | 'Овал' | 'Полоса'}
+ */
+export function getShapeDisplayLabel(shapeType, widthMm, heightMm) {
+  const w = Number(widthMm) || 0;
+  const h = Number(heightMm) || 0;
+  if (w <= 0 || h <= 0) return '—';
+  if (isRatioOneToOne(w, h)) return 'Круг';
+  const t = String(shapeType || '').toLowerCase();
+  if (['strip', 'stripe', 'scratch'].some((k) => t.includes(k)) && isStripeCase(shapeType, w, h)) return 'Полоса';
+  return 'Овал';
+}
+
 /**
  * Нормализует размеры вмятины (мм).
  * Контракт: widthMm, heightMm — положительные числа, округлённые.
@@ -57,7 +120,8 @@ export function calculateDentBasePrice(shape, widthMm, heightMm, sizesWithArea, 
   const { widthMm: w, heightMm: h } = normalizeDimensions(widthMm, heightMm);
   if (w <= 0 || h <= 0) return 0;
   const type = shape === 'freeform' ? 'circle' : (shape === 'strip' ? 'strip' : 'circle');
-  if (type === 'strip') {
+  const useStripe = type === 'strip' && isStripeCase(shape, w, h);
+  if (useStripe) {
     const lengthCm = Math.max(w, h) / 10;
     const heightCm = Math.min(w, h) / 10;
     const coeffClass = getStripeCoeffClass(options.conditions, options.initialData);
@@ -89,7 +153,9 @@ export function getSizeCodeForConditions(shape, widthMm, heightMm, sizesWithArea
  */
 export function calculateDentPrice(input, context) {
   const { shape, widthMm, heightMm, conditions, panelElement } = input;
-  const { sizesWithArea, prices, initialData, roundStep = 0 } = context;
+  const { sizesWithArea, circleSizesWithArea, stripSizesWithArea, prices, initialData, roundStep = 0 } = context;
+  const circleSizes = circleSizesWithArea ?? sizesWithArea;
+  const stripSizes = stripSizesWithArea ?? sizesWithArea;
   const conditionsWithCost = { ...conditions };
   if (conditions.disassemblyCodes && Array.isArray(conditions.disassemblyCodes)) {
     conditionsWithCost.disassemblyCost = getArmaturnayaTotalPrice(
@@ -102,10 +168,13 @@ export function calculateDentPrice(input, context) {
     return { base: 0, total: 0, breakdown: [], sizeCode: 'STRIP_DEFAULT' };
   }
   const type = shape === 'freeform' ? 'circle' : (shape === 'strip' ? 'strip' : 'circle');
-  const base = type === 'strip'
-    ? calculateDentBasePrice(type, w, h, sizesWithArea, prices, { conditions, initialData })
-    : getBasePriceByMm(type, w, h, sizesWithArea, prices);
-  const sizeCode = getSizeCodeForMatrix(type, w, h, sizesWithArea);
+  const useStripe = type === 'strip' && isStripeCase(shape, w, h);
+  const effectiveShape = useStripe ? 'strip' : 'circle';
+  const sizesForCalc = useStripe ? stripSizes : circleSizes;
+  const base = useStripe
+    ? calculateDentBasePrice(type, w, h, stripSizes, prices, { conditions, initialData })
+    : getBasePriceByMm(effectiveShape, w, h, circleSizes, prices);
+  const sizeCode = getSizeCodeForMatrix(effectiveShape, w, h, sizesForCalc);
   const total = base > 0 && (conditions.repairCode && conditions.riskCode && conditions.materialCode && conditions.carClassCode && (conditions.disassemblyCode || conditions.disassemblyCodes?.length || typeof conditions.disassemblyCost === 'number'))
     ? applyConditionsToBase(base, conditionsWithCost, initialData, sizeCode, roundStep)
     : 0;
@@ -133,13 +202,15 @@ export function normalizeGraphicsDentsForPricing(dents, context) {
     const h = Number(bbox.height) || 0;
     const type = d.type === 'freeform' ? 'circle' : (d.type || 'circle');
     const shape = type === 'strip' ? 'strip' : 'circle';
-    const sizes = shape === 'circle' ? circleSizes : stripSizes;
+    const useStripe = shape === 'strip' && isStripeCase(shape, w, h);
+    const sizes = useStripe ? stripSizes : circleSizes;
     if (w <= 0 || h <= 0) return d;
     const base = calculateDentBasePrice(shape, w, h, sizes, prices, {
       conditions,
       initialData
     });
-    const sizeCode = getSizeCodeForConditions(shape, w, h, sizes);
+    const effectiveShape = useStripe ? 'strip' : 'circle';
+    const sizeCode = getSizeCodeForConditions(effectiveShape, w, h, sizes);
     return { ...d, price: base, sizeCode };
   });
 }

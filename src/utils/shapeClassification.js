@@ -1,12 +1,15 @@
 /**
- * Automatic damage shape classification by aspect ratio (SOURCE OF TRUTH).
+ * Automatic damage shape classification by aspect ratio.
+ * USE FOR DISPLAY/LABELS ONLY. Do NOT use for pricing routing.
+ *
+ * Pricing routing: use isStripeCase() from pricingAdapter — requires explicit user choice (strip type) + ratio > 1.
+ * Rule: Stripe tables ONLY when user explicitly chose Полоса/Царапина. Ratio-based "stripe" here must NOT override.
  *
  * Compute R = L/H, where L = max(w,h), H = min(w,h).
  * Boundaries:
  * - R < 1.40 → round (Круг)
  * - 1.40 ≤ R < 3.00 → oval (Овал)
- * - R ≥ 3.00 → stripe (Полоса)
- * (Вытянутый овал removed; R ≥ 3 uses stripe pipeline.)
+ * - R ≥ 3.00 → stripe (Полоса) — display label only
  *
  * @param {number} widthMm
  * @param {number} heightMm

@@ -7,6 +7,9 @@ import {
   calculateDentPrice,
   normalizeDimensions,
   normalizeGraphicsDentsForPricing,
+  isStripeCase,
+  isRatioOneToOne,
+  getShapeDisplayLabel,
 } from '../src/features/pricing/pricingAdapter';
 import { calcTotalPrice, roundPrice } from '../src/utils/priceCalc';
 import { initialData } from '../src/data/initialData';
@@ -38,6 +41,25 @@ describe('pricingAdapter', () => {
     });
     it('clamps negative to 0', () => {
       expect(normalizeDimensions(-5, 10)).toEqual({ widthMm: 0, heightMm: 10 });
+    });
+  });
+
+  describe('isStripeCase', () => {
+    it('ratio 1:1, type stripe → NOT stripe (circle/oval path)', () => {
+      expect(isStripeCase('stripe', 10, 10)).toBe(false);
+      expect(isStripeCase('strip', 100, 100)).toBe(false);
+    });
+    it('stripe 30×4 (ratio 7.5) → stripe', () => {
+      expect(isStripeCase('stripe', 30, 4)).toBe(true);
+      expect(isStripeCase('strip', 300, 40)).toBe(true);
+    });
+    it('oval type → NOT stripe regardless of ratio', () => {
+      expect(isStripeCase('oval', 30, 4)).toBe(false);
+      expect(isStripeCase('circle', 30, 4)).toBe(false);
+    });
+    it('zero dimensions → NOT stripe', () => {
+      expect(isStripeCase('stripe', 0, 0)).toBe(false);
+      expect(isStripeCase('strip', 10, 0)).toBe(false);
     });
   });
 
@@ -83,6 +105,8 @@ describe('pricingAdapter', () => {
 
       const ctx = {
         sizesWithArea: stripSizesWithArea,
+        circleSizesWithArea,
+        stripSizesWithArea,
         prices,
         initialData,
         roundStep: 100,
@@ -138,6 +162,91 @@ describe('pricingAdapter', () => {
         }
       );
       expect(normalized[0].price).toBe(circleResult.base);
+    });
+
+    it('circle 90×30 (R=3) uses circle/oval pricing, NOT stripe tables', () => {
+      const widthMm = 90;
+      const heightMm = 30;
+      const shape = 'circle';
+
+      const ctx = {
+        sizesWithArea: circleSizesWithArea,
+        circleSizesWithArea,
+        stripSizesWithArea,
+        prices,
+        initialData,
+        roundStep: 100,
+      };
+      const circleResult = calculateDentPrice(
+        { shape, widthMm, heightMm, conditions },
+        ctx
+      );
+      expect(circleResult.base).toBeGreaterThan(0);
+      expect(circleResult.sizeCode).not.toMatch(/^STRIPE_/);
+    });
+
+    it('strip 10×10 (ratio 1:1) uses circle/oval pricing, not stripe tables', () => {
+      const widthMm = 10;
+      const heightMm = 10;
+      const shape = 'strip';
+
+      const ctx = {
+        sizesWithArea: stripSizesWithArea,
+        circleSizesWithArea,
+        stripSizesWithArea,
+        prices,
+        initialData,
+        roundStep: 100,
+      };
+      const stripResult = calculateDentPrice(
+        { shape, widthMm, heightMm, conditions },
+        ctx
+      );
+
+      const circleResult = calculateDentPrice(
+        { shape: 'circle', widthMm, heightMm, conditions },
+        { ...ctx, sizesWithArea: circleSizesWithArea }
+      );
+
+      expect(stripResult.base).toBe(circleResult.base);
+      expect(stripResult.total).toBe(circleResult.total);
+    });
+  });
+
+  describe('getShapeDisplayLabel', () => {
+    it('ratio 1:1 → always Круг', () => {
+      expect(getShapeDisplayLabel('circle', 30, 30)).toBe('Круг');
+      expect(getShapeDisplayLabel('strip', 100, 100)).toBe('Круг');
+    });
+    it('strip type + ratio>1 → Полоса', () => {
+      expect(getShapeDisplayLabel('strip', 180, 20)).toBe('Полоса');
+      expect(getShapeDisplayLabel('stripe', 80, 10)).toBe('Полоса');
+    });
+    it('circle/oval type + ratio>1 → Овал', () => {
+      expect(getShapeDisplayLabel('circle', 90, 30)).toBe('Овал');
+      expect(getShapeDisplayLabel('circle', 45, 60)).toBe('Овал');
+    });
+    it('zero dimensions → —', () => {
+      expect(getShapeDisplayLabel('circle', 0, 0)).toBe('—');
+      expect(getShapeDisplayLabel('strip', 10, 0)).toBe('—');
+    });
+  });
+
+  describe('isRatioOneToOne', () => {
+    it('10×10 → true', () => {
+      expect(isRatioOneToOne(10, 10)).toBe(true);
+    });
+    it('100×100 → true', () => {
+      expect(isRatioOneToOne(100, 100)).toBe(true);
+    });
+    it('10.001×10 → true (within epsilon)', () => {
+      expect(isRatioOneToOne(10.001, 10)).toBe(true);
+    });
+    it('30×10 → false', () => {
+      expect(isRatioOneToOne(30, 10)).toBe(false);
+    });
+    it('90×30 → false', () => {
+      expect(isRatioOneToOne(90, 30)).toBe(false);
     });
   });
 });

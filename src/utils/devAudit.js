@@ -27,6 +27,19 @@ export async function runDevAudit() {
     console.error('normalizeRecord FAILED:', e);
   }
 
+  // 1b. normalizeRecord: prepayment migration (Правка 11)
+  try {
+    const oldRecord = { id: 'old', dents: { count: 0, items: [] } };
+    const normalized = normalizeRecord(oldRecord);
+    if (!normalized) throw new Error('normalizeRecord returned null');
+    if (normalized.prepayment === undefined) throw new Error('prepayment field missing');
+    if (normalized.prepayment.amount !== 0) throw new Error('prepayment.amount default should be 0');
+    if (normalized.prepayment.method !== null) throw new Error('prepayment.method default should be null');
+    console.log('normalizeRecord prepayment migration: OK');
+  } catch (e) {
+    console.error('prepayment migration FAILED:', e);
+  }
+
   // 2. safeLoadHistory: не падает при битых данных, возвращает массив
   try {
     const backup = localStorage.getItem(STORAGE_KEY);

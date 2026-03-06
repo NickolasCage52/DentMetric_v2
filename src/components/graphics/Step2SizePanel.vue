@@ -159,7 +159,7 @@
 
 <script setup>
 import { computed, ref, inject } from 'vue';
-import { classifyDamageShapeByRatio } from '../../utils/shapeClassification';
+import { getShapeDisplayLabel } from '../../features/pricing/pricingAdapter';
 
 const openInputModal = inject('openInputModal');
 
@@ -207,11 +207,8 @@ const freeformBboxHint = computed(() => {
   if (props.selectedDentSize?.type !== 'freeform') return '';
   const w = Number(props.sizeWidthMm) || 0;
   const h = Number(props.sizeHeightMm) || 0;
-  if (w <= 0 || h <= 0) return '';
-  const classified = classifyDamageShapeByRatio(w, h);
-  if (classified === 'stripe') return 'Полоса';
-  if (classified === 'round') return 'Круг';
-  return 'Овал';
+  const label = getShapeDisplayLabel('circle', w, h);
+  return label !== '—' ? label : '';
 });
 
 const computedRatio = computed(() => {
@@ -225,12 +222,9 @@ const computedRatio = computed(() => {
 const computedShapeType = computed(() => {
   const w = Number(props.sizeWidthMm) || 0;
   const h = Number(props.sizeHeightMm) || 0;
-  if (w <= 0 || h <= 0) return null;
-  const classified = classifyDamageShapeByRatio(w, h);
-  if (classified === 'stripe') return 'Полоса';
-  if (classified === 'round') return 'Круг';
-  if (classified === 'oval') return 'Овал';
-  return null;
+  const type = props.selectedDentSize?.type ?? 'circle';
+  const label = getShapeDisplayLabel(type, w, h);
+  return label !== '—' ? label : null;
 });
 
 async function openWidthModal() {

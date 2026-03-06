@@ -42,6 +42,9 @@
         </div>
       </template>
 
+      <!-- ПРЕДОПЛАТА (PDF стр. 5) -->
+      <PrepaymentBlock :model-value="prepayment" @update:model-value="$emit('update:prepayment', $event)" />
+
       <div class="card-metallic rounded-xl" style="padding:10px 12px">
         <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Комментарий</div>
         <button
@@ -82,6 +85,7 @@ import { buildDetailedBreakdownRows, formatBreakdownDelta, deltaClass } from '..
 import AttachmentPicker from '../AttachmentPicker.vue';
 import ClientInfoBlock from '../ClientInfoBlock.vue';
 import ClientMoodPicker from '../ClientMoodPicker.vue';
+import PrepaymentBlock from '../PrepaymentBlock.vue';
 
 const props = defineProps({
   lineItems: { type: Array, default: () => [] },
@@ -95,10 +99,11 @@ const props = defineProps({
   showRepairTime: { type: Boolean, default: false },
   estimatedRepairTime: { type: String, default: '—' },
   client: { type: Object, default: () => ({}) },
-  clientMood: { type: String, default: null }
+  clientMood: { type: String, default: null },
+  prepayment: { type: Object, default: () => ({ amount: 0, method: null }) }
 });
 
-defineEmits(['back', 'save', 'book', 'open-discount', 'open-comment', 'update:attachments', 'update:clientMood']);
+defineEmits(['back', 'save', 'book', 'open-discount', 'open-comment', 'update:attachments', 'update:clientMood', 'update:prepayment']);
 
 const clientForDisplay = computed(() => ({
   name: props.client?.name ?? props.client?.clientName ?? '',

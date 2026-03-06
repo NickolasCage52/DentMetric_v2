@@ -68,6 +68,8 @@ img {
   --header-logo-bar-px: 1rem;
   --header-logo-bar-min-h: 52px;
   --header-logo-side-w: 70px;
+  /* Unified DM logo size (PDF правка 12) */
+  --dm-logo-size: 1.75rem;
 }
 
 /* Part C: Background gradient animation */
@@ -111,7 +113,7 @@ img {
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
-  height: 1.75rem;
+  height: var(--dm-logo-size);
   width: auto;
   max-width: 100%;
   object-fit: contain;

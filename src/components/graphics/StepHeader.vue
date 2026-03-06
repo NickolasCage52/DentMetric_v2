@@ -96,7 +96,7 @@ defineEmits(['update:selectedClassId', 'update:selectedPartId', 'reset', 'reset-
 
 .graphics-header__logo {
   flex-shrink: 0;
-  height: 1.5rem;
+  height: var(--dm-logo-size, 1.75rem);
   width: auto;
 }
 </style>

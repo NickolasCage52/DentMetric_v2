@@ -173,6 +173,7 @@
         :attachments="estimateDraft.attachments || []"
         :client="detailClientForDisplay"
         :client-mood="estimateDraft.clientMood ?? null"
+        :prepayment="estimateDraft.prepayment ?? { amount: 0, method: null }"
         @back="goBack"
         @save="onSaveHistory"
         @book="onSaveHistory"
@@ -180,6 +181,7 @@
         @open-comment="openDetailCommentModal"
         @update:attachments="(v) => (estimateDraft.attachments = v)"
         @update:client-mood="(v) => (estimateDraft.clientMood = v)"
+        @update:prepayment="(v) => (estimateDraft.prepayment = v)"
       />
     </div>
     <!-- Size menu modal -->
@@ -285,9 +287,8 @@ import {
   setDisplayUnit,
   exportStageAsBlob
 } from '../../graphics/konvaEditor';
-import { classifyDamageShapeByRatio } from '../../utils/shapeClassification';
 import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown, roundPrice, getPerDentCoresAndAddons } from '../../utils/priceCalc';
-import { normalizeGraphicsDentsForPricing } from '../../features/pricing/pricingAdapter';
+import { normalizeGraphicsDentsForPricing, isRatioOneToOne } from '../../features/pricing/pricingAdapter';
 import { applyPriceRoundingCeil } from '../../utils/priceRounding';
 import { applyDiscount, clampDiscount } from '../../utils/discount';
 import { calculateSessionTotalWithMultiDentRule } from '../../utils/multiDentAggregation';
@@ -534,7 +535,9 @@ const detailLineItems = computed(() => {
   const cond = conditionsForCalc.value;
   if (!dents?.length || !cond) return [];
   const ctx = {
-    sizesWithArea: null,
+    sizesWithArea: props.circleSizes,
+    circleSizesWithArea: props.circleSizes,
+    stripSizesWithArea: props.stripSizes,
     prices: props.userSettings?.prices ?? {},
     initialData: props.initialData,
     roundStep: props.userSettings?.priceRoundStep ?? 0
@@ -544,8 +547,6 @@ const detailLineItems = computed(() => {
     const w = Number(bbox.width) || 0;
     const h = Number(bbox.height) || 0;
     const shape = dent?.type === 'strip' ? 'strip' : 'circle';
-    const sizes = shape === 'circle' ? props.circleSizes : props.stripSizes;
-    ctx.sizesWithArea = sizes && sizes.length ? sizes : [];
     const conditions = props.userSettings?.showPaintMaterial !== false ? cond : { ...cond, paintMaterialCode: null };
     const result = calcDentViaAdapter(
       { shape, widthMm: w, heightMm: h, conditions, panelElement: props.selectedPart?.name },
@@ -753,10 +754,10 @@ watch([sizeWidthMm, sizeHeightMm], () => {
     } else {
       setSelectedDentSizeMm(w, h);
     }
-    if (curType && curType !== 'freeform') {
-      const classified = classifyDamageShapeByRatio(w, h);
-      const targetType = classified === 'stripe' ? 'strip' : 'circle';
-      if (curType !== targetType) convertSelectedDentToType(targetType);
+    // Business rule: Stripe ONLY when user explicitly chose Полоса. Never convert circle→strip by ratio.
+    // Only convert strip→circle when ratio 1:1 (square → treat as circle).
+    if (curType === 'strip' && isRatioOneToOne(w, h)) {
+      convertSelectedDentToType('circle');
     }
     sizeEditByUser = false;
     sizeApplyTimeout = null;

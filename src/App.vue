@@ -116,7 +116,7 @@
       <div v-if="calcMode !== 'graphics'" class="shrink-0 z-20 bg-black px-4" :class="(calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))) ? 'pt-2 pb-1' : 'pt-4 pb-0 space-y-3'">
         <div class="app-header-logo-bar" :class="(calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))) ? '' : 'pb-2'">
           <div class="app-header-logo-bar__left"></div>
-          <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo drop-shadow-2xl" :style="(calcMode === 'standard' && (quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick))) ? 'height:1.25rem' : ''" onerror="this.style.display='none'">
+          <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo drop-shadow-2xl" onerror="this.style.display='none'">
           <div class="app-header-logo-bar__right"></div>
         </div>
       </div>
@@ -500,6 +500,9 @@
                 </div>
               </template>
 
+              <!-- Prepayment block (PDF стр. 5) -->
+              <PrepaymentBlock v-model="estimateDraft.prepayment" />
+
               <!-- Comment card -->
               <div class="card-metallic rounded-xl" style="padding:10px 12px">
                 <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Комментарий</div>
@@ -578,8 +581,7 @@
           >
             <span class="inline-flex items-center gap-1"><span aria-hidden="true">&lsaquo;</span> Назад</span>
           </button>
-          <div class="quick-nav-price text-center overflow-hidden px-1 min-w-0">
-            <div class="quick-nav-price-label text-[9px] uppercase tracking-[0.07em] text-gray-500 leading-tight">ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ</div>
+          <div class="quick-nav-price text-center overflow-hidden px-1 min-w-0 flex items-center justify-center">
             <div class="quick-nav-price-value text-[17px] font-bold text-metric-green tabular-nums truncate">{{ animatedQuickPrice.toLocaleString('ru-RU') }} ₽</div>
           </div>
           <button
@@ -729,45 +731,51 @@
           >{{ st.label }}</button>
         </div>
       </div>
-      <template v-for="group in groupedHistoryBreakdown" :key="group.dentNum">
+      <!-- Блок расчёта 1-в-1 как финальный экран (Quick step 3) -->
+      <div v-if="!isEditingHistory" class="price-grand-total card-metallic rounded-xl flex justify-between items-center px-5 py-4 mb-2">
+        <span class="pgt-label text-[14px] text-gray-500">Итого по всем повреждениям</span>
+        <span class="pgt-amount text-[24px] font-bold text-metric-green tabular-nums">{{ formatCurrency(selectedHistory?.total || 0) }} ₽</span>
+      </div>
+      <template v-for="(dentItem, idx) in historyLineItems" :key="dentItem.dent?.id || idx">
         <div class="space-y-1">
-          <!-- Заголовок как на экране итогового расчёта -->
-          <div v-if="group.dentNum === 0" class="px-1">
-            <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-1.5">Расчёт</div>
-          </div>
-          <div v-else class="px-1">
+          <div class="px-1">
             <div class="flex items-baseline gap-2 mb-0.5">
-              <span class="text-white font-bold text-[15px]">Вмятина ‑{{ group.dentNum }}</span>
-              <span v-if="getHistoryDentPanelElement(group.dentNum)" class="text-gray-300 font-semibold text-[14px] truncate">{{ getHistoryDentPanelElement(group.dentNum) }}</span>
+              <span class="text-white font-bold text-[15px]">Вмятина ‑{{ idx + 1 }}</span>
+              <span class="text-gray-300 font-semibold text-[14px] truncate">{{ dentItem.dent?.panelElement || '—' }}</span>
             </div>
-            <div v-if="getHistoryDentSizeLabel(group.dentNum)" class="text-[11px] text-gray-400 leading-snug">{{ getHistoryDentSizeLabel(group.dentNum) }}</div>
+            <div class="text-[11px] text-gray-400 leading-snug">{{ getHistoryDentLabel(dentItem.dent) }} длина: {{ formatSingleDim(dentItem.dent?.sizeLengthMm) }}, Высота: {{ formatSingleDim(dentItem.dent?.sizeWidthMm) }}</div>
           </div>
-          <!-- Карточка расчёта в стиле qc-breakdown-card -->
           <div class="card-metallic rounded-xl qc-breakdown-card">
-            <template v-for="(row, ri) in parseHistoryBreakdownRows(group.items)" :key="ri">
-              <div v-if="row.type === 'base'" class="qc-bk-row qc-bk-row--base">
-                <span class="qc-bk-label font-semibold text-white">{{ row.label }}:</span>
-                <span class="qc-bk-delta text-metric-green font-bold">{{ row.value }}</span>
-              </div>
-              <div v-else-if="row.type === 'sep'" class="qc-bk-sep"></div>
-              <div v-else-if="row.type === 'sepStrong'" class="qc-bk-sep qc-bk-sep--strong"></div>
-              <div v-else-if="row.type === 'param'" class="qc-bk-row">
-                <span class="qc-bk-label">{{ row.label }}</span>
-                <span class="qc-bk-value"></span>
-                <span class="qc-bk-delta" :class="historyBreakdownDeltaClass(row.value)">{{ row.value }}</span>
-              </div>
-              <div v-else-if="row.type === 'discount'" class="qc-bk-row">
-                <span class="qc-bk-label">Скидка:</span>
-                <span class="qc-bk-value flex-1 text-gray-500 text-[11px]">{{ row.value }}</span>
-              </div>
-              <div v-else-if="row.type === 'total'" class="qc-bk-row qc-bk-row--total">
-                <span class="font-bold text-white text-[13px]">Итог по вмятине:</span>
-                <span class="text-metric-green font-bold text-[18px] tabular-nums">{{ row.value }}</span>
-              </div>
-            </template>
+            <div class="qc-bk-row qc-bk-row--base">
+              <span class="qc-bk-label font-semibold text-white">Базовая стоимость:</span>
+              <span class="qc-bk-delta text-metric-green font-bold">{{ formatRoundedPrice(dentItem.base) }} ₽</span>
+            </div>
+            <div class="qc-bk-sep"></div>
+            <div v-for="(row, ri) in buildDetailedBreakdown(dentItem)" :key="ri" class="qc-bk-row">
+              <span class="qc-bk-label">{{ row.label }}</span>
+              <span class="qc-bk-value">{{ row.value }}</span>
+              <span class="qc-bk-delta" :class="deltaClass(row.delta)">{{ formatDelta(row.delta) }}</span>
+            </div>
+            <div class="qc-bk-sep"></div>
+            <div class="qc-bk-row">
+              <span class="qc-bk-label">Скидка:</span>
+              <span class="qc-bk-value flex-1 text-gray-500 text-[11px]">{{ dentItem.discountPercent ? dentItem.discountPercent : '—' }}%</span>
+              <span v-if="dentItem.discountPercent > 0" class="qc-bk-delta text-amber-400 text-[11px]">−{{ formatCurrency((dentItem.preDiscountTotal || dentItem.appliedTotal) - dentItem.appliedTotal) }} ₽</span>
+            </div>
+            <div class="qc-bk-sep qc-bk-sep--strong"></div>
+            <div class="qc-bk-row qc-bk-row--total">
+              <span class="font-bold text-white text-[13px]">Итог по вмятине:</span>
+              <span class="text-metric-green font-bold text-[18px] tabular-nums">{{ formatRoundedPrice(dentItem.appliedTotal) }} ₽</span>
+            </div>
           </div>
         </div>
       </template>
+      <!-- ПРЕДОПЛАТА (PDF стр. 5) -->
+      <PrepaymentBlock
+        :model-value="isEditingHistory ? historyEditDraft.prepayment : (selectedHistory.prepayment ?? { amount: 0, method: null })"
+        :readonly="!isEditingHistory"
+        @update:model-value="(v) => { if (isEditingHistory) historyEditDraft.prepayment = v; }"
+      />
       <div v-if="selectedHistory.comment && !isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-2">
         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Комментарий</div>
         <div class="text-sm text-gray-300">{{ selectedHistory.comment }}</div>
@@ -851,9 +859,9 @@
           <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Регулятор цен: Круг / Овал</p>
           <p class="text-[10px] text-gray-500 mb-2">Множитель применяется к базовым ценам при расчёте.</p>
           <div class="flex gap-2">
-            <button type="button" data-testid="price-regulator-round-minus" class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]" @click="applyPriceRegulator('roundOval', -10)">−10%</button>
-            <button type="button" class="flex-1 py-2.5 rounded-xl border border-white/20 text-sm font-semibold text-gray-500 min-h-[44px]" @click="applyPriceRegulator('roundOval', 0)">0%</button>
-            <button type="button" data-testid="price-regulator-round-plus" class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]" @click="applyPriceRegulator('roundOval', 10)">+10%</button>
+            <button type="button" data-testid="price-regulator-round-minus" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierRoundOval === 90 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('roundOval', -10)">−10%</button>
+            <button type="button" data-testid="price-regulator-round-zero" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierRoundOval === 100 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('roundOval', 0)">0%</button>
+            <button type="button" data-testid="price-regulator-round-plus" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierRoundOval === 110 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('roundOval', 10)">+10%</button>
           </div>
           <p class="text-[10px] text-gray-500 mt-1">Множитель: {{ effectivePriceMultiplierRoundOval }}%</p>
         </div>
@@ -861,9 +869,9 @@
           <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Регулятор цен: Полоса / Царапина</p>
           <p class="text-[10px] text-gray-500 mb-2">Множитель применяется к базовым ценам при расчёте.</p>
           <div class="flex gap-2">
-            <button type="button" data-testid="price-regulator-stripe-minus" class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]" @click="applyPriceRegulator('stripe', -10)">−10%</button>
-            <button type="button" class="flex-1 py-2.5 rounded-xl border border-white/20 text-sm font-semibold text-gray-500 min-h-[44px]" @click="applyPriceRegulator('stripe', 0)">0%</button>
-            <button type="button" data-testid="price-regulator-stripe-plus" class="flex-1 py-2.5 rounded-xl border border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-sm font-semibold text-gray-300 hover:text-white transition-all touch-manipulation min-h-[44px]" @click="applyPriceRegulator('stripe', 10)">+10%</button>
+            <button type="button" data-testid="price-regulator-stripe-minus" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierStripe === 90 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('stripe', -10)">−10%</button>
+            <button type="button" data-testid="price-regulator-stripe-zero" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierStripe === 100 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('stripe', 0)">0%</button>
+            <button type="button" data-testid="price-regulator-stripe-plus" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierStripe === 110 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('stripe', 10)">+10%</button>
           </div>
           <p class="text-[10px] text-gray-500 mt-1">Множитель: {{ effectivePriceMultiplierStripe }}%</p>
         </div>
@@ -1392,12 +1400,11 @@ import { CAR_PARTS } from './data/carParts';
 import { getPartsByClass } from './data/partsCatalog';
 import { circleSizesMm, stripSizesMm, circleSizesWithArea, stripSizesWithArea } from './data/dentSizes';
 import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown } from './utils/priceCalc';
-import { calculateDentPrice as calcDentViaAdapter, normalizeGraphicsDentsForPricing, normalizeDimensions } from './features/pricing/pricingAdapter';
+import { calculateDentPrice as calcDentViaAdapter, normalizeGraphicsDentsForPricing, normalizeDimensions, getShapeDisplayLabel } from './features/pricing/pricingAdapter';
 import { applyPriceRoundingCeil, PRICE_ROUND_OPTIONS } from './utils/priceRounding';
 import { applyDiscount, clampDiscount } from './utils/discount';
 import { calculateSessionTotalWithMultiDentRule } from './utils/multiDentAggregation';
 import { migrateSettings, validateSettings, getPriceMultiplier, SETTINGS_KEY } from './utils/settingsUtils';
-import { classifyDamageShapeByRatio } from './utils/shapeClassification';
 import GraphicsWizard from './components/graphics/GraphicsWizard.vue';
 import StepDots from './components/graphics/StepDots.vue';
 import InfoIcon from './components/InfoIcon.vue';
@@ -1420,6 +1427,7 @@ import AttachmentPicker from './components/AttachmentPicker.vue';
 import HistoryAttachmentsView from './components/HistoryAttachmentsView.vue';
 import ClientInfoBlock from './components/ClientInfoBlock.vue';
 import ClientMoodPicker from './components/ClientMoodPicker.vue';
+import PrepaymentBlock from './components/PrepaymentBlock.vue';
 import { useAccount } from './modules/account/useAccount';
 import { useFeatureGate } from './modules/account/useFeatureGate';
 import { expandTelegramWebApp } from './modules/account/utils/telegram';
@@ -1519,7 +1527,8 @@ const estimateDraft = reactive({
   breakdown: [],
   quickDents: [],
   repairTimeHours: null,
-  discountPercent: null
+  discountPercent: null,
+  prepayment: { amount: 0, method: null }
 });
 
 const { historyItems, loadHistory, saveEstimate, updateEstimate, deleteEstimate, clearHistory } = useHistoryStore();
@@ -1551,33 +1560,56 @@ const groupedHistoryBreakdown = computed(() => {
   }));
 });
 
-/** Разбор items в строки для qc-breakdown-card (только в модуле истории). */
-function parseHistoryBreakdownRows(items) {
-  if (!items?.length) return [];
-  const rows = [];
-  let baseItem = null;
-  let totalItem = null;
-  let discountItem = null;
-  const paramItems = [];
-  for (const item of items) {
-    if (item.name === 'Базовая стоимость') baseItem = item;
-    else if (item.name === 'Итог') totalItem = item;
-    else if (item.name === 'Скидка') discountItem = item;
-    else paramItems.push(item);
-  }
-  if (baseItem) rows.push({ type: 'base', label: baseItem.name, value: baseItem.value });
-  rows.push({ type: 'sep' });
-  for (const item of paramItems) {
-    rows.push({ type: 'param', label: item.name, value: item.value });
-  }
-  if (discountItem) {
-    rows.push({ type: 'sep' });
-    rows.push({ type: 'discount', value: discountItem.value });
-  }
-  rows.push({ type: 'sepStrong' });
-  if (totalItem) rows.push({ type: 'total', value: totalItem.value });
-  return rows;
-}
+/** Line items для истории — тот же формат, что quickLineItems (1-в-1 с финальным экраном). */
+const historyLineItems = computed(() => {
+  const groups = groupedHistoryBreakdown.value.filter((g) => g.dentNum > 0);
+  const dentItems = selectedHistoryDentItems.value;
+  const discPct = clampDiscount(selectedHistory.value?.discountPercent ?? 0);
+  return groups.map((group, idx) => {
+    const items = group.items || [];
+    let baseItem = null;
+    let totalItem = null;
+    let discountItem = null;
+    const paramItems = [];
+    for (const item of items) {
+      if (item.name === 'Базовая стоимость') baseItem = item;
+      else if (item.name === 'Итог') totalItem = item;
+      else if (item.name === 'Скидка') discountItem = item;
+      else paramItems.push(item);
+    }
+    const base = baseItem ? parseInt(String(baseItem.value || '').replace(/\D/g, ''), 10) || 0 : 0;
+    const appliedTotal = totalItem ? parseInt(String(totalItem.value || '').replace(/\D/g, ''), 10) || 0 : 0;
+    let preDiscountTotal = appliedTotal;
+    if (discountItem?.value) {
+      const m = discountItem.value.match(/\(−?\s*(\d[\d\s]*)\s*₽\)/);
+      if (m) {
+        const discountAmount = parseInt(m[1].replace(/\s/g, ''), 10) || 0;
+        preDiscountTotal = appliedTotal + discountAmount;
+      } else if (discPct > 0 && appliedTotal > 0) {
+        preDiscountTotal = Math.round(appliedTotal / (1 - discPct / 100));
+      }
+    }
+    const dent = dentItems[idx] || {};
+    const bbox = dent.bboxMm || {};
+    const w = Number(bbox.width) || 0;
+    const h = Number(bbox.height) || 0;
+    const dentDisplay = {
+      ...dent,
+      conditions: dent.conditions || {},
+      panelElement: dent.panelElement || '',
+      sizeLengthMm: w,
+      sizeWidthMm: h
+    };
+    return {
+      dent: dentDisplay,
+      base,
+      breakdown: paramItems,
+      appliedTotal,
+      preDiscountTotal,
+      discountPercent: discPct
+    };
+  });
+});
 
 function historyBreakdownDeltaClass(value) {
   if (!value || typeof value !== 'string') return '';
@@ -1644,7 +1676,8 @@ const historyEditDraft = reactive({
   inspectDate: '',
   inspectTime: '',
   comment: '',
-  clientMood: null
+  clientMood: null,
+  prepayment: { amount: 0, method: null }
 });
 
 /** Элементы только для стороны ВЕРХ (Капот, Крыша, Багажник) */
@@ -1875,9 +1908,14 @@ function syncQuickDentSizeFromMm(dent) {
   const l = Number(dent.sizeLengthMm) || 0;
   const w = Number(dent.sizeWidthMm) || 0;
   if (l > 0 && w > 0) {
-    const classified = classifyDamageShapeByRatio(l, w);
-    const targetShape = classified === 'stripe' ? 'strip' : 'circle';
-    if (dent.shape !== targetShape) dent.shape = targetShape;
+    // Business rule: Stripe ONLY when user explicitly chose Полоса. Never convert circle→strip by ratio.
+    // Only convert strip→circle when ratio 1:1 (square → treat as circle).
+    if (dent.shape === 'strip') {
+      const L = Math.max(l, w);
+      const H = Math.min(l, w);
+      const ratio = H > 0 ? L / H : 1;
+      if (Math.abs(ratio - 1) < 0.001) dent.shape = 'circle';
+    }
   }
   const sizeCode = getSizeCodeFromMm(dent.shape, dent.sizeLengthMm, dent.sizeWidthMm);
   if (sizeCode) dent.sizeCode = sizeCode;
@@ -2106,8 +2144,14 @@ const quickDentTotals = computed(() => estimateDraft.quickDents.map((dent) => {
   const w = Number(dent.sizeLengthMm) || 0;
   const h = Number(dent.sizeWidthMm) || 0;
   const shape = dent.shape === 'circle' ? 'circle' : 'strip';
-  const sizes = shape === 'circle' ? circleSizesWithArea : stripSizesWithArea;
-  const ctx = { sizesWithArea: sizes, prices: userSettings.prices, initialData, roundStep: userSettings.priceRoundStep ?? 0 };
+  const ctx = {
+    sizesWithArea: shape === 'circle' ? circleSizesWithArea : stripSizesWithArea,
+    circleSizesWithArea,
+    stripSizesWithArea,
+    prices: userSettings.prices,
+    initialData,
+    roundStep: userSettings.priceRoundStep ?? 0
+  };
   const conditions = dent.conditions || {};
   const conditionsForCalc = userSettings.showPaintMaterial
     ? conditions
@@ -2235,7 +2279,7 @@ const quickPreliminaryPrice = computed(() => {
   if (quickStep.value >= 3) return 0; // Step 3: своя панель без цены
   return quickCurrentDentPrice.value;
 });
-const animatedQuickPrice = useAnimatedNumber(quickPreliminaryPrice, 300);
+const animatedQuickPrice = useAnimatedNumber(quickPreliminaryPrice, 300, 80);
 
 /** Estimated repair time in hours, updates in real-time from total price and hourly rate. */
 const estimatedRepairTime = computed(() => {
@@ -2302,6 +2346,7 @@ const getQuickDentTotal = (dentId) => {
 };
 
 const getQuickDentLabel = (dent) => (dent.shape === 'circle' ? 'Круг/Овал' : 'Полоса');
+const getHistoryDentLabel = (dent) => (dent?.type === 'circle' || dent?.shape === 'circle' ? 'Круг/Овал' : 'Полоса');
 
 // Helpers
 const formatCurrency = (v) => new Intl.NumberFormat('ru-RU').format(v);
@@ -2571,11 +2616,7 @@ function onPresetSelected(preset) {
 function getQuickDetectedShapeLabel(dent) {
   const w = Number(dent?.sizeLengthMm) || 0;
   const h = Number(dent?.sizeWidthMm) || 0;
-  if (w <= 0 || h <= 0) return '—';
-  const classified = classifyDamageShapeByRatio(w, h);
-  if (classified === 'stripe') return 'Полоса';
-  if (classified === 'round') return 'Круг';
-  return 'Овал';
+  return getShapeDisplayLabel(dent?.shape ?? dent?.type, w, h);
 }
 const formatDateTime = (iso) => {
   if (!iso) return '—';
@@ -2654,52 +2695,45 @@ function getEditablePriceKeys() {
 }
 
 function applyPriceRegulator(type, percentDelta) {
-  const factor = Math.max(0.5, Math.min(2, 1 + percentDelta / 100));
-  if (type === 'roundOval') {
-    const keys = initialData.circleSizes.map((s) => s.code);
-    const snapshot = {};
-    keys.forEach((k) => {
-      const v = userSettings.prices[k];
-      if (v != null && Number.isFinite(Number(v))) snapshot[k] = Number(v);
-    });
-    if (Object.keys(snapshot).length === 0) return;
-    keys.forEach((k) => {
-      const oldVal = userSettings.prices[k];
-      if (oldVal != null && Number.isFinite(Number(oldVal))) {
-        userSettings.prices[k] = Math.max(0, Math.round(Number(oldVal) * factor));
-      }
-    });
-    saveSettings();
-    haptic('success');
-    const label = percentDelta > 0 ? '+10%' : (percentDelta < 0 ? '−10%' : '0%');
-    showUndoToast(`Круг/Овал: цены ${label}`, () => {
-      keys.forEach((k) => { if (snapshot[k] != null) userSettings.prices[k] = snapshot[k]; });
-      saveSettings();
-      haptic('success');
-    });
-  } else {
-    const keys = initialData.stripSizes.map((s) => s.code);
-    const snapshot = {};
-    keys.forEach((k) => {
-      const v = userSettings.prices[k];
-      if (v != null && Number.isFinite(Number(v))) snapshot[k] = Number(v);
-    });
-    if (Object.keys(snapshot).length === 0) return;
-    keys.forEach((k) => {
-      const oldVal = userSettings.prices[k];
-      if (oldVal != null && Number.isFinite(Number(oldVal))) {
-        userSettings.prices[k] = Math.max(0, Math.round(Number(oldVal) * factor));
-      }
-    });
-    saveSettings();
-    haptic('success');
-    const label = percentDelta > 0 ? '+10%' : (percentDelta < 0 ? '−10%' : '0%');
-    showUndoToast(`Полоса/Царапина: цены ${label}`, () => {
-      keys.forEach((k) => { if (snapshot[k] != null) userSettings.prices[k] = snapshot[k]; });
-      saveSettings();
-      haptic('success');
-    });
+  // +10% / −10%: добавляют/вычитают 10 п.п. от базы (100→110→120…). 0%: сброс к 100%.
+  const sizes = type === 'roundOval' ? initialData.circleSizes : initialData.stripSizes;
+  const snapshot = {};
+  sizes.forEach((s) => {
+    const v = userSettings.prices[s.code];
+    if (v != null && Number.isFinite(Number(v))) snapshot[s.code] = Number(v);
+  });
+  if (Object.keys(snapshot).length === 0) return;
+
+  let sumRatio = 0;
+  let count = 0;
+  for (const s of sizes) {
+    const base = Number(s.basePrice);
+    const current = Number(userSettings.prices[s.code]);
+    if (base > 0 && Number.isFinite(current)) {
+      sumRatio += current / base;
+      count++;
+    }
   }
+  const currentPercent = count > 0 ? Math.round((sumRatio / count) * 100) : 100;
+
+  const newPercent = percentDelta === 0 ? 100 : Math.max(50, Math.min(200, currentPercent + percentDelta));
+  const factor = newPercent / 100;
+
+  sizes.forEach((s) => {
+    const base = Number(s.basePrice);
+    if (base > 0) {
+      userSettings.prices[s.code] = Math.max(0, Math.round(base * factor));
+    }
+  });
+  saveSettings();
+  haptic('success');
+  const label = percentDelta > 0 ? '+10%' : (percentDelta < 0 ? '−10%' : '0%');
+  const section = type === 'roundOval' ? 'Круг/Овал' : 'Полоса/Царапина';
+  showUndoToast(`${section}: цены ${label}`, () => {
+    sizes.forEach((s) => { if (snapshot[s.code] != null) userSettings.prices[s.code] = snapshot[s.code]; });
+    saveSettings();
+    haptic('success');
+  });
 }
 
 function startHistoryEdit() {
@@ -2715,6 +2749,10 @@ function startHistoryEdit() {
   historyEditDraft.inspectDate = client.date || '';
   historyEditDraft.inspectTime = client.time || '';
   historyEditDraft.comment = selectedHistory.value.comment || '';
+  const p = selectedHistory.value.prepayment;
+  historyEditDraft.prepayment = (p && typeof p === 'object')
+    ? { amount: Number(p.amount) || 0, method: ['cash', 'transfer', 'card'].includes(p.method) ? p.method : null }
+    : { amount: 0, method: null };
   isEditingHistory.value = true;
 }
 
@@ -2738,7 +2776,8 @@ async function saveHistoryEdit() {
         time: historyEditDraft.inspectTime
       },
       comment: historyEditDraft.comment,
-      clientMood: historyEditDraft.clientMood ?? null
+      clientMood: historyEditDraft.clientMood ?? null,
+      prepayment: historyEditDraft.prepayment ?? { amount: 0, method: null }
     });
     isEditingHistory.value = false;
     showToast('История обновлена ✅', 'success', 1800);
@@ -2781,6 +2820,7 @@ function resetDentsOnly() {
   estimateDraft.repairTimeHours = null;
   estimateDraft.discountPercent = null;
   estimateDraft.attachments = [];
+  estimateDraft.prepayment = { amount: 0, method: null };
   delete estimateDraft.id;
   activeQuickDentId.value = null;
   graphicsState.dents = [];
@@ -2854,7 +2894,8 @@ function buildEstimatePayload(mode) {
       discountPercent: discPct || 0,
       comment: estimateDraft.comment || '',
       attachments: estimateDraft.attachments || [],
-      clientMood: estimateDraft.clientMood ?? null
+      clientMood: estimateDraft.clientMood ?? null,
+      prepayment: estimateDraft.prepayment ?? { amount: 0, method: null }
     };
   }
   const dentItems = (estimateDraft.quickDents || []).map((d) => {
@@ -2882,7 +2923,8 @@ function buildEstimatePayload(mode) {
     rawTotal: totalPrice.value,
     discountPercent: discPct || 0,
     comment: estimateDraft.comment || '',
-    attachments: estimateDraft.attachments || []
+    attachments: estimateDraft.attachments || [],
+    prepayment: estimateDraft.prepayment ?? { amount: 0, method: null }
   };
 }
 
@@ -3325,6 +3367,10 @@ watch(selectedHistory, (rec) => {
   historyEditDraft.inspectTime = client.time || '';
   historyEditDraft.comment = rec.comment || '';
   historyEditDraft.clientMood = rec.clientMood ?? null;
+  const p = rec.prepayment;
+  historyEditDraft.prepayment = (p && typeof p === 'object')
+    ? { amount: Number(p.amount) || 0, method: ['cash', 'transfer', 'card'].includes(p.method) ? p.method : null }
+    : { amount: 0, method: null };
 }, { immediate: true });
 
 watch(

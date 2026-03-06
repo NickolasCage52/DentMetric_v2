@@ -123,7 +123,6 @@
 
       <!-- Price block -->
       <div class="qc-price-block">
-        <div class="qc-price-label">ПРЕДВАРИТЕЛЬНАЯ СТОИМОСТЬ</div>
         <div class="qc-price-value">{{ formatPrice(totalPrice) }} ₽</div>
       </div>
     </div>

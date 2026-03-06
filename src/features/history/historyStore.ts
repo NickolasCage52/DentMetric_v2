@@ -1,6 +1,4 @@
 import { ref } from 'vue';
-import { classifyDamageShapeByRatio } from '../../utils/shapeClassification';
-
 export const RECORD_SCHEMA_VERSION = 2;
 export const HISTORY_SCHEMA_VERSION = 1;
 export const STORAGE_KEY = `dentmetric_history_v${HISTORY_SCHEMA_VERSION}`;
@@ -132,11 +130,22 @@ export function normalizeHistoryRecord(raw: any): any | null {
 
     for (const dent of (normalized.dents as any)?.items ?? []) {
       if (!dent || typeof dent !== 'object') continue;
+      // Business rule: Stripe tables ONLY when user explicitly chose Полоса/Царапина.
+      // Do NOT infer strip from aspect ratio — when ambiguous, use circle/oval.
+      // Only correct strip→circle when ratio 1:1 (square dimensions).
       const w = Number(dent.bboxMm?.width ?? dent.sizeLengthMm) || 0;
       const h = Number(dent.bboxMm?.height ?? dent.sizeWidthMm) || 0;
-      if (w > 0 && h > 0 && classifyDamageShapeByRatio(w, h) === 'stripe') {
-        dent.type = 'strip';
-        dent.shape = 'strip';
+      const curType = dent.type ?? dent.shape;
+      if (curType === 'strip' && w > 0 && h > 0) {
+        const L = Math.max(w, h);
+        const H = Math.min(w, h);
+        const ratio = H > 0 ? L / H : 1;
+        if (Math.abs(ratio - 1) < 0.001) {
+          dent.type = 'circle';
+          dent.shape = 'circle';
+        }
+      } else if (!curType || curType === 'circle' || curType === 'strip') {
+        // Preserve existing type; do not override to strip based on ratio
       }
       if (dent.photoAssetKey == null) dent.photoAssetKey = null;
     }
@@ -154,6 +163,17 @@ export function normalizeHistoryRecord(raw: any): any | null {
         if (!d || typeof d !== 'object') return d;
         return { ...d, dentDiscount: d.dentDiscount ?? { enabled: false, value: 0 } };
       });
+    }
+
+    // Правка 11 — предоплата
+    if (!normalized.prepayment || typeof normalized.prepayment !== 'object') {
+      normalized.prepayment = { amount: 0, method: null };
+    } else {
+      const p = normalized.prepayment as Record<string, unknown>;
+      normalized.prepayment = {
+        amount: Number(p.amount) || 0,
+        method: ['cash', 'transfer', 'card'].includes(String(p.method || '')) ? p.method : null,
+      };
     }
 
     return normalized as any;
@@ -322,6 +342,7 @@ export function updateEstimate(id: string, partial: any) {
     if (partial.clientMood !== undefined) merged.clientMood = partial.clientMood;
     if (partial.orderDiscount !== undefined) merged.orderDiscount = partial.orderDiscount;
     if (partial.dents !== undefined) merged.dents = partial.dents;
+    if (partial.prepayment !== undefined) merged.prepayment = partial.prepayment;
     return merged;
   });
   persist(items);
