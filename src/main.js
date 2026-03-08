@@ -37,6 +37,7 @@ if (import.meta.env?.DEV) {
   runDevAudit()
   runDevAuditSettings()
   import('./utils/devAuditFull').then((m) => m.runFullAudit())
+  import('./utils/devAuditMath').then((m) => m.runMathAudit())
   import('./utils/devAuditAccount').then((m) => m.runAccountAudit())
   fetch('/meta.json')
     .then((r) => (r.ok ? null : Promise.reject(new Error(`${r.status}`))))

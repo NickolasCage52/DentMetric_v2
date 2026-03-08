@@ -2601,6 +2601,9 @@ async function openQuickManualSize(dent) {
 
 function applyDamagePreset(dent, preset) {
   if (!dent || !preset) return;
+  const shape = preset.group === 'stripe' ? 'strip' : 'circle';
+  dent.shape = shape;
+  dent.sizeCode = null;
   dent.sizeLengthMm = preset.widthMm;
   dent.sizeWidthMm = preset.heightMm;
   dent.sizeInputMode = 'preset';

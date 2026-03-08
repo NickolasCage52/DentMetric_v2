@@ -5,6 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   calculateDentPrice,
+  calculateDentBasePrice,
   normalizeDimensions,
   normalizeGraphicsDentsForPricing,
   isStripeCase,
@@ -14,6 +15,7 @@ import {
 import { calcTotalPrice, roundPrice } from '../src/utils/priceCalc';
 import { initialData } from '../src/data/initialData';
 import { circleSizesWithArea, stripSizesWithArea } from '../src/data/dentSizes';
+import { STRIPE_PRESETS } from '../src/data/sizePresets';
 
 const prices = {};
 initialData.circleSizes.forEach((s) => {
@@ -48,6 +50,10 @@ describe('pricingAdapter', () => {
     it('ratio 1:1, type stripe → NOT stripe (circle/oval path)', () => {
       expect(isStripeCase('stripe', 10, 10)).toBe(false);
       expect(isStripeCase('strip', 100, 100)).toBe(false);
+    });
+    it('accepts shape strip (from applyDamagePreset preset.group=stripe)', () => {
+      expect(isStripeCase('strip', 180, 20)).toBe(true);
+      expect(isStripeCase('strip', 300, 40)).toBe(true);
     });
     it('stripe 30×4 (ratio 7.5) → stripe', () => {
       expect(isStripeCase('stripe', 30, 4)).toBe(true);
@@ -183,6 +189,24 @@ describe('pricingAdapter', () => {
       );
       expect(circleResult.base).toBeGreaterThan(0);
       expect(circleResult.sizeCode).not.toMatch(/^STRIPE_/);
+    });
+
+    it('stripe preset L18 (180×20) with shape strip uses stripe tables', () => {
+      const preset = STRIPE_PRESETS.find((p) => p.widthMm === 180 && p.heightMm === 20);
+      expect(preset).toBeDefined();
+      expect(preset.group).toBe('stripe');
+      const shape = preset.group === 'stripe' ? 'strip' : 'circle';
+      expect(shape).toBe('strip');
+
+      const base = calculateDentBasePrice(
+        shape,
+        preset.widthMm,
+        preset.heightMm,
+        stripSizesWithArea,
+        prices,
+        { conditions, initialData }
+      );
+      expect(base).toBe(15000);
     });
 
     it('strip 10×10 (ratio 1:1) uses circle/oval pricing, not stripe tables', () => {
