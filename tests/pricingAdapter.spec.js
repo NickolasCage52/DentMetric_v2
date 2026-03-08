@@ -104,9 +104,10 @@ describe('pricingAdapter', () => {
       expect(quickResult.total).toBe(detailTotal);
     });
 
-    it('strip 80×10 with identical coefficients produces same total', () => {
+    it('strip 80×20 with identical coefficients produces same total (dimension-based shape)', () => {
+      // 80×20 mm = 8×2 cm — в диапазоне stripe-таблиц. Тип определяется по размерам, не по preset.
       const widthMm = 80;
-      const heightMm = 10;
+      const heightMm = 20;
       const shape = 'strip';
 
       const ctx = {

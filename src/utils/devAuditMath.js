@@ -8,8 +8,30 @@ export async function runMathAudit() {
 
   const { getStripePrice } = await import('../pricing/stripePricing');
   const { isStripeCase } = await import('../features/pricing/pricingAdapter');
+  const { resolveDentShapeType } = await import('./resolveDentShapeType');
 
   console.group('[DentMetric Math Audit - Self Check]');
+
+  // resolveDentShapeType — тип ТОЛЬКО по размерам, не от пресета
+  const shapeTests = [
+    { l: 300, w: 40, expected: 'stripe', label: '300×40 → stripe' },
+    { l: 200, w: 20, expected: 'stripe', label: '200×20 → stripe' },
+    { l: 80, w: 20, expected: 'stripe', label: '80×20 → stripe' },
+    { l: 100, w: 40, expected: 'stripe', label: '100×40 → stripe' },
+    { l: 100, w: 100, expected: 'oval', label: '100×100 → oval (ratio=1)' },
+    { l: 50, w: 50, expected: 'oval', label: '50×50 → oval' },
+    { l: 80, w: 70, expected: 'oval', label: '80×70 → oval (near-square)' },
+    { l: 30, w: 5, expected: 'oval', label: '30×5 → oval (ширина вне диапазона)' },
+    { l: 0, w: 0, expected: 'oval', label: '0×0 → oval (fallback)' }
+  ];
+  shapeTests.forEach(({ l, w, expected, label }) => {
+    const actual = resolveDentShapeType(l, w);
+    if (actual !== expected) {
+      console.error(`FAIL [resolveDentShapeType]: ${label} → получено "${actual}", ожидалось "${expected}"`);
+    } else {
+      console.log(`OK: ${label}`);
+    }
+  });
 
   // CLASSIFICATION (shape 'strip' = from applyDamagePreset preset.group='stripe')
   if (isStripeCase('strip', 10, 10)) {

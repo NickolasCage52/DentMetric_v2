@@ -305,6 +305,7 @@ import QuickStyleClientSection from '../quickStyle/QuickStyleClientSection.vue';
 import QuickStyleConditionsSection from '../quickStyle/QuickStyleConditionsSection.vue';
 import QuickStyleFinalSection from '../quickStyle/QuickStyleFinalSection.vue';
 import { calculateDentPrice as calcDentViaAdapter } from '../../features/pricing/pricingAdapter';
+import { resolveDentShapeType } from '../../utils/resolveDentShapeType';
 import { formatArmaturnayaSummary, getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks';
 import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from '../../utils/armatureSelection';
 import { generateRecordId } from '../../features/history/historyStore';
@@ -546,7 +547,8 @@ const detailLineItems = computed(() => {
     const bbox = dent?.bboxMm || {};
     const w = Number(bbox.width) || 0;
     const h = Number(bbox.height) || 0;
-    const shape = dent?.type === 'strip' ? 'strip' : 'circle';
+    const resolved = w > 0 && h > 0 ? resolveDentShapeType(w, h) : null;
+    const shape = dent?.type === 'freeform' ? 'circle' : (resolved === 'stripe' ? 'strip' : 'circle');
     const conditions = props.userSettings?.showPaintMaterial !== false ? cond : { ...cond, paintMaterialCode: null };
     const result = calcDentViaAdapter(
       { shape, widthMm: w, heightMm: h, conditions, panelElement: props.selectedPart?.name },

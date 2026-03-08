@@ -160,6 +160,7 @@
 <script setup>
 import { computed, ref, inject } from 'vue';
 import { getShapeDisplayLabel } from '../../features/pricing/pricingAdapter';
+import { getResolvedShapeDisplayLabel } from '../../utils/resolveDentShapeType';
 
 const openInputModal = inject('openInputModal');
 
@@ -222,9 +223,9 @@ const computedRatio = computed(() => {
 const computedShapeType = computed(() => {
   const w = Number(props.sizeWidthMm) || 0;
   const h = Number(props.sizeHeightMm) || 0;
-  const type = props.selectedDentSize?.type ?? 'circle';
-  const label = getShapeDisplayLabel(type, w, h);
-  return label !== '—' ? label : null;
+  if (w <= 0 || h <= 0) return null;
+  const label = getResolvedShapeDisplayLabel(w, h);
+  return label;
 });
 
 async function openWidthModal() {

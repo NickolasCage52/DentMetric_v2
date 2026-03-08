@@ -4,6 +4,7 @@
  * Формулы и таблицы коэффициентов НЕ изменяются — только унификация входа и выхода.
  */
 import { getBasePriceByMm, getSizeCodeForMatrix } from '../../utils/priceAdapter';
+import { resolveDentShapeType } from '../../utils/resolveDentShapeType';
 import { applyConditionsToBase, buildBreakdown, roundPrice } from '../../utils/priceCalc';
 import { getArmaturnayaTotalPrice } from '../../data/armaturnayaWorks';
 import { calculateStripePrice, calculateStripePriceFromUserBase } from '../../utils/stripeCalc';
@@ -200,8 +201,8 @@ export function normalizeGraphicsDentsForPricing(dents, context) {
     const bbox = d.bboxMm || {};
     const w = Number(bbox.width) || 0;
     const h = Number(bbox.height) || 0;
-    const type = d.type === 'freeform' ? 'circle' : (d.type || 'circle');
-    const shape = type === 'strip' ? 'strip' : 'circle';
+    const resolved = w > 0 && h > 0 ? resolveDentShapeType(w, h) : null;
+    const shape = d.type === 'freeform' ? 'circle' : (resolved === 'stripe' ? 'strip' : 'circle');
     const useStripe = shape === 'strip' && isStripeCase(shape, w, h);
     const sizes = useStripe ? stripSizes : circleSizes;
     if (w <= 0 || h <= 0) return d;

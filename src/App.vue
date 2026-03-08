@@ -1400,7 +1400,8 @@ import { CAR_PARTS } from './data/carParts';
 import { getPartsByClass } from './data/partsCatalog';
 import { circleSizesMm, stripSizesMm, circleSizesWithArea, stripSizesWithArea } from './data/dentSizes';
 import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown } from './utils/priceCalc';
-import { calculateDentPrice as calcDentViaAdapter, normalizeGraphicsDentsForPricing, normalizeDimensions, getShapeDisplayLabel } from './features/pricing/pricingAdapter';
+import { calculateDentPrice as calcDentViaAdapter, normalizeGraphicsDentsForPricing, normalizeDimensions } from './features/pricing/pricingAdapter';
+import { resolveDentShapeType, getResolvedShapeDisplayLabel } from './utils/resolveDentShapeType';
 import { applyPriceRoundingCeil, PRICE_ROUND_OPTIONS } from './utils/priceRounding';
 import { applyDiscount, clampDiscount } from './utils/discount';
 import { calculateSessionTotalWithMultiDentRule } from './utils/multiDentAggregation';
@@ -1891,8 +1892,7 @@ function getSizeListForShape(shape) {
 
 function syncQuickDentMmFromSizeCode(dent) {
   if (!dent.sizeCode) return;
-  const sizes = dent.shape === 'circle' ? circleSizesMm : stripSizesMm;
-  const size = sizes.find((s) => s.code === dent.sizeCode);
+  const size = circleSizesMm.find((s) => s.code === dent.sizeCode) || stripSizesMm.find((s) => s.code === dent.sizeCode);
   if (!size?.mm) return;
   dent.sizeLengthMm = size.mm.w;
   dent.sizeWidthMm = size.mm.h;
@@ -1908,17 +1908,11 @@ function syncQuickDentSizeFromMm(dent) {
   const l = Number(dent.sizeLengthMm) || 0;
   const w = Number(dent.sizeWidthMm) || 0;
   if (l > 0 && w > 0) {
-    // Business rule: Stripe ONLY when user explicitly chose Полоса. Never convert circle→strip by ratio.
-    // Only convert strip→circle when ratio 1:1 (square → treat as circle).
-    if (dent.shape === 'strip') {
-      const L = Math.max(l, w);
-      const H = Math.min(l, w);
-      const ratio = H > 0 ? L / H : 1;
-      if (Math.abs(ratio - 1) < 0.001) dent.shape = 'circle';
-    }
+    const resolved = resolveDentShapeType(l, w);
+    const shapeForCode = resolved === 'stripe' ? 'strip' : 'circle';
+    const sizeCode = getSizeCodeFromMm(shapeForCode, dent.sizeLengthMm, dent.sizeWidthMm);
+    if (sizeCode) dent.sizeCode = sizeCode;
   }
-  const sizeCode = getSizeCodeFromMm(dent.shape, dent.sizeLengthMm, dent.sizeWidthMm);
-  if (sizeCode) dent.sizeCode = sizeCode;
 }
 
 function ensureInspectDateTime() {
@@ -2143,7 +2137,8 @@ const graphicsStripSizes = computed(() => {
 const quickDentTotals = computed(() => estimateDraft.quickDents.map((dent) => {
   const w = Number(dent.sizeLengthMm) || 0;
   const h = Number(dent.sizeWidthMm) || 0;
-  const shape = dent.shape === 'circle' ? 'circle' : 'strip';
+  const resolved = resolveDentShapeType(w, h);
+  const shape = resolved === 'stripe' ? 'strip' : 'circle';
   const ctx = {
     sizesWithArea: shape === 'circle' ? circleSizesWithArea : stripSizesWithArea,
     circleSizesWithArea,
@@ -2345,8 +2340,22 @@ const getQuickDentTotal = (dentId) => {
   return item?.total || 0;
 };
 
-const getQuickDentLabel = (dent) => (dent.shape === 'circle' ? 'Круг/Овал' : 'Полоса');
-const getHistoryDentLabel = (dent) => (dent?.type === 'circle' || dent?.shape === 'circle' ? 'Круг/Овал' : 'Полоса');
+const getQuickDentLabel = (dent) => {
+  const l = Number(dent?.sizeLengthMm) || 0;
+  const w = Number(dent?.sizeWidthMm) || 0;
+  if (l > 0 && w > 0) {
+    return resolveDentShapeType(l, w) === 'stripe' ? 'Полоса' : 'Круг/Овал';
+  }
+  return dent?.shape === 'circle' ? 'Круг/Овал' : 'Полоса';
+};
+const getHistoryDentLabel = (dent) => {
+  const l = Number(dent?.sizeLengthMm ?? dent?.bboxMm?.width) || 0;
+  const w = Number(dent?.sizeWidthMm ?? dent?.bboxMm?.height) || 0;
+  if (l > 0 && w > 0) {
+    return resolveDentShapeType(l, w) === 'stripe' ? 'Полоса' : 'Круг/Овал';
+  }
+  return dent?.type === 'circle' || dent?.shape === 'circle' ? 'Круг/Овал' : 'Полоса';
+};
 
 // Helpers
 const formatCurrency = (v) => new Intl.NumberFormat('ru-RU').format(v);
@@ -2619,7 +2628,7 @@ function onPresetSelected(preset) {
 function getQuickDetectedShapeLabel(dent) {
   const w = Number(dent?.sizeLengthMm) || 0;
   const h = Number(dent?.sizeWidthMm) || 0;
-  return getShapeDisplayLabel(dent?.shape ?? dent?.type, w, h);
+  return getResolvedShapeDisplayLabel(w, h);
 }
 const formatDateTime = (iso) => {
   if (!iso) return '—';
