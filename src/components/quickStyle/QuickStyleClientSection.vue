@@ -25,6 +25,12 @@
           <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="$emit('open-field', 'clientPhone', 'Телефон', 'tel', 'Телефон')">
             <span class="truncate text-[12px] font-semibold" :class="model.clientPhone ? 'text-white' : 'text-gray-400'">{{ model.clientPhone || 'Телефон' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
           </button>
+          <ClientFoundCard
+            v-if="historyEnabled && foundClient"
+            :client="foundClient"
+            @open-history="$emit('open-history')"
+            @autofill-client="$emit('autofill-client', $event)"
+          />
           <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="$emit('open-field', 'clientCompany', 'Компания (необязательно)', 'text', 'Компания')">
             <span class="truncate text-[12px] font-semibold" :class="model.clientCompany ? 'text-white' : 'text-gray-400'">{{ model.clientCompany || 'Компания (необязательно)' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
           </button>
@@ -70,15 +76,18 @@
 
 <script setup>
 import InfoIcon from '../InfoIcon.vue';
+import ClientFoundCard from '../ClientFoundCard.vue';
 
 defineProps({
   model: { type: Object, required: true },
   clientRequired: { type: Boolean, default: false },
   canNext: { type: Boolean, default: true },
-  showInfoTooltips: { type: Boolean, default: true }
+  showInfoTooltips: { type: Boolean, default: true },
+  historyEnabled: { type: Boolean, default: false },
+  foundClient: { type: Object, default: null }
 });
 
-defineEmits(['back', 'next', 'open-field', 'reset-client']);
+defineEmits(['back', 'next', 'open-field', 'reset-client', 'open-history', 'autofill-client']);
 </script>
 
 <style scoped>

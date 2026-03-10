@@ -88,18 +88,26 @@
         :client-required="clientRequired"
         :can-next="clientValid"
         :show-info-tooltips="userSettings?.showInfoTooltips !== false"
+        :history-enabled="props.historyEnabled"
+        :found-client="detailFoundClient"
         @next="() => goToStep(2)"
         @back="goBack"
         @open-field="onQuickStyleOpenField"
         @reset-client="resetClientFields"
+        @open-history="openClientHistorySheet"
+        @autofill-client="handleAutofillClient"
       />
       <Step0ClientPanel
         v-else-if="!props.useQuickUiInDetail && wizardStep === 1 && props.showClientStep"
         :model="props.estimateDraft"
         :client-required="clientRequired"
         :can-next="clientValid"
+        :history-enabled="props.historyEnabled"
+        :found-client="detailFoundClient"
         @next="() => goToStep(2)"
         @back="goBack"
+        @open-history="openClientHistorySheet"
+        @autofill-client="handleAutofillClient"
       />
       <Step1PlacementPanel
         v-else-if="(wizardStep === 2 || (wizardStep === 1 && !props.showClientStep)) && !freeformPhotoMode"
@@ -167,7 +175,7 @@
         :initial-data="initialData"
         :format-armaturnaya-summary="formatArmaturnayaSummary"
         :comment="estimateDraft.comment"
-        :discount-percent="clampDiscount(estimateDraft.discountPercent)"
+        :discount-percent="undefined"
         :history-saving="historySaving"
         :record-id="estimateDraft.id || ''"
         :attachments="estimateDraft.attachments || []"
@@ -177,7 +185,7 @@
         @back="goBack"
         @save="onSaveHistory"
         @book="onSaveHistory"
-        @open-discount="openDetailDiscountModal"
+        @open-discount="(dentItem) => openDetailDiscountModal(dentItem)"
         @open-comment="openDetailCommentModal"
         @update:attachments="(v) => (estimateDraft.attachments = v)"
         @update:client-mood="(v) => (estimateDraft.clientMood = v)"
@@ -260,13 +268,20 @@
       @confirm="onFreeformConfirm"
       @cancel="closeFreeformModal"
     />
+    <ClientHistorySheet
+      v-if="props.historyEnabled"
+      :is-open="isDetailHistorySheetOpen"
+      :records="detailFoundClient?.allRecords ?? []"
+      @close="isDetailHistorySheetOpen = false"
+      @open-record="openRecordFromSheet"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount, inject } from 'vue';
 
-const emit = defineEmits(['update:selectedClassId', 'update:selectedPartId', 'close', 'dents-change', 'home', 'save-history']);
+const emit = defineEmits(['update:selectedClassId', 'update:selectedPartId', 'close', 'dents-change', 'home', 'save-history', 'open-record']);
 import {
   initKonva,
   destroyKonva,
@@ -291,6 +306,7 @@ import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown, roundPrice, get
 import { normalizeGraphicsDentsForPricing, isRatioOneToOne } from '../../features/pricing/pricingAdapter';
 import { applyPriceRoundingCeil } from '../../utils/priceRounding';
 import { applyDiscount, clampDiscount } from '../../utils/discount';
+import { calculateEstimateTotals } from '../../utils/calculateEstimateTotals';
 import { calculateSessionTotalWithMultiDentRule } from '../../utils/multiDentAggregation';
 import { getPriceMultiplier } from '../../utils/settingsUtils';
 import StepHeader from './StepHeader.vue';
@@ -308,7 +324,10 @@ import { calculateDentPrice as calcDentViaAdapter } from '../../features/pricing
 import { resolveDentShapeType } from '../../utils/resolveDentShapeType';
 import { formatArmaturnayaSummary, getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks';
 import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from '../../utils/armatureSelection';
-import { generateRecordId } from '../../features/history/historyStore';
+import { generateRecordId, loadHistory } from '../../features/history/historyStore';
+import { applyClientFields } from '../../utils/clientSearch';
+import { useClientSearch } from '../../composables/useClientSearch';
+import ClientHistorySheet from '../ClientHistorySheet.vue';
 import { getAttachment, saveAttachment, generateMatrixAttachmentKey } from '../../utils/attachmentStorage';
 
 const props = defineProps({
@@ -329,11 +348,32 @@ const props = defineProps({
   clientValid: { type: Boolean, default: true },
   showClientStep: { type: Boolean, default: true },
   autoSave: { type: Boolean, default: false },
-  useQuickUiInDetail: { type: Boolean, default: true }
+  useQuickUiInDetail: { type: Boolean, default: true },
+  historyEnabled: { type: Boolean, default: false }
 });
 
 const openInputModal = inject('openInputModal');
 const openSelectModal = inject('openSelectModal');
+
+const { foundClient: detailFoundClient, searchByPhone, searchByName } = useClientSearch(() => loadHistory());
+const isDetailHistorySheetOpen = ref(false);
+
+watch(() => props.estimateDraft?.clientPhone, (phone) => {
+  searchByPhone(phone ?? '');
+}, { immediate: true });
+
+watch(() => props.estimateDraft?.clientName, (name) => {
+  if (!detailFoundClient.value) searchByName(name ?? '');
+});
+
+function openClientHistorySheet() {
+  if (detailFoundClient.value) isDetailHistorySheetOpen.value = true;
+}
+
+function openRecordFromSheet(record) {
+  isDetailHistorySheetOpen.value = false;
+  if (record?.id) emit('open-record', record);
+}
 
 async function openClientField(field, label, inputType) {
   const value = await openInputModal({
@@ -502,9 +542,13 @@ const totalPriceRaw = computed(() => {
   });
   return Math.max(0, aggregated + disCost + soundCost);
 });
-const totalPrice = computed(() =>
-  applyDiscount(totalPriceRaw.value, clampDiscount(props.estimateDraft?.discountPercent))
-);
+const totalPrice = computed(() => {
+  const hasPerDentDiscounts = props.estimateDraft?.dentDiscounts && Object.keys(props.estimateDraft.dentDiscounts).some((k) => props.estimateDraft.dentDiscounts[k] != null && props.estimateDraft.dentDiscounts[k] > 0);
+  if (hasPerDentDiscounts && detailLineItems.value?.length > 0) {
+    return detailLineItems.value.reduce((s, d) => s + (d.rawDiscounted ?? 0), 0);
+  }
+  return applyDiscount(totalPriceRaw.value, clampDiscount(props.estimateDraft?.discountPercent));
+});
 const preDiscountTotal = computed(() =>
   applyPriceRoundingCeil(totalPriceRaw.value, props.userSettings?.priceRoundStep ?? 0)
 );
@@ -577,14 +621,35 @@ const detailLineItems = computed(() => {
     secondDentDiscountPercent: props.userSettings?.secondDentDiscountPercent
   });
   const roundStep = props.userSettings?.priceRoundStep ?? 0;
-  const discPct = clampDiscount(props.estimateDraft?.discountPercent);
+  const dentInputs = filtered.map((item, idx) => {
+    const dentPct = clampDiscount(
+      props.estimateDraft?.dentDiscounts?.[item.dent?.id] ?? item.dent?.discountPercent ?? props.estimateDraft?.discountPercent ?? 0
+    );
+    return {
+      id: item.dent?.id ?? `d${idx}`,
+      basePrice: item.base ?? 0,
+      subtotal: weightedTotals[idx] ?? item.total,
+      discountPercent: dentPct
+    };
+  });
+  const totals = calculateEstimateTotals(dentInputs, 0);
   return filtered.map((item, idx) => {
-    const rawApplied = weightedTotals[idx] ?? item.total;
-    const afterDiscount = applyDiscount(rawApplied, discPct);
+    const t = totals.dents[idx];
     const applied = roundStep > 0
-      ? applyPriceRoundingCeil(afterDiscount, roundStep)
-      : Math.round(afterDiscount);
-    return { ...item, appliedTotal: applied, rawDiscounted: afterDiscount, preDiscountTotal: Math.round(rawApplied), discount: idx > 0, discountPercent: discPct };
+      ? applyPriceRoundingCeil(t?.final ?? 0, roundStep)
+      : Math.round(t?.final ?? 0);
+    const dentPct = clampDiscount(
+      props.estimateDraft?.dentDiscounts?.[item.dent?.id] ?? item.dent?.discountPercent ?? props.estimateDraft?.discountPercent ?? 0
+    );
+    return {
+      ...item,
+      appliedTotal: applied,
+      rawDiscounted: t?.final ?? 0,
+      preDiscountTotal: t?.subtotal ?? 0,
+      discount: idx > 0,
+      discountPercent: dentPct,
+      discountAmount: t?.discountAmount ?? 0
+    };
   });
 });
 
@@ -599,6 +664,11 @@ function resetClientFields() {
   props.estimateDraft.carBrand = '';
   props.estimateDraft.carModel = '';
   props.estimateDraft.carPlate = '';
+}
+
+function handleAutofillClient(fields) {
+  if (!fields || typeof fields !== 'object') return;
+  applyClientFields(props.estimateDraft, fields);
 }
 
 async function onQuickStyleOpenField(field, label, inputType, placeholder) {
@@ -643,18 +713,29 @@ async function onQuickStylePickArmature() {
   props.form.disassemblyCodes = normalizeArmatureWorkIds(selected);
 }
 
-async function openDetailDiscountModal() {
+async function openDetailDiscountModal(dentItem) {
+  const dent = dentItem?.dent;
+  const dentId = dent?.id;
+  const currentVal = dentId
+    ? (props.estimateDraft.dentDiscounts?.[dentId] ?? dent.discountPercent ?? '')
+    : (props.estimateDraft.discountPercent ?? '');
   const value = await openInputModal({
     title: 'Скидка',
-    label: 'Скидка (%)',
-    value: props.estimateDraft.discountPercent ?? '',
+    label: dentId ? 'Скидка для вмятины (%)' : 'Скидка (%)',
+    value: currentVal,
     inputType: 'number',
     placeholder: '0',
     min: 0,
     max: 100
   });
   if (value === undefined) return;
-  props.estimateDraft.discountPercent = value === '' || value === null ? null : clampDiscount(value);
+  if (!props.estimateDraft.dentDiscounts) props.estimateDraft.dentDiscounts = {};
+  if (dentId) {
+    props.estimateDraft.dentDiscounts[dentId] =
+      value === '' || value === null ? null : clampDiscount(value);
+  } else {
+    props.estimateDraft.discountPercent = value === '' || value === null ? null : clampDiscount(value);
+  }
 }
 
 async function openDetailCommentModal() {
@@ -1132,7 +1213,7 @@ onBeforeUnmount(() => {
   destroyKonva();
 });
 
-defineExpose({ resetDentsOnly });
+defineExpose({ resetDentsOnly, totalPrice });
 </script>
 
 <style scoped>

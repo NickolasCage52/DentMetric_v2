@@ -28,11 +28,11 @@
           <div class="qc-bk-sep"></div>
           <div class="qc-bk-row">
             <span class="qc-bk-label">Скидка:</span>
-            <button type="button" class="qc-discount-input" @click="$emit('open-discount')">
-              <span>{{ discountPercent ?? '—' }}</span>
+            <button type="button" class="qc-discount-input" @click="$emit('open-discount', dentItem)">
+              <span>{{ dentItem.discountPercent ?? '—' }}</span>
             </button>
             <span class="text-gray-500 text-[11px]">%</span>
-            <span v-if="dentItem.discountPercent > 0" class="qc-bk-delta text-amber-400 text-[11px]">−{{ formatPrice((dentItem.preDiscountTotal || 0) - (dentItem.appliedTotal || 0)) }} ₽</span>
+            <span v-if="dentItem.discountPercent > 0" class="qc-bk-delta text-amber-400 text-[11px]">−{{ formatPrice(dentItem.discountAmount ?? ((dentItem.preDiscountTotal || 0) - (dentItem.appliedTotal || 0))) }} ₽</span>
           </div>
           <div class="qc-bk-sep qc-bk-sep--strong"></div>
           <div class="qc-bk-row qc-bk-row--total">

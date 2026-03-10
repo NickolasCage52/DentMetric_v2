@@ -5,6 +5,7 @@
 import {
   safeLoadHistory,
   safeSaveHistory,
+  loadHistory,
   normalizeRecord,
   STORAGE_KEY
 } from '../features/history/historyStore';
@@ -17,7 +18,10 @@ export async function runFullAudit() {
   console.group('[DentMetric Full Audit]');
 
   // === ИСТОРИЯ ===
+  // КРИТИЧНО: не перезаписывать историю пользователя! Тест выполняется на копии, затем восстанавливаем оригинал.
+  let historyBackup = null;
   try {
+    historyBackup = localStorage.getItem(STORAGE_KEY);
     const r10 = Array.from({ length: 10 }, (_, i) =>
       normalizeRecord({ client: { name: `C${i}` }, total: i * 1000, totalEstimate: i * 1000 })
     ).filter(Boolean);
@@ -27,8 +31,16 @@ export async function runFullAudit() {
     if (!loaded.every((r) => r?.id)) throw new Error('History: not all have id');
     if (!loaded.every((r) => r?.status)) throw new Error('History: not all have status');
     console.log('History 10 records: OK');
+    // Восстановить оригинальную историю пользователя и синхронизировать store
+    if (historyBackup !== null) localStorage.setItem(STORAGE_KEY, historyBackup);
+    else localStorage.removeItem(STORAGE_KEY);
+    loadHistory(true);
   } catch (e) {
     console.error('History 10 records FAILED:', e);
+    // При ошибке тоже восстановить
+    if (historyBackup !== null) localStorage.setItem(STORAGE_KEY, historyBackup);
+    else localStorage.removeItem(STORAGE_KEY);
+    loadHistory(true);
   }
 
   try {

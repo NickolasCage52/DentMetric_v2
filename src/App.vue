@@ -159,6 +159,12 @@
                   <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openClientField('clientPhone', 'Телефон', 'tel', 'Телефон')">
                     <span class="truncate text-[12px] font-semibold" :class="estimateDraft.clientPhone ? 'text-white' : 'text-gray-400'">{{ estimateDraft.clientPhone || 'Телефон' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
                   </button>
+                  <ClientFoundCard
+                    v-if="requireFeature('historyEnabled')"
+                    :client="foundClient"
+                    @open-history="openClientHistory"
+                    @autofill-client="handleAutofillClient"
+                  />
                   <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openClientField('clientCompany', 'Компания (необязательно)', 'text', 'Компания')">
                     <span class="truncate text-[12px] font-semibold" :class="estimateDraft.clientCompany ? 'text-white' : 'text-gray-400'">{{ estimateDraft.clientCompany || 'Компания (необязательно)' }}</span><span class="text-gray-500 shrink-0 text-sm">✎</span>
                   </button>
@@ -484,12 +490,12 @@
                     <button
                       type="button"
                       class="qc-discount-input"
-                      @click="openDiscountModal()"
+                      @click="openDiscountModal(dentItem.dent)"
                     >
-                      <span>{{ estimateDraft.discountPercent ? estimateDraft.discountPercent : '—' }}</span>
+                      <span>{{ (dentItem.dent?.discountPercent ?? dentItem.discountPercent) ? (dentItem.dent?.discountPercent ?? dentItem.discountPercent) : '—' }}</span>
                     </button>
                     <span class="text-gray-500 text-[11px]">%</span>
-                    <span v-if="dentItem.discountPercent > 0" class="qc-bk-delta text-amber-400 text-[11px]">−{{ formatCurrency(dentItem.preDiscountTotal - dentItem.appliedTotal) }} ₽</span>
+                    <span v-if="dentItem.discountPercent > 0" class="qc-bk-delta text-amber-400 text-[11px]">−{{ formatCurrency(dentItem.discountAmount ?? (dentItem.preDiscountTotal - dentItem.appliedTotal)) }} ₽</span>
                   </div>
                   <div class="qc-bk-sep qc-bk-sep--strong"></div>
                   <!-- Total -->
@@ -564,6 +570,8 @@
           @close="closeEditor"
           @dents-change="(d) => graphicsState.dents = d"
         @save-history="saveCurrentEstimate('detail')"
+        :history-enabled="requireFeature('historyEnabled')"
+        @open-record="openRecordFromSheet"
         />
       </div>
 
@@ -626,6 +634,10 @@
 
     <!-- Section: History: same structure as Settings/Info — header first, then content -->
     <div v-if="currentSection === 'history' && !selectedHistory" class="content-padding-bottom p-4 flex flex-col min-h-0 overflow-hidden" style="flex:1">
+      <div v-if="postSaveAnalytics" class="post-save-hint mb-3">
+        <span class="post-save-hint__icon">📊</span>
+        <span class="post-save-hint__text">{{ postSaveAnalytics.message }}</span>
+      </div>
       <div class="app-header-logo-bar shrink-0">
         <div class="app-header-logo-bar__left">
           <button
@@ -678,15 +690,13 @@
         <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" onerror="this.style.display='none'">
         <div class="app-header-logo-bar__right"></div>
       </div>
-      <!-- Данные клиента — первым блоком (PDF стр. 5-6) -->
-      <ClientInfoBlock :client="selectedHistory.client || {}" />
       <div class="card-metallic rounded-2xl p-4 space-y-2">
         <div class="text-xs text-gray-400 uppercase tracking-widest">Сохранённая оценка</div>
         <div class="flex justify-between text-sm"><span class="text-gray-400">Дата:</span><span class="text-white font-medium">{{ formatDateTime(selectedHistory.createdAt) }}</span></div>
         <div class="flex justify-between text-sm"><span class="text-gray-400">Режим:</span><span class="text-white font-medium">{{ selectedHistory.mode === 'detail' ? 'Детализация' : 'Быстрый расчёт' }}</span></div>
         <div class="flex justify-between text-sm"><span class="text-gray-400">Элемент:</span><span class="text-white font-medium">{{ selectedHistory.element || '—' }}</span></div>
         <div v-if="selectedHistory.discountPercent > 0" class="flex justify-between text-sm"><span class="text-amber-400">Скидка:</span><span class="text-amber-400 font-medium">−{{ selectedHistory.discountPercent }}%</span></div>
-        <div class="flex justify-between text-sm"><span class="text-gray-400">Итог:</span><span class="text-metric-green font-bold">{{ formatCurrency(selectedHistory.total || 0) }} ₽</span></div>
+        <div class="flex justify-between text-sm"><span class="text-gray-400">Итог:</span><span class="text-metric-green font-bold">{{ formatCurrency(historyDisplayTotal) }} ₽</span></div>
       </div>
       <div v-if="!isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-2">
         <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Клиент</div>
@@ -734,7 +744,7 @@
       <!-- Блок расчёта 1-в-1 как финальный экран (Quick step 3) -->
       <div v-if="!isEditingHistory" class="price-grand-total card-metallic rounded-xl flex justify-between items-center px-5 py-4 mb-2">
         <span class="pgt-label text-[14px] text-gray-500">Итого по всем повреждениям</span>
-        <span class="pgt-amount text-[24px] font-bold text-metric-green tabular-nums">{{ formatCurrency(selectedHistory?.total || 0) }} ₽</span>
+        <span class="pgt-amount text-[24px] font-bold text-metric-green tabular-nums">{{ formatCurrency(historyDisplayTotal) }} ₽</span>
       </div>
       <template v-for="(dentItem, idx) in historyLineItems" :key="dentItem.dent?.id || idx">
         <div class="space-y-1">
@@ -760,7 +770,7 @@
             <div class="qc-bk-row">
               <span class="qc-bk-label">Скидка:</span>
               <span class="qc-bk-value flex-1 text-gray-500 text-[11px]">{{ dentItem.discountPercent ? dentItem.discountPercent : '—' }}%</span>
-              <span v-if="dentItem.discountPercent > 0" class="qc-bk-delta text-amber-400 text-[11px]">−{{ formatCurrency((dentItem.preDiscountTotal || dentItem.appliedTotal) - dentItem.appliedTotal) }} ₽</span>
+              <span v-if="dentItem.discountPercent > 0" class="qc-bk-delta text-amber-400 text-[11px]">−{{ formatCurrency(dentItem.discountAmount ?? ((dentItem.preDiscountTotal || dentItem.appliedTotal) - dentItem.appliedTotal)) }} ₽</span>
             </div>
             <div class="qc-bk-sep qc-bk-sep--strong"></div>
             <div class="qc-bk-row qc-bk-row--total">
@@ -1382,6 +1392,13 @@
       </div>
     </Transition>
     <PaywallModal :visible="paywallVisible" :min-plan="paywallMinPlan" @close="closePaywall" @go-plans="switchSection('plans'); closePaywall();" />
+    <ClientHistorySheet
+      v-if="requireFeature('historyEnabled')"
+      :is-open="isHistorySheetOpen"
+      :records="foundClient?.allRecords ?? []"
+      @close="isHistorySheetOpen = false"
+      @open-record="openRecordFromSheet"
+    />
     <NotificationStack />
     <InputModal :model-value="inputModalOpen" :config="inputModalConfig" @confirm="inputModalConfirm" @cancel="inputModalCancel" />
     <SelectModal :model-value="selectModalOpen" :config="selectModalConfig" @confirm="selectModalConfirm" @cancel="selectModalCancel" />
@@ -1404,6 +1421,7 @@ import { calculateDentPrice as calcDentViaAdapter, normalizeGraphicsDentsForPric
 import { resolveDentShapeType, getResolvedShapeDisplayLabel } from './utils/resolveDentShapeType';
 import { applyPriceRoundingCeil, PRICE_ROUND_OPTIONS } from './utils/priceRounding';
 import { applyDiscount, clampDiscount } from './utils/discount';
+import { calculateEstimateTotals } from './utils/calculateEstimateTotals';
 import { calculateSessionTotalWithMultiDentRule } from './utils/multiDentAggregation';
 import { migrateSettings, validateSettings, getPriceMultiplier, SETTINGS_KEY } from './utils/settingsUtils';
 import GraphicsWizard from './components/graphics/GraphicsWizard.vue';
@@ -1427,6 +1445,10 @@ import HistoryScreen from './components/HistoryScreen.vue';
 import AttachmentPicker from './components/AttachmentPicker.vue';
 import HistoryAttachmentsView from './components/HistoryAttachmentsView.vue';
 import ClientInfoBlock from './components/ClientInfoBlock.vue';
+import ClientFoundCard from './components/ClientFoundCard.vue';
+import ClientHistorySheet from './components/ClientHistorySheet.vue';
+import { useClientSearch } from './composables/useClientSearch';
+import { calcPostSaveAnalytics, applyClientFields } from './utils/clientSearch';
 import ClientMoodPicker from './components/ClientMoodPicker.vue';
 import PrepaymentBlock from './components/PrepaymentBlock.vue';
 import { useAccount } from './modules/account/useAccount';
@@ -1529,11 +1551,42 @@ const estimateDraft = reactive({
   quickDents: [],
   repairTimeHours: null,
   discountPercent: null,
+  dentDiscounts: {},
   prepayment: { amount: 0, method: null }
 });
 
 const { historyItems, loadHistory, saveEstimate, updateEstimate, deleteEstimate, clearHistory } = useHistoryStore();
 const selectedHistoryId = ref(null);
+
+const { foundClient, searchByPhone, searchByName, clearSearch } = useClientSearch(() => loadHistory());
+const isHistorySheetOpen = ref(false);
+const postSaveAnalytics = ref(null);
+
+watch(() => estimateDraft.clientPhone, (phone) => {
+  searchByPhone(phone ?? '');
+}, { immediate: true });
+
+watch(() => estimateDraft.clientName, (name) => {
+  if (!foundClient.value) searchByName(name ?? '');
+});
+
+function openClientHistory() {
+  if (foundClient.value) isHistorySheetOpen.value = true;
+}
+
+function handleAutofillClient(fields) {
+  if (!fields || typeof fields !== 'object') return;
+  applyClientFields(estimateDraft, fields);
+  showToast('Данные подставлены', 'success', 1200);
+}
+
+function openRecordFromSheet(record) {
+  isHistorySheetOpen.value = false;
+  if (record?.id) {
+    selectedHistoryId.value = record.id;
+    switchSection('history');
+  }
+}
 const selectedHistory = computed(() => historyItems.value.find((item) => item.id === selectedHistoryId.value) || null);
 
 /** Группировка breakdown по вмятинам для отображения в истории: [{ dentNum, title, items }] */
@@ -1561,55 +1614,134 @@ const groupedHistoryBreakdown = computed(() => {
   }));
 });
 
-/** Line items для истории — тот же формат, что quickLineItems (1-в-1 с финальным экраном). */
+/** Line items для истории — пересчёт через calculateEstimateTotals при открытии (не доверяем сохранённым derived). */
 const historyLineItems = computed(() => {
-  const groups = groupedHistoryBreakdown.value.filter((g) => g.dentNum > 0);
+  const h = selectedHistory.value;
   const dentItems = selectedHistoryDentItems.value;
-  const discPct = clampDiscount(selectedHistory.value?.discountPercent ?? 0);
-  return groups.map((group, idx) => {
-    const items = group.items || [];
-    let baseItem = null;
-    let totalItem = null;
-    let discountItem = null;
-    const paramItems = [];
-    for (const item of items) {
-      if (item.name === 'Базовая стоимость') baseItem = item;
-      else if (item.name === 'Итог') totalItem = item;
-      else if (item.name === 'Скидка') discountItem = item;
-      else paramItems.push(item);
-    }
-    const base = baseItem ? parseInt(String(baseItem.value || '').replace(/\D/g, ''), 10) || 0 : 0;
-    const appliedTotal = totalItem ? parseInt(String(totalItem.value || '').replace(/\D/g, ''), 10) || 0 : 0;
-    let preDiscountTotal = appliedTotal;
-    if (discountItem?.value) {
-      const m = discountItem.value.match(/\(−?\s*(\d[\d\s]*)\s*₽\)/);
-      if (m) {
-        const discountAmount = parseInt(m[1].replace(/\s/g, ''), 10) || 0;
-        preDiscountTotal = appliedTotal + discountAmount;
-      } else if (discPct > 0 && appliedTotal > 0) {
-        preDiscountTotal = Math.round(appliedTotal / (1 - discPct / 100));
-      }
-    }
-    const dent = dentItems[idx] || {};
-    const bbox = dent.bboxMm || {};
+  const discPct = clampDiscount(h?.discountPercent ?? 0);
+  const roundStep = userSettings.priceRoundStep ?? 0;
+
+  if (!dentItems?.length) return [];
+
+  const ctx = {
+    sizesWithArea: circleSizesWithArea,
+    circleSizesWithArea,
+    stripSizesWithArea,
+    prices: userSettings.prices,
+    initialData,
+    roundStep: 0
+  };
+
+  const recomputed = [];
+  for (let i = 0; i < dentItems.length; i++) {
+    const d = dentItems[i];
+    const bbox = d.bboxMm || {};
     const w = Number(bbox.width) || 0;
-    const h = Number(bbox.height) || 0;
+    const hh = Number(bbox.height) || 0;
+    if (w <= 0 || hh <= 0) break;
+    const resolved = resolveDentShapeType(w, hh);
+    const shape = resolved === 'stripe' ? 'strip' : 'circle';
+    const conditions = userSettings.showPaintMaterial !== false
+      ? (d.conditions || {})
+      : { ...(d.conditions || {}), paintMaterialCode: null };
+    const result = calcDentViaAdapter(
+      { shape, widthMm: w, heightMm: hh, conditions, panelElement: d.panelElement || null },
+      ctx
+    );
+    const mult = getPriceMultiplier(shape, userSettings);
+    recomputed.push({
+      id: d.id ?? `d${i}`,
+      dent: d,
+      base: (result.base || 0) * mult,
+      total: (result.total || 0) * mult,
+      breakdown: result.breakdown || []
+    });
+  }
+
+  if (recomputed.length === 0) {
+    const groups = groupedHistoryBreakdown.value.filter((g) => g.dentNum > 0);
+    return groups.map((group, idx) => {
+      const items = group.items || [];
+      let baseItem = null;
+      let totalItem = null;
+      let discountItem = null;
+      const paramItems = [];
+      for (const item of items) {
+        if (item.name === 'Базовая стоимость') baseItem = item;
+        else if (item.name === 'Итог') totalItem = item;
+        else if (item.name === 'Скидка') discountItem = item;
+        else paramItems.push(item);
+      }
+      const base = baseItem ? parseInt(String(baseItem.value || '').replace(/\D/g, ''), 10) || 0 : 0;
+      const appliedTotal = totalItem ? parseInt(String(totalItem.value || '').replace(/\D/g, ''), 10) || 0 : 0;
+      let preDiscountTotal = appliedTotal;
+      if (discountItem?.value) {
+        const m = discountItem.value.match(/\(−?\s*(\d[\d\s]*)\s*₽\)/);
+        if (m) preDiscountTotal = appliedTotal + (parseInt(m[1].replace(/\s/g, ''), 10) || 0);
+        else if (discPct > 0 && appliedTotal > 0) preDiscountTotal = Math.round(appliedTotal / (1 - discPct / 100));
+      }
+      const dent = dentItems[idx] || {};
+      const dentDisplay = { ...dent, conditions: dent.conditions || {}, panelElement: dent.panelElement || '', sizeLengthMm: dent.bboxMm?.width, sizeWidthMm: dent.bboxMm?.height };
+      const subtotal = preDiscountTotal;
+      const discountAmount = Math.round(subtotal * discPct / 100);
+      const final = Math.max(0, subtotal - discountAmount);
+      const applied = roundStep > 0 ? applyPriceRoundingCeil(final, roundStep) : Math.round(final);
+      return { dent: dentDisplay, base, breakdown: paramItems, appliedTotal: applied, preDiscountTotal: subtotal, discountPercent: discPct, discountAmount };
+    });
+  }
+
+  const dentItemsForRule = recomputed.map((r) => ({ total: r.total, panelElement: r.dent?.panelElement ?? null, dent: r.dent }));
+  const { weightedTotals } = calculateSessionTotalWithMultiDentRule(dentItemsForRule, {
+    discountSamePartEnabled: userSettings.discountSamePartEnabled,
+    discountSamePartValue: userSettings.discountSamePartValue,
+    discountDiffPartEnabled: userSettings.discountDiffPartEnabled,
+    discountDiffPartValue: userSettings.discountDiffPartValue,
+    enableSecondDentDiscount: userSettings.enableSecondDentDiscount,
+    secondDentDiscountPercent: userSettings.secondDentDiscountPercent
+  });
+
+  const dentInputs = recomputed.map((r, idx) => {
+    const dentPct = clampDiscount(r.dent?.discountPercent ?? discPct);
+    return {
+      id: r.id,
+      basePrice: r.base,
+      subtotal: weightedTotals[idx] ?? r.total,
+      discountPercent: dentPct
+    };
+  });
+  const totals = calculateEstimateTotals(dentInputs, 0);
+
+  return recomputed.map((r, idx) => {
+    const t = totals.dents[idx];
+    const applied = roundStep > 0 ? applyPriceRoundingCeil(t?.final ?? 0, roundStep) : Math.round(t?.final ?? 0);
+    const dentPct = clampDiscount(r.dent?.discountPercent ?? discPct);
     const dentDisplay = {
-      ...dent,
-      conditions: dent.conditions || {},
-      panelElement: dent.panelElement || '',
-      sizeLengthMm: w,
-      sizeWidthMm: h
+      ...r.dent,
+      conditions: r.dent?.conditions || {},
+      panelElement: r.dent?.panelElement || '',
+      sizeLengthMm: r.dent?.bboxMm?.width,
+      sizeWidthMm: r.dent?.bboxMm?.height
     };
     return {
       dent: dentDisplay,
-      base,
-      breakdown: paramItems,
-      appliedTotal,
-      preDiscountTotal,
-      discountPercent: discPct
+      base: r.base,
+      breakdown: r.breakdown,
+      appliedTotal: applied,
+      preDiscountTotal: t?.subtotal ?? r.total,
+      discountPercent: dentPct,
+      discountAmount: t?.discountAmount ?? 0
     };
   });
+});
+
+/** Итог по истории: пересчитанная сумма по line items (корректная математика), fallback на сохранённый total. */
+const historyDisplayTotal = computed(() => {
+  const items = historyLineItems.value;
+  if (items?.length > 0) {
+    const sum = items.reduce((s, i) => s + (i.appliedTotal ?? 0), 0);
+    if (sum > 0) return sum;
+  }
+  return selectedHistory.value?.total ?? 0;
 });
 
 function historyBreakdownDeltaClass(value) {
@@ -1759,6 +1891,7 @@ function createQuickDent(panelElement = null) {
     sizeWidthMm: null,
     panelSide: normalized?.side || 'left',
     panelElement: normalized?.element || null,
+    discountPercent: null,
     conditions: {
       repairCode: null,
       riskCode: null,
@@ -2177,15 +2310,32 @@ const quickLineItems = computed(() => {
     enableSecondDentDiscount: userSettings.enableSecondDentDiscount,
     secondDentDiscountPercent: userSettings.secondDentDiscountPercent
   });
-  const roundStep = userSettings.priceRoundStep;
-  const discPct = clampDiscount(estimateDraft.discountPercent);
+  const roundStep = userSettings.priceRoundStep ?? 0;
+  const dentInputs = list.map((item, idx) => {
+    const dentPct = clampDiscount(item.dent?.discountPercent ?? estimateDraft.discountPercent ?? 0);
+    return {
+      id: item.dent?.id ?? `d${idx}`,
+      basePrice: item.base ?? 0,
+      subtotal: weightedTotals[idx] ?? item.total,
+      discountPercent: dentPct
+    };
+  });
+  const totals = calculateEstimateTotals(dentInputs, 0);
   return list.map((item, idx) => {
-    const rawApplied = weightedTotals[idx] ?? item.total;
-    const afterDiscount = applyDiscount(rawApplied, discPct);
+    const t = totals.dents[idx];
     const applied = roundStep > 0
-      ? applyPriceRoundingCeil(afterDiscount, roundStep)
-      : Math.round(afterDiscount);
-    return { ...item, appliedTotal: applied, rawDiscounted: afterDiscount, preDiscountTotal: Math.round(rawApplied), discount: idx > 0, discountPercent: discPct };
+      ? applyPriceRoundingCeil(t?.final ?? 0, roundStep)
+      : Math.round(t?.final ?? 0);
+    const dentPct = clampDiscount(item.dent?.discountPercent ?? estimateDraft.discountPercent ?? 0);
+    return {
+      ...item,
+      appliedTotal: applied,
+      rawDiscounted: t?.final ?? 0,
+      preDiscountTotal: t?.subtotal ?? 0,
+      discount: idx > 0,
+      discountPercent: dentPct,
+      discountAmount: t?.discountAmount ?? 0
+    };
   });
 });
 
@@ -2251,7 +2401,12 @@ const graphicsPrice = computed(() =>
 const totalPrice = computed(() => {
   if (currentSection.value !== 'metric') return 0;
   if (calcMode.value === 'standard') return quickTotal.value;
-  if (calcMode.value === 'graphics') return graphicsPrice.value;
+  if (calcMode.value === 'graphics') {
+    const wt = graphicsWizardRef.value?.totalPrice;
+    const wizardTotal = wt != null && typeof wt === 'object' && 'value' in wt ? wt.value : wt;
+    if (typeof wizardTotal === 'number') return wizardTotal;
+    return graphicsPrice.value;
+  }
   return 0;
 });
 
@@ -2309,7 +2464,7 @@ const quickBreakdownItems = computed(() => {
     if (item.discountPercent > 0) {
       result.push({
         name: `${dentLabel} · Скидка`,
-        value: `−${item.discountPercent}% (−${formatCurrency(item.preDiscountTotal - item.appliedTotal)} ₽)`
+        value: `−${item.discountPercent}% (−${formatCurrency(item.discountAmount ?? (item.preDiscountTotal - item.appliedTotal))} ₽)`
       });
     }
     result.push({
@@ -2441,22 +2596,27 @@ function deltaClass(delta) {
   return 'text-gray-500';
 }
 
-async function openDiscountModal() {
+async function openDiscountModal(dent) {
+  const currentVal = dent ? (dent.discountPercent ?? '') : (estimateDraft.discountPercent ?? '');
   const value = await openInputModal({
     title: 'Скидка',
-    label: 'Скидка (%)',
-    value: estimateDraft.discountPercent ?? '',
+    label: dent ? `Скидка для вмятины (%)` : 'Скидка (%)',
+    value: currentVal,
     inputType: 'number',
     placeholder: '0',
     min: 0,
     max: 100
   });
   if (value === undefined) return;
-  if (value === '' || value === null) {
-    estimateDraft.discountPercent = null;
-    return;
+  if (dent) {
+    dent.discountPercent = (value === '' || value === null) ? null : clampDiscount(value);
+  } else {
+    if (value === '' || value === null) {
+      estimateDraft.discountPercent = null;
+      return;
+    }
+    estimateDraft.discountPercent = clampDiscount(value);
   }
-  estimateDraft.discountPercent = clampDiscount(value);
 }
 
 async function openDiscountSamePartModal() {
@@ -2831,6 +2991,7 @@ function resetDentsOnly() {
   estimateDraft.quickDents = [];
   estimateDraft.repairTimeHours = null;
   estimateDraft.discountPercent = null;
+  estimateDraft.dentDiscounts = {};
   estimateDraft.attachments = [];
   estimateDraft.prepayment = { amount: 0, method: null };
   delete estimateDraft.id;
@@ -2888,7 +3049,8 @@ function buildEstimatePayload(mode) {
         areaMm2: d.areaMm2,
         sizeCode: norm?.sizeCode ?? d.sizeCode,
         conditions,
-        photoAssetKey: d.photoAssetKey ?? null
+        photoAssetKey: d.photoAssetKey ?? null,
+        discountPercent: clampDiscount(estimateDraft.dentDiscounts?.[d.id] ?? d.discountPercent ?? 0)
       };
     });
     const photoAssets = [...new Set((graphicsState.dents || []).map((d) => d.photoAssetKey).filter(Boolean))];
@@ -2919,7 +3081,8 @@ function buildEstimatePayload(mode) {
       bboxMm: { width: w, height: h },
       panelSide: d.panelSide || 'left',
       panelElement: d.panelElement || null,
-      conditions: d.conditions
+      conditions: d.conditions,
+      discountPercent: clampDiscount(d.discountPercent ?? 0)
     };
   });
   return {
@@ -2950,6 +3113,11 @@ async function saveCurrentEstimate(modeOverride) {
   try {
     const payload = buildEstimatePayload(mode);
     saveEstimate(payload);
+    if (foundClient.value?.allRecords?.length) {
+      postSaveAnalytics.value = calcPostSaveAnalytics(totalPrice.value, foundClient.value.allRecords);
+    } else {
+      postSaveAnalytics.value = null;
+    }
     showToast('Сохранено', 'success', 1800);
     resetDraftState();
     if (calcMode.value === 'graphics') closeEditor();
@@ -2976,6 +3144,11 @@ async function saveAndBookEstimate(modeOverride) {
     payload.status = 'scheduled';
     payload.bookingAt = new Date().toISOString();
     saveEstimate(payload);
+    if (foundClient.value?.allRecords?.length) {
+      postSaveAnalytics.value = calcPostSaveAnalytics(totalPrice.value, foundClient.value.allRecords);
+    } else {
+      postSaveAnalytics.value = null;
+    }
     showToast('Записан на ремонт', 'success', 1800);
     resetDraftState();
     if (calcMode.value === 'graphics') closeEditor();
@@ -3123,6 +3296,8 @@ const switchSection = (section) => {
     selectedHistoryId.value = null;
     isEditingHistory.value = false;
     loadHistory(true);
+  } else {
+    postSaveAnalytics.value = null;
   }
   haptic('selection');
   nextTick(() => {
@@ -3523,6 +3698,23 @@ onBeforeUnmount(() => {
   color: #aaa;
   border-color: #555;
 }
+
+.post-save-hint {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #2a2a2a;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  font-size: 12px;
+  color: #9e9e9e;
+}
+.post-save-hint__icon {
+  font-size: 14px;
+  opacity: 0.8;
+}
+
 .qc-reset-btn {
   background: rgba(0, 0, 0, 0.35);
   color: #777;

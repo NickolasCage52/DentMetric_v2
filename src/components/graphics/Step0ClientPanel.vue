@@ -25,6 +25,12 @@
             <span class="truncate text-[12px] font-semibold" :class="model.clientPhone ? 'text-white' : 'text-gray-400'">{{ model.clientPhone || 'Телефон' }}</span>
             <span class="text-gray-500 shrink-0 text-sm">✎</span>
           </button>
+          <ClientFoundCard
+            v-if="historyEnabled && foundClient"
+            :client="foundClient"
+            @open-history="$emit('open-history')"
+            @autofill-client="$emit('autofill-client', $event)"
+          />
           <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openField('clientCompany', 'Компания (необязательно)', 'text', 'Компания')">
             <span class="truncate text-[12px] font-semibold" :class="model.clientCompany ? 'text-white' : 'text-gray-400'">{{ model.clientCompany || 'Компания (необязательно)' }}</span>
             <span class="text-gray-500 shrink-0 text-sm">✎</span>
@@ -89,14 +95,17 @@
 
 <script setup>
 import { inject } from 'vue';
+import ClientFoundCard from '../ClientFoundCard.vue';
 
 const props = defineProps({
   model: { type: Object, required: true },
   clientRequired: { type: Boolean, default: false },
-  canNext: { type: Boolean, default: true }
+  canNext: { type: Boolean, default: true },
+  historyEnabled: { type: Boolean, default: false },
+  foundClient: { type: Object, default: null }
 });
 
-defineEmits(['back', 'next']);
+defineEmits(['back', 'next', 'open-history', 'autofill-client']);
 
 const openInputModal = inject('openInputModal');
 
