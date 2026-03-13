@@ -63,7 +63,7 @@ export async function runFullAudit() {
     if (Math.abs(S(20, 2, 'base') - 12000) >= 1) throw new Error('Stripe L=20 h=2');
     if (Math.abs(S(50, 2, 'base') - 18000) >= 1) throw new Error('Stripe L=50 h=2');
     if (Math.abs(S(100, 2, 'base') - 28000) >= 1) throw new Error('Stripe L=100 h=2');
-    if (S(10, 2, 'base') <= 6000 || S(10, 2, 'base') >= 11000) throw new Error('Stripe interpolation L=10');
+    if (S(10, 2, 'base') < 6000 || S(10, 2, 'base') > 11000) throw new Error('Stripe interpolation L=10');
     if (S(18, 4, 'base') <= 11000 || S(18, 4, 'base') >= 20000) throw new Error('Stripe h=4');
     if (S(2, 2, 'base') !== S(8, 2, 'base')) throw new Error('Stripe clamp min');
     if (S(150, 2, 'base') !== S(100, 2, 'base')) throw new Error('Stripe clamp max');

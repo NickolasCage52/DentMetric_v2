@@ -1,8 +1,8 @@
 <template>
   <div class="quick-style-conditions flex flex-col min-h-0 flex-1 overflow-hidden">
-    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3 space-y-2 pb-6">
+    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-3 pb-6 space-y-2">
       <!-- ПАРАМЕТРЫ РАСЧЁТА -->
-      <div class="card-metallic rounded-xl" style="padding:var(--qc-card-py,12px) var(--qc-card-px,12px)">
+      <div class="card-metallic rounded-xl" style="padding:var(--qc-card-py) var(--qc-card-px)">
         <div class="qc-section-title text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1.5">ПАРАМЕТРЫ РАСЧЁТА</div>
         <div style="display:flex;flex-direction:column;gap:4px">
           <button
@@ -69,7 +69,7 @@
       </div>
 
       <!-- ДОПОЛНИТЕЛЬНО (always expanded) -->
-      <div class="card-metallic rounded-xl" style="padding:var(--qc-card-py,12px) var(--qc-card-px,12px)">
+      <div class="card-metallic rounded-xl" style="padding:var(--qc-card-py) var(--qc-card-px)">
         <div class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">ДОПОЛНИТЕЛЬНО…</div>
         <div style="display:flex;flex-direction:column;gap:4px">
           <button
@@ -126,7 +126,7 @@
         <div class="qc-price-value">{{ formatPrice(totalPrice) }} ₽</div>
       </div>
     </div>
-    <div class="graphics-action-bar shrink-0 p-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
+    <div v-if="!hideActionBar" class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
       <div class="flex items-center gap-2 w-full">
         <button type="button" @click="$emit('back')" class="step-nav-back-btn shrink-0 py-2.5 px-3 rounded-xl text-xs font-medium text-gray-400 hover:text-white border border-white/15 hover:border-white/25 transition-all touch-manipulation min-h-[44px]">Назад</button>
         <button type="button" :disabled="!conditionsComplete" @click="conditionsComplete && $emit('calculate')" :class="conditionsComplete ? 'bg-metric-green text-black shadow-[0_0_15px_rgba(136,229,35,0.4)] hover:opacity-95 active:opacity-90' : 'bg-white/10 text-gray-500 cursor-not-allowed'" class="flex-1 py-2.5 rounded-xl font-bold text-sm uppercase tracking-widest flex items-center justify-center gap-2 min-h-[44px] touch-manipulation">
@@ -147,7 +147,8 @@ const props = defineProps({
   totalPrice: { type: Number, default: 0 },
   showPaintMaterial: { type: Boolean, default: true },
   showSoundInsulation: { type: Boolean, default: true },
-  armatureSummary: { type: String, default: '' }
+  armatureSummary: { type: String, default: '' },
+  hideActionBar: { type: Boolean, default: false }
 });
 
 defineEmits(['back', 'calculate', 'pick', 'pick-armature']);

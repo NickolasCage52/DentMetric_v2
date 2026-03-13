@@ -1,6 +1,6 @@
 <template>
   <div class="step3-panel flex flex-col min-h-0 flex-1">
-    <div class="graphics-panel-content step3-params-wrap flex flex-col flex-1 min-h-0 mx-0 p-2">
+    <div class="graphics-panel-content step3-params-wrap flex flex-col flex-1 min-h-0 mx-0 py-2">
       <div class="step3-hint rounded-lg bg-black/40 border border-white/10 px-2.5 py-1.5 shrink-0">
         <p class="text-[11px] font-medium leading-tight text-gray-200 step3-hint-text">
           <span class="step3-hint-full">Технология ремонта, сложность выполнения, материал панели и класс автомобиля влияют на итог.</span>
@@ -101,7 +101,7 @@
         </div>
       </div>
     </div>
-    <div class="graphics-action-bar space-y-2 shrink-0">
+    <div v-if="!hideActionBar" class="graphics-action-bar space-y-2 shrink-0">
       <div class="flex items-center gap-2 w-full">
         <button
           type="button"
@@ -140,7 +140,8 @@ const props = defineProps({
   totalPrice: { type: Number, default: 0 },
   showInfoTooltips: { type: Boolean, default: true },
   showPaintMaterial: { type: Boolean, default: true },
-  showSoundInsulation: { type: Boolean, default: true }
+  showSoundInsulation: { type: Boolean, default: true },
+  hideActionBar: { type: Boolean, default: false }
 });
 
 const disassemblyOptions = computed(() =>

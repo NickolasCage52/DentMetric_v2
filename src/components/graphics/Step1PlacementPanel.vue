@@ -1,11 +1,11 @@
 <template>
-  <div class="step1-panel flex flex-col min-h-0">
-    <div class="graphics-panel-content p-2 space-y-2">
-      <div class="flex items-center justify-between gap-2">
-        <div class="text-[11px] text-gray-300 text-left">
+  <div class="step1-panel quick-style-placement flex flex-col min-h-0 flex-1 overflow-hidden">
+    <div class="flex-1 min-h-0 overflow-hidden step1-scroll">
+      <div class="card-metallic rounded-2xl step1-card">
+        <div class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest step1-title">РАЗМЕЩЕНИЕ ПОВРЕЖДЕНИЯ</div>
+        <p class="text-[10px] text-gray-400 leading-tight step1-subtitle">
           Выберите тип вмятины и разместите её на элементе
-        </div>
-      </div>
+        </p>
       <!-- Выбор типа вмятины -->
       <div class="dent-type-grid">
         <button
@@ -41,9 +41,10 @@
           <span class="dent-type-btn__subtitle">Форма</span>
         </button>
       </div>
-      <p v-if="!canNext" class="text-[10px] text-gray-500 text-center">Добавьте хотя бы одну вмятину</p>
+        <p v-if="!canNext" class="text-[10px] text-gray-500 text-center step1-hint">Добавьте хотя бы одну вмятину</p>
+      </div>
     </div>
-    <div class="graphics-action-bar wizard-step-controls space-y-2">
+    <div class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
       <div class="flex items-center gap-2 w-full">
         <button
           type="button"
@@ -57,7 +58,7 @@
           @click="$emit('next')"
           :disabled="!canNext"
           :title="canNext ? '' : 'Добавьте хотя бы одну вмятину'"
-          class="flex-1 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-h-[40px]"
+          class="flex-1 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-h-[44px] touch-manipulation"
           :class="canNext ? 'bg-metric-green text-black shadow-[0_0_15px_rgba(136,229,35,0.4)] hover:opacity-95 active:opacity-90' : 'bg-white/10 text-gray-500 cursor-not-allowed'"
         >
           <span>Продолжить → Размер повреждения</span>
@@ -76,10 +77,32 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
 </script>
 
 <style scoped>
+.step1-scroll {
+  padding: 0.375rem 0 0.5rem;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+.step1-card {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.step1-title {
+  margin-bottom: 2px;
+}
+.step1-subtitle {
+  margin-bottom: 0;
+}
+.step1-hint {
+  margin-top: 2px;
+  margin-bottom: 0;
+}
+
 .dent-type-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+  gap: 6px;
   width: 100%;
   overflow: hidden;
 }
@@ -89,12 +112,12 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  min-height: 88px;
+  min-height: 64px;
   width: 100%;
-  padding: 10px 8px;
+  padding: 6px 6px;
   box-sizing: border-box;
   overflow: hidden;
-  border-radius: 0.75rem;
+  border-radius: 0.625rem;
   border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -111,12 +134,12 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
 
 .dent-type-btn__icon {
   flex-shrink: 0;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
 }
 
 .dent-type-icon {
@@ -124,39 +147,39 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
 }
 
 .dent-type-icon--circle {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   border: 2px solid #88e523;
   background: rgba(136, 229, 35, 0.2);
 }
 
 .dent-type-icon--strip {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
   border: 2px solid #88e523;
   background: rgba(136, 229, 35, 0.2);
   transform: rotate(45deg);
 }
 
 .dent-type-icon--freeform {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
   border: 2px solid #88e523;
   background: rgba(136, 229, 35, 0.2);
 }
 
 .dent-type-btn__title {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
-  line-height: 1.3;
+  line-height: 1.25;
   text-align: center;
   color: #ffffff;
   width: 100%;
@@ -169,23 +192,55 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-size: 11px;
-  line-height: 1.2;
+  font-size: 10px;
+  line-height: 1.15;
   text-align: center;
   color: #6b7280;
-  margin-top: 1px;
+  margin-top: 0;
   width: 100%;
+}
+
+@media (max-width: 480px) {
+  .step1-card {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+  .dent-type-grid {
+    gap: 5px;
+  }
+  .dent-type-btn {
+    min-height: 56px;
+    padding: 5px 4px;
+  }
+  .dent-type-btn__icon {
+    width: 18px;
+    height: 18px;
+    margin-bottom: 1px;
+  }
+  .dent-type-icon--circle,
+  .dent-type-icon--strip,
+  .dent-type-icon--freeform {
+    width: 14px;
+    height: 14px;
+  }
+  .dent-type-btn__title {
+    font-size: 10px;
+  }
+  .dent-type-btn__subtitle {
+    font-size: 9px;
+  }
 }
 
 @media (max-width: 340px) {
   .dent-type-grid {
-    gap: 6px;
+    gap: 4px;
   }
   .dent-type-btn {
-    padding: 8px 4px;
+    padding: 4px 3px;
+    min-height: 52px;
   }
   .dent-type-btn__title {
-    font-size: 11px;
+    font-size: 9px;
   }
 }
 </style>

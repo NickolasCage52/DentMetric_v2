@@ -1,6 +1,15 @@
 <template>
   <div class="quick-style-final flex flex-col min-h-0 flex-1 overflow-hidden">
-    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain qc-step3 space-y-2 p-3 pb-24">
+    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain qc-step3 space-y-2 pt-3 pb-24">
+      <!-- Фото повреждения (photo-first flow) -->
+      <div v-if="detailPhotoUrl" class="result-photo-block card-metallic rounded-xl overflow-hidden">
+        <p class="result-photo-block__label text-[9px] font-bold text-gray-400 uppercase tracking-widest px-3 pt-3 pb-1">Фото повреждения</p>
+        <img
+          :src="detailPhotoUrl"
+          class="result-photo-block__image w-full max-h-[200px] object-contain bg-black/50"
+          alt="Фото повреждения"
+        />
+      </div>
       <!-- Данные клиента — первым блоком (PDF стр. 5-6) -->
       <ClientInfoBlock :client="clientForDisplay" />
       <template v-for="(dentItem, idx) in lineItems" :key="dentItem.dent?.id ?? idx">
@@ -67,7 +76,7 @@
       <!-- Смайлики адекватности клиента (PDF стр. 6-7) -->
       <ClientMoodPicker :model-value="clientMood" @update:model-value="$emit('update:clientMood', $event)" />
     </div>
-    <div class="graphics-action-bar flex gap-0 shrink-0 p-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
+    <div class="graphics-action-bar flex gap-0 shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
       <button type="button" @click="$emit('back')" class="qc-s3-btn qc-s3-btn--left flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[40px]">Назад</button>
       <button type="button" @click="$emit('save')" :disabled="historySaving || !(lineItems?.length > 0)" class="qc-s3-btn qc-s3-btn--mid flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white border border-white/15 min-h-[40px] transition-colors hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed">
         {{ historySaving ? '...' : 'Сохранить' }}
@@ -92,6 +101,7 @@ const props = defineProps({
   initialData: { type: Object, default: () => ({}) },
   recordId: { type: String, default: '' },
   attachments: { type: Array, default: () => [] },
+  detailPhotoUrl: { type: String, default: null },
   formatArmaturnayaSummary: { type: Function, default: null },
   comment: { type: String, default: '' },
   discountPercent: { type: [Number, null], default: null },

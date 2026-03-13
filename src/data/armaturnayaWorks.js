@@ -2,7 +2,21 @@
  * Armaturnye (disassembly/additional) works grouped by element.
  * Works are shown based on the selected damaged element (dent.panelElement).
  * Z0 = "Без разборки" is always available.
+ * Supports custom works and price overrides from user settings.
  */
+import { SETTINGS_KEY } from '../utils/settingsUtils';
+
+function loadArmatureSettings() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}') || {};
+    return {
+      customArmatureWorks: Array.isArray(raw.customArmatureWorks) ? raw.customArmatureWorks : [],
+      armaturePriceOverrides: raw.armaturePriceOverrides && typeof raw.armaturePriceOverrides === 'object' ? raw.armaturePriceOverrides : {}
+    };
+  } catch (_e) {
+    return { customArmatureWorks: [], armaturePriceOverrides: {} };
+  }
+}
 
 export const ARMATURNAYA_ELEMENT_MAP = {
   'Передняя дверь': 'door',
@@ -64,8 +78,21 @@ export function getArmaturnayaWorksForElement(panelElement) {
   const elementKey = panelElement ? ARMATURNAYA_ELEMENT_MAP[panelElement] : null;
   const works = elementKey ? ARMATURNAYA_BY_ELEMENT[elementKey] : null;
   const base = ARMATURNAYA_BY_ELEMENT.none;
-  if (!works) return base;
-  return [...base, ...works];
+  let list = !works ? [...base] : [...base, ...works];
+  const { customArmatureWorks, armaturePriceOverrides } = loadArmatureSettings();
+  if (armaturePriceOverrides && Object.keys(armaturePriceOverrides).length > 0) {
+    list = list.map((w) => {
+      const override = armaturePriceOverrides[w.code];
+      return override != null ? { ...w, price: Number(override) || w.price } : w;
+    });
+  }
+  if (customArmatureWorks && customArmatureWorks.length > 0) {
+    const custom = customArmatureWorks
+      .filter((c) => c && c.id && c.name != null)
+      .map((c) => ({ code: c.id, name: String(c.name), price: Number(c.price) || 0, isCustom: true }));
+    list = [...list, ...custom];
+  }
+  return list;
 }
 
 export function formatArmaturnayaSummary(codes, panelElement) {
@@ -81,14 +108,26 @@ export function getArmaturnayaTotalPrice(codes, panelElement) {
   if (!codes || codes.length === 0) return 0;
   if (codes.length === 1 && codes[0] === 'Z0') return 0;
   const works = getArmaturnayaWorksForElement(panelElement);
-  const allWorks = [
-    ...ARMATURNAYA_BY_ELEMENT.none,
-    ...Object.values(ARMATURNAYA_BY_ELEMENT).flat().filter((w) => w.code !== 'Z0')
-  ];
-  const uniqueByCode = new Map();
-  allWorks.forEach((w) => uniqueByCode.set(w.code, w));
+  const uniqueByCode = new Map(works.map((w) => [w.code, w]));
   return codes.reduce((sum, code) => {
     const work = uniqueByCode.get(code);
     return sum + (work?.price ?? 0);
   }, 0);
+}
+
+/** All system works (for settings UI). */
+export function getAllSystemArmatureWorks() {
+  const base = ARMATURNAYA_BY_ELEMENT.none;
+  const rest = Object.values(ARMATURNAYA_BY_ELEMENT)
+    .flat()
+    .filter((w) => w.code !== 'Z0');
+  const seen = new Set();
+  const unique = [];
+  for (const w of [base[0], ...rest]) {
+    if (w && !seen.has(w.code)) {
+      seen.add(w.code);
+      unique.push(w);
+    }
+  }
+  return unique;
 }

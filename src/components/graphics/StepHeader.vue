@@ -17,7 +17,7 @@
       style="border:none;box-shadow:none"
       onerror="this.style.display='none'"
     >
-    <div class="flex-1 min-w-0 flex flex-wrap items-center gap-1.5">
+    <div v-if="!hideVehicleSelect" class="flex-1 min-w-0 flex flex-wrap items-center gap-1.5">
       <select
         :value="selectedClassId"
         :disabled="lockSelection"
@@ -36,6 +36,9 @@
         <option value="" disabled class="text-gray-500">Элемент кузова</option>
         <option v-for="part in partsList" :key="part.id" :value="part.id">{{ part.name }}</option>
       </select>
+    </div>
+    <div v-else class="flex-1 min-w-0 flex items-center justify-center px-2 text-xs text-gray-400 truncate">
+      Фото повреждения
     </div>
     <button
       v-if="currentStep > 1"
@@ -69,7 +72,8 @@ defineProps({
   partsList: { type: Array, default: () => [] },
   lockSelection: { type: Boolean, default: false },
   showReset: { type: Boolean, default: true },
-  currentStep: { type: Number, default: 1 }
+  currentStep: { type: Number, default: 1 },
+  hideVehicleSelect: { type: Boolean, default: false }
 });
 
 defineEmits(['update:selectedClassId', 'update:selectedPartId', 'reset', 'reset-dents', 'home', 'client']);

@@ -290,7 +290,10 @@ h3 { font-size: clamp(1rem, 2.5vw, 1.25rem); }
   opacity: 0;
 }
 
-/* ── Detail Step 4 & 5: match Quick (qc-compact) tokens for 1:1 visual alignment ── */
+/* ── Detail: match Quick (qc-compact) tokens on ALL steps for 1:1 visual alignment ── */
+.graphics-step-1 .graphics-controls-area,
+.graphics-step-2 .graphics-controls-area,
+.graphics-step-3 .graphics-controls-area,
 .graphics-step-4 .graphics-controls-area,
 .graphics-step-5 .graphics-controls-area {
   --qc-section-gap: 6px;
@@ -302,11 +305,76 @@ h3 { font-size: clamp(1rem, 2.5vw, 1.25rem); }
   --qc-value-fs: 12px;
   --qc-title-fs: 9px;
 }
+.graphics-step-3 .graphics-controls-area .qc-geo-btn {
+  min-height: 42px;
+  padding: 6px 10px;
+  border-radius: 0.625rem;
+}
+.graphics-step-3 .graphics-controls-area .qc-geo-btn .qc-geo-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+.graphics-step-3 .graphics-controls-area .qc-geo-btn .qc-geo-value {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 1px;
+}
+.graphics-step-3 .graphics-controls-area .qc-info-rows {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #6b7280;
+  margin-top: 4px;
+}
+.graphics-step-3 .graphics-controls-area .qc-info-rows span {
+  color: #88e523;
+}
 .graphics-step-4 .graphics-controls-area .qc-select-row,
 .graphics-step-5 .graphics-controls-area .qc-select-row {
   min-height: var(--qc-row-min-h);
   padding: 6px 10px;
   border-radius: 0.625rem;
+}
+/* Detail step 4: geometry block — match Quick (qc-compact) exactly */
+.graphics-step-4 .graphics-controls-area .qc-geo-btn {
+  min-height: 42px;
+  padding: 6px 10px;
+  border-radius: 0.625rem;
+}
+.graphics-step-4 .graphics-controls-area .qc-geo-btn .qc-geo-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9ca3af;
+}
+.graphics-step-4 .graphics-controls-area .qc-geo-btn .qc-geo-value {
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 1px;
+}
+.graphics-step-4 .graphics-controls-area .qc-info-rows {
+  font-size: 11px;
+  line-height: 1.35;
+  color: #6b7280;
+  margin-top: 4px;
+}
+.graphics-step-4 .graphics-controls-area .qc-info-rows span {
+  color: #88e523;
+}
+.graphics-step-4 .graphics-controls-area .qc-preset-chip {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: lowercase;
+  letter-spacing: 0.03em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(136, 229, 35, 0.25);
+  color: #88e523;
+  background: rgba(136, 229, 35, 0.08);
+  cursor: pointer;
 }
 .graphics-step-4 .graphics-controls-area .qc-section-title,
 .graphics-step-5 .graphics-controls-area .qc-section-title {
@@ -354,19 +422,18 @@ h3 { font-size: clamp(1rem, 2.5vw, 1.25rem); }
   opacity: 0.45;
   cursor: not-allowed;
 }
+/* Dent chips: match Quick mode (px-3 py-1.5 rounded-lg text-xs font-semibold) */
+.dent-chip {
+  min-width: 0;
+}
 /* Conditions scroll: use gap (matches Quick) instead of space-y in Detail */
-.graphics-step-4 .quick-style-conditions > div.flex-1.overflow-y-auto {
-  gap: var(--qc-section-gap);
-}
-.graphics-step-4 .quick-style-conditions > div.flex-1.overflow-y-auto > * + * {
-  margin-top: 0 !important;
-}
-/* Final scroll: same section gap for breakdown cards, flex layout like Quick */
+.graphics-step-4 .quick-style-conditions > div.flex-1.overflow-y-auto,
 .graphics-step-5 .quick-style-final > div.flex-1.overflow-y-auto {
   display: flex;
   flex-direction: column;
   gap: var(--qc-section-gap);
 }
+.graphics-step-4 .quick-style-conditions > div.flex-1.overflow-y-auto > * + *,
 .graphics-step-5 .quick-style-final > div.flex-1.overflow-y-auto > * + * {
   margin-top: 0 !important;
 }

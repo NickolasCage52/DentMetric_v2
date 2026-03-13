@@ -632,8 +632,9 @@
       </template>
     </div>
 
-    <!-- Section: History: same structure as Settings/Info — header first, then content -->
-    <div v-if="currentSection === 'history' && !selectedHistory" class="content-padding-bottom p-4 flex flex-col min-h-0 overflow-hidden" style="flex:1">
+    <!-- Section: History: list and detail use v-show so filter context is preserved on back -->
+    <div v-if="currentSection === 'history'" class="flex flex-col min-h-0 overflow-hidden" style="flex:1">
+    <div v-show="!selectedHistory" class="content-padding-bottom p-4 flex flex-col min-h-0 overflow-hidden flex-1">
       <div v-if="postSaveAnalytics" class="post-save-hint mb-3">
         <span class="post-save-hint__icon">📊</span>
         <span class="post-save-hint__text">{{ postSaveAnalytics.message }}</span>
@@ -663,7 +664,7 @@
     </div>
     <!-- DEV-only: QA history generator -->
     <div
-      v-if="isDev && qaEnabled && currentSection === 'history' && !selectedHistory"
+      v-show="isDev && qaEnabled && !selectedHistory"
       class="fixed left-4 bottom-[calc(var(--app-footer-height,64px)+80px)] z-[220] flex flex-col gap-2"
     >
       <button
@@ -674,9 +675,10 @@
         Generate 20 records
       </button>
     </div>
-    <!-- History Detail overlay -->
-    <div v-if="currentSection === 'history' && selectedHistory" class="history-detail-content content-padding-bottom p-4 space-y-3 overflow-y-auto" style="flex:1">
-      <div class="app-header-logo-bar">
+    <!-- History Detail overlay: scrollable content + sticky action bar above tab bar -->
+    <div v-if="selectedHistory" class="history-detail-wrapper flex flex-col min-h-0 flex-1">
+      <div class="history-detail-content flex-1 min-h-0 overflow-y-auto content-padding-bottom p-4 space-y-3" style="-webkit-overflow-scrolling: touch">
+      <div class="app-header-logo-bar shrink-0">
         <div class="app-header-logo-bar__left">
           <button
             type="button"
@@ -697,6 +699,9 @@
         <div class="flex justify-between text-sm"><span class="text-gray-400">Элемент:</span><span class="text-white font-medium">{{ selectedHistory.element || '—' }}</span></div>
         <div v-if="selectedHistory.discountPercent > 0" class="flex justify-between text-sm"><span class="text-amber-400">Скидка:</span><span class="text-amber-400 font-medium">−{{ selectedHistory.discountPercent }}%</span></div>
         <div class="flex justify-between text-sm"><span class="text-gray-400">Итог:</span><span class="text-metric-green font-bold">{{ formatCurrency(historyDisplayTotal) }} ₽</span></div>
+        <div v-if="selectedHistory.isPriceManuallyAdjusted && selectedHistory.dmCalculatedPrice != null" class="text-[11px] text-gray-500 mt-1">
+          изменено, расчёт DM = <span class="line-through">{{ formatCurrency(selectedHistory.dmCalculatedPrice) }}₽</span> → <span class="text-metric-green font-semibold">{{ formatCurrency(selectedHistory.manualAdjustedPrice) }}₽</span>
+        </div>
       </div>
       <div v-if="!isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-2">
         <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Клиент</div>
@@ -723,6 +728,20 @@
           <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[14px] text-white min-h-[42px]" @click="openHistoryEditField('carModel', 'Модель', 'text')"><span class="truncate">{{ historyEditDraft.carModel || 'Модель' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
         </div>
         <button type="button" class="input-row w-full flex items-center justify-between gap-2 rounded-xl px-3 py-3 min-h-[42px] bg-[#151515] border border-[#333] text-left text-[14px] text-white" @click="openHistoryCommentModal"><span class="truncate flex-1">{{ historyEditDraft.comment || 'Комментарий' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
+        <div class="flex items-center justify-between gap-3 py-1">
+          <span class="text-sm text-gray-300 flex-1">Скидка (%)</span>
+          <input type="number" v-model.number="historyEditDraft.discountPercent" min="0" max="100" class="w-24 bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-right text-white focus:border-metric-green outline-none">
+        </div>
+        <div class="space-y-2">
+          <span class="text-sm text-gray-300">Изменить стоимость вручную</span>
+          <div class="flex gap-2 items-center">
+            <input type="number" v-model.number="historyEditDraft.editManualPrice" placeholder="Сумма" class="flex-1 bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:border-metric-green outline-none" inputmode="numeric">
+            <button type="button" @click="historyEditDraft.editManualPrice = null" class="text-xs text-gray-500 border border-white/10 rounded-lg px-2 py-2">Сбросить</button>
+          </div>
+        </div>
+        <div class="attachment-edit">
+          <AttachmentPicker :record-id="selectedHistory?.id || ''" :dent-index="0" :model-value="historyEditDraft.attachments" @update:model-value="historyEditDraft.attachments = $event" />
+        </div>
         <div class="flex gap-2">
           <button type="button" @click="cancelHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[40px]">Отмена</button>
           <button type="button" @click="saveHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[40px] disabled:opacity-50" :disabled="isUpdatingHistory">{{ isUpdatingHistory ? '...' : 'Сохранить' }}</button>
@@ -795,11 +814,16 @@
       <div class="card-metallic rounded-2xl p-4">
         <ClientMoodPicker :model-value="historyEditDraft.clientMood ?? selectedHistory.clientMood ?? null" @update:model-value="onHistoryMoodChange($event)" />
       </div>
-      <div class="flex gap-2">
-        <button type="button" @click="selectedHistoryId = null" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[40px]">Назад</button>
-        <button v-if="!isEditingHistory" type="button" @click="startHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[40px]">Редакт.</button>
-        <button type="button" @click="deleteHistoryConfirm(selectedHistory.id)" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-red-400 border border-red-500/40 rounded-xl min-h-[40px]">Удалить</button>
       </div>
+      <!-- Sticky action bar: fixed above tab bar, always visible -->
+      <div class="history-detail-actions">
+        <div class="history-detail-actions__inner flex gap-2 p-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] bg-black border-t border-white/10">
+          <button type="button" @click="selectedHistoryId = null" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[44px]">Назад</button>
+          <button v-if="!isEditingHistory" type="button" @click="startHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[44px]">Редакт.</button>
+          <button type="button" @click="deleteHistoryConfirm(selectedHistory.id)" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-red-400 border border-red-500/40 rounded-xl min-h-[44px]">Удалить</button>
+        </div>
+      </div>
+    </div>
     </div>
 
     <!-- Section: Settings -->
@@ -821,7 +845,7 @@
       <h2 class="text-xl font-bold text-white px-1">Настройки</h2>
 
       <div class="space-y-3">
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all" open>
+      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
         <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
           <div class="flex items-center space-x-3">
             <span class="text-lg opacity-80">💰</span>
@@ -944,6 +968,31 @@
                 <span class="text-xs text-gray-500">{{ size.name }}</span>
               </div>
               <input type="number" v-model.number="userSettings.prices[size.code]" inputmode="numeric" class="dm-price-box w-28 min-w-[7rem] min-h-[44px] bg-[#151515] border border-[#333] rounded-lg p-2.5 text-right font-medium text-white focus:border-metric-green/50 outline-none shrink-0">
+            </div>
+          </div>
+        </div>
+        <div class="border-t border-white/10 pt-4 mt-2">
+          <p class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Арматурные работы</p>
+          <p class="text-[10px] text-gray-500 mb-3">Редактирование цен системных работ и добавление пользовательских.</p>
+          <div class="space-y-3">
+            <div v-for="w in systemArmatureWorks" :key="w.code" class="flex items-center justify-between gap-3">
+              <span class="font-medium text-sm text-gray-300 truncate">{{ w.name }}</span>
+              <div class="flex items-center gap-1 shrink-0">
+                <input type="number" :value="effectiveArmaturePrice(w.code)" @input="setArmaturePriceOverride(w.code, $event.target.value)" inputmode="numeric" class="dm-price-box w-24 min-h-[40px] bg-[#151515] border border-[#333] rounded-lg px-2.5 py-2 text-right text-sm font-medium text-white focus:border-metric-green/50 outline-none">
+                <span class="text-gray-500 text-sm">₽</span>
+              </div>
+            </div>
+            <div v-for="(cw, idx) in userSettings.customArmatureWorks" :key="cw.id">
+              <div class="flex items-center gap-2">
+                <input type="text" v-model="cw.name" placeholder="Название" class="flex-1 bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:border-metric-green outline-none">
+                <input type="number" v-model.number="cw.price" placeholder="₽" class="w-24 bg-[#151515] border border-[#333] rounded-lg px-2.5 py-2 text-right text-sm text-white focus:border-metric-green outline-none">
+                <button type="button" @click="removeCustomArmatureWork(idx)" class="p-2 text-red-400 hover:bg-red-500/10 rounded-lg" aria-label="Удалить">✕</button>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <input v-model="newArmatureWorkName" type="text" placeholder="введите название" class="flex-1 bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:border-metric-green outline-none">
+              <input v-model.number="newArmatureWorkPrice" type="number" placeholder="₽" class="w-24 bg-[#151515] border border-[#333] rounded-lg px-2.5 py-2 text-right text-sm text-white focus:border-metric-green outline-none">
+              <button type="button" @click="addCustomArmatureWork" class="px-3 py-2 rounded-lg text-sm font-bold bg-metric-green/20 text-metric-green border border-metric-green/40 hover:bg-metric-green/30">+</button>
             </div>
           </div>
         </div>
@@ -1411,7 +1460,7 @@
 import { ref, reactive, computed, watch, onMounted, nextTick, onBeforeUnmount, provide, defineAsyncComponent } from 'vue';
 import { deleteSelected } from './graphics/konvaEditor';
 import { initialData } from './data/initialData';
-import { getArmaturnayaWorksForElement, getArmaturnayaTotalPrice } from './data/armaturnayaWorks';
+import { getArmaturnayaWorksForElement, getArmaturnayaTotalPrice, getAllSystemArmatureWorks } from './data/armaturnayaWorks';
 import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from './utils/armatureSelection';
 import { CAR_PARTS } from './data/carParts';
 import { getPartsByClass } from './data/partsCatalog';
@@ -1734,14 +1783,18 @@ const historyLineItems = computed(() => {
   });
 });
 
-/** Итог по истории: пересчитанная сумма по line items (корректная математика), fallback на сохранённый total. */
+/** Итог по истории: manual override > sum of line items > saved total. */
 const historyDisplayTotal = computed(() => {
+  const rec = selectedHistory.value;
+  if (rec?.isPriceManuallyAdjusted && rec.manualAdjustedPrice != null) {
+    return Number(rec.manualAdjustedPrice) || 0;
+  }
   const items = historyLineItems.value;
   if (items?.length > 0) {
     const sum = items.reduce((s, i) => s + (i.appliedTotal ?? 0), 0);
     if (sum > 0) return sum;
   }
-  return selectedHistory.value?.total ?? 0;
+  return rec?.total ?? 0;
 });
 
 function historyBreakdownDeltaClass(value) {
@@ -1810,7 +1863,10 @@ const historyEditDraft = reactive({
   inspectTime: '',
   comment: '',
   clientMood: null,
-  prepayment: { amount: 0, method: null }
+  prepayment: { amount: 0, method: null },
+  discountPercent: 0,
+  editManualPrice: null,
+  attachments: []
 });
 
 /** Элементы только для стороны ВЕРХ (Капот, Крыша, Багажник) */
@@ -2097,7 +2153,9 @@ const userSettings = reactive({
   discountDiffPartValue: 0,
   priceAdjustmentRoundOval: 1.0,
   priceAdjustmentStripe: 1.0,
-  useQuickUiInDetail: true
+  useQuickUiInDetail: true,
+  customArmatureWorks: [],
+  armaturePriceOverrides: {}
 });
 
 function loadUserSettings() {
@@ -2126,6 +2184,8 @@ function loadUserSettings() {
     if (typeof p.enableSecondDentDiscount === 'boolean') userSettings.enableSecondDentDiscount = p.enableSecondDentDiscount;
     if (typeof p.secondDentDiscountPercent === 'number' && p.secondDentDiscountPercent >= 0 && p.secondDentDiscountPercent <= 100) userSettings.secondDentDiscountPercent = p.secondDentDiscountPercent;
     if (typeof p.useQuickUiInDetail === 'boolean') userSettings.useQuickUiInDetail = p.useQuickUiInDetail;
+    if (Array.isArray(p.customArmatureWorks)) userSettings.customArmatureWorks = p.customArmatureWorks;
+    if (p.armaturePriceOverrides && typeof p.armaturePriceOverrides === 'object') userSettings.armaturePriceOverrides = p.armaturePriceOverrides;
     userSettings.priceAdjustmentRoundOval = migrated.priceAdjustmentRoundOval ?? 1.0;
     userSettings.priceAdjustmentStripe = migrated.priceAdjustmentStripe ?? 1.0;
     userSettings.discountSamePartEnabled = migrated.discountSamePartEnabled ?? false;
@@ -2910,18 +2970,22 @@ function applyPriceRegulator(type, percentDelta) {
 
 function startHistoryEdit() {
   if (!selectedHistory.value) return;
-  const client = selectedHistory.value.client || {};
+  const rec = selectedHistory.value;
+  const client = rec.client || {};
   historyEditDraft.clientName = client.name || '';
   historyEditDraft.clientCompany = client.company || '';
   historyEditDraft.clientPhone = client.phone || '';
-  historyEditDraft.clientMood = selectedHistory.value.clientMood ?? null;
+  historyEditDraft.clientMood = rec.clientMood ?? null;
   historyEditDraft.carBrand = client.brand || '';
   historyEditDraft.carModel = client.model || '';
   historyEditDraft.carPlate = client.plate || '';
   historyEditDraft.inspectDate = client.date || '';
   historyEditDraft.inspectTime = client.time || '';
-  historyEditDraft.comment = selectedHistory.value.comment || '';
-  const p = selectedHistory.value.prepayment;
+  historyEditDraft.comment = rec.comment || '';
+  historyEditDraft.discountPercent = rec.discountPercent ?? 0;
+  historyEditDraft.editManualPrice = rec.isPriceManuallyAdjusted ? (rec.manualAdjustedPrice ?? null) : null;
+  historyEditDraft.attachments = (rec.attachments || []).map((a) => ({ ...a, dentIndex: a.dentIndex ?? 0 }));
+  const p = rec.prepayment;
   historyEditDraft.prepayment = (p && typeof p === 'object')
     ? { amount: Number(p.amount) || 0, method: ['cash', 'transfer', 'card'].includes(p.method) ? p.method : null }
     : { amount: 0, method: null };
@@ -2936,7 +3000,11 @@ async function saveHistoryEdit() {
   if (!selectedHistory.value || isUpdatingHistory.value) return;
   isUpdatingHistory.value = true;
   try {
-    updateEstimate(selectedHistory.value.id, {
+    const rec = selectedHistory.value;
+    const manualVal = historyEditDraft.editManualPrice;
+    const dmPrice = rec.dmCalculatedPrice ?? rec.total ?? 0;
+    const isManual = manualVal != null && Number(manualVal) > 0 && Number(manualVal) !== Number(dmPrice);
+    updateEstimate(rec.id, {
       client: {
         name: historyEditDraft.clientName,
         company: historyEditDraft.clientCompany,
@@ -2949,7 +3017,12 @@ async function saveHistoryEdit() {
       },
       comment: historyEditDraft.comment,
       clientMood: historyEditDraft.clientMood ?? null,
-      prepayment: historyEditDraft.prepayment ?? { amount: 0, method: null }
+      prepayment: historyEditDraft.prepayment ?? { amount: 0, method: null },
+      discountPercent: Number(historyEditDraft.discountPercent) || 0,
+      attachments: historyEditDraft.attachments || [],
+      dmCalculatedPrice: rec.dmCalculatedPrice ?? dmPrice,
+      manualAdjustedPrice: isManual ? Number(manualVal) : null,
+      isPriceManuallyAdjusted: isManual
     });
     isEditingHistory.value = false;
     showToast('История обновлена ✅', 'success', 1800);
@@ -3038,22 +3111,27 @@ function buildEstimatePayload(mode) {
   const discPct = clampDiscount(estimateDraft.discountPercent);
   if (mode === 'detail') {
     const normDents = graphicsDentsForPricing.value;
+    const detailCondMap = estimateDraft.detailDentConditions || {};
     const dentItems = (graphicsState.dents || []).map((d, i) => {
       const norm = normDents[i];
       const bbox = d.bboxMm || {};
       const { widthMm: w, heightMm: h } = normalizeDimensions(bbox.width, bbox.height);
+      const perDentCond = detailCondMap[d.id] ? { ...conditions, ...detailCondMap[d.id] } : conditions;
       return {
         id: d.id,
         type: d.type,
         bboxMm: { width: w, height: h },
         areaMm2: d.areaMm2,
         sizeCode: norm?.sizeCode ?? d.sizeCode,
-        conditions,
+        conditions: perDentCond,
+        panelElement: perDentCond.panelElement ?? graphicsState.selectedPart?.name ?? null,
         photoAssetKey: d.photoAssetKey ?? null,
         discountPercent: clampDiscount(estimateDraft.dentDiscounts?.[d.id] ?? d.discountPercent ?? 0)
       };
     });
-    const photoAssets = [...new Set((graphicsState.dents || []).map((d) => d.photoAssetKey).filter(Boolean))];
+    const dentPhotoKeys = (graphicsState.dents || []).map((d) => d.photoAssetKey).filter(Boolean);
+    const mainPhotoKey = graphicsWizardRef.value?.getPhotoAssetKey?.() ?? null;
+    const photoAssets = [...new Set([...dentPhotoKeys, ...(mainPhotoKey ? [mainPhotoKey] : [])])];
     return {
       id: estimateDraft.id,
       mode: 'detail',
@@ -3338,6 +3416,37 @@ const goHome = () => {
 const addMaster = () => userSettings.masters.push({ name: '', rate: 0 });
 const removeMaster = (i) => userSettings.masters.splice(i, 1);
 
+const systemArmatureWorks = getAllSystemArmatureWorks();
+const newArmatureWorkName = ref('');
+const newArmatureWorkPrice = ref(0);
+function effectiveArmaturePrice(code) {
+  const overrides = userSettings.armaturePriceOverrides || {};
+  if (overrides[code] != null) return overrides[code];
+  const w = systemArmatureWorks.find((x) => x.code === code);
+  return w?.price ?? 0;
+}
+function setArmaturePriceOverride(code, val) {
+  const num = Number(val);
+  const cur = userSettings.armaturePriceOverrides || {};
+  if (Number.isNaN(num) || num < 0) {
+    const next = { ...cur }; delete next[code]; userSettings.armaturePriceOverrides = next;
+  } else {
+    userSettings.armaturePriceOverrides = { ...cur, [code]: num };
+  }
+}
+function addCustomArmatureWork() {
+  const name = String(newArmatureWorkName.value || '').trim();
+  if (!name) return;
+  const price = Number(newArmatureWorkPrice.value) || 0;
+  if (!userSettings.customArmatureWorks) userSettings.customArmatureWorks = [];
+  userSettings.customArmatureWorks.push({ id: `custom_${Date.now()}`, name, price });
+  newArmatureWorkName.value = '';
+  newArmatureWorkPrice.value = 0;
+}
+function removeCustomArmatureWork(idx) {
+  userSettings.customArmatureWorks?.splice(idx, 1);
+}
+
 const saveSettings = () => {
   const validated = validateSettings({ ...userSettings });
   const dataToSave = {
@@ -3364,7 +3473,9 @@ const saveSettings = () => {
     discountDiffPartValue: validated.discountDiffPartValue,
     priceAdjustmentRoundOval: validated.priceAdjustmentRoundOval,
     priceAdjustmentStripe: validated.priceAdjustmentStripe,
-    useQuickUiInDetail: userSettings.useQuickUiInDetail
+    useQuickUiInDetail: userSettings.useQuickUiInDetail,
+    customArmatureWorks: userSettings.customArmatureWorks || [],
+    armaturePriceOverrides: userSettings.armaturePriceOverrides || {}
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(dataToSave));
   const tg = window.Telegram?.WebApp;
@@ -3739,6 +3850,28 @@ onBeforeUnmount(() => {
 }
 .content-padding-bottom {
   padding-bottom: var(--content-padding-bottom);
+}
+
+/* History detail: sticky action bar above tab bar */
+.app-root {
+  --history-detail-actions-h: 80px;
+}
+.history-detail-actions {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: var(--app-footer-height);
+  z-index: 40;
+  max-width: 28rem;
+  margin-left: auto;
+  margin-right: auto;
+  background: #000;
+}
+.history-detail-actions__inner {
+  width: 100%;
+}
+.history-detail-wrapper .history-detail-content {
+  padding-bottom: calc(var(--content-padding-bottom) + var(--history-detail-actions-h));
 }
 .app-root--gradient {
   background: #000000;

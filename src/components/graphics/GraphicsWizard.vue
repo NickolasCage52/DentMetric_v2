@@ -2,7 +2,7 @@
   <div
     ref="graphicsRoot"
     class="graphics-fullscreen-wrapper"
-    :class="['graphics-step-' + wizardStep, { 'graphics-step-photo': freeformPhotoMode }]"
+    :class="['graphics-step-' + wizardStep, { 'graphics-step-photo': freeformPhotoMode || (usePhotoBasedFlow && ((props.showClientStep && wizardStep === 2) || (!props.showClientStep && wizardStep === 1))) }]"
     :style="matrixSafeTopStyle"
   >
     <StepHeader
@@ -10,7 +10,8 @@
       :selected-part-id="selectedPartId"
       :car-classes="carClasses"
       :parts-list="partsList"
-      :lock-selection="wizardStep >= 4"
+      :lock-selection="wizardStep >= (usePhotoBasedFlow ? 4 : 4)"
+      :hide-vehicle-select="usePhotoBasedFlow"
       :show-reset="true"
       :current-step="wizardStep"
       @home="$emit('home')"
@@ -22,20 +23,14 @@
     <!-- Hint: фиксированная высота, не влияет на позицию матрицы -->
     <div class="graphics-hint-area">
       <div
-        v-if="wizardStep >= 2 && wizardStep <= 3"
+        v-if="stepHintText && wizardStep >= (usePhotoBasedFlow ? 3 : 2) && wizardStep <= (usePhotoBasedFlow ? 4 : 3)"
         ref="hintRef"
         class="step-hint-block w-full px-2.5 py-1.5 rounded-lg bg-black/70 backdrop-blur-sm border pointer-events-none"
         :class="wizardStep === 2 ? 'border-metric-green/40' : 'border-metric-green/40'"
       >
-        <p class="step-hint-text text-[12px] font-medium leading-tight text-gray-200 mb-1">
+        <p class="step-hint-text text-[12px] font-medium leading-tight text-gray-200 mb-0">
           {{ stepHintText }}
         </p>
-        <div class="flex items-center justify-between text-[11px]">
-          <span class="text-gray-400">Предварительно:</span>
-          <span :class="basePrice > 0 ? 'text-metric-green font-bold' : 'text-gray-500'">
-            {{ basePrice > 0 ? formatCurrency(roundPrice(basePrice)) + ' ₽' : '—' }}
-          </span>
-        </div>
       </div>
     </div>
     <!-- Stage: матрица всегда в одном месте, фиксированная позиция на всех этапах -->
@@ -55,7 +50,7 @@
         ></div>
         <!-- Кнопка удаления вмятины на этапах 1–3 (HUD): активна только при выбранной вмятине -->
         <button
-          v-if="wizardStep <= 3"
+          v-if="wizardStep <= (usePhotoBasedFlow ? 4 : 3)"
           type="button"
           class="hud-delete-btn"
           :class="{ 'hud-delete-btn--active': selectedDentSize }"
@@ -79,11 +74,12 @@
     <!-- Controls: z-index выше stage, чтобы селекты всегда были кликабельны -->
     <div
       ref="controlsAreaRef"
-      class="graphics-controls-area shrink-0 border-t border-white/10 bg-black/80 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[env(safe-area-inset-bottom,0px)]"
+      class="graphics-controls-area shrink-0 border-t border-white/10 bg-black/80 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[env(safe-area-inset-bottom,0px)]"
       :style="controlsAreaKeyboardStyle"
     >
+      <!-- Photo-based Detail: always use Quick client screen (same as Quick mode). Step0ClientPanel not used in active flow. -->
       <QuickStyleClientSection
-        v-if="props.useQuickUiInDetail && wizardStep === 1 && props.showClientStep"
+        v-if="wizardStep === 1 && props.showClientStep"
         :model="props.estimateDraft"
         :client-required="clientRequired"
         :can-next="clientValid"
@@ -97,35 +93,85 @@
         @open-history="openClientHistorySheet"
         @autofill-client="handleAutofillClient"
       />
-      <Step0ClientPanel
-        v-else-if="!props.useQuickUiInDetail && wizardStep === 1 && props.showClientStep"
-        :model="props.estimateDraft"
-        :client-required="clientRequired"
-        :can-next="clientValid"
-        :history-enabled="props.historyEnabled"
-        :found-client="detailFoundClient"
-        @next="() => goToStep(2)"
+      <StepPhotoSelect
+        v-else-if="usePhotoBasedFlow && ((props.showClientStep && wizardStep === 2) || (!props.showClientStep && wizardStep === 1))"
+        :model-value="photoAsset"
         @back="goBack"
-        @open-history="openClientHistorySheet"
-        @autofill-client="handleAutofillClient"
+        @next="onPhotoSelectNextPhotoFirst"
+        @update:model-value="onPhotoAssetUpdate"
       />
       <Step1PlacementPanel
-        v-else-if="(wizardStep === 2 || (wizardStep === 1 && !props.showClientStep)) && !freeformPhotoMode"
+        v-else-if="usePhotoBasedFlow && ((props.showClientStep && wizardStep === 3) || (!props.showClientStep && wizardStep === 2))"
         :can-next="dents.length >= 1"
-        @add-type="openSizeMenu"
+        @add-type="onAddType"
+        @add-freeform="onAddFreeform"
+        @next="() => goToStep(usePhotoBasedFlow ? 4 : 3)"
+        @back="goBack"
+      />
+      <Step1PlacementPanel
+        v-else-if="!usePhotoBasedFlow && (wizardStep === 2 || (wizardStep === 1 && !props.showClientStep)) && !freeformPhotoMode"
+        :can-next="dents.length >= 1"
+        @add-type="onAddType"
         @add-freeform="onAddFreeform"
         @next="() => goToStep(3)"
         @back="goBack"
       />
       <StepPhotoSelect
-        v-else-if="(wizardStep === 2 || (wizardStep === 1 && !props.showClientStep)) && freeformPhotoMode"
+        v-else-if="!usePhotoBasedFlow && (wizardStep === 2 || (wizardStep === 1 && !props.showClientStep)) && freeformPhotoMode"
         :model-value="photoAsset"
         @back="freeformPhotoMode = false"
         @next="onPhotoSelectNext"
-        @update:model-value="photoAsset = $event"
+        @update:model-value="onPhotoAssetUpdate"
       />
+      <!-- Photo flow step 4: Quick screen 2 repeated per dent — same UI, logic, validation as Quick mode. Dimensions prefilled from placement, editable. -->
+      <template v-else-if="usePhotoBasedFlow && wizardStep === 4">
+        <div class="detail-per-dent-combined detail-step4-wrap flex flex-col min-h-0 flex-1 overflow-hidden qc-compact relative">
+          <div class="detail-step4-content flex-1 min-h-0 overflow-y-auto overscroll-contain pt-3" style="display:flex;flex-direction:column;gap:var(--qc-section-gap);-webkit-overflow-scrolling:touch;padding-bottom:calc(72px + env(safe-area-inset-bottom,0px) + 16px)">
+            <QuickStyleStep2Section
+              :active-dent="detailActiveDentForStep2"
+              :active-dent-id="currentDetailDent?.id ?? null"
+              :dents="detailDentsForStep2"
+              :initial-data="initialData"
+              :user-settings="userSettings"
+              :selected-part-name="selectedPart?.name"
+              :hide-add-remove="true"
+              :hide-reset="true"
+              @set-active="onDetailStep2SetActive"
+              @update-size="onDetailStep2UpdateSize"
+              @update-conditions="onDetailStep2UpdateConditions"
+              @update-panel-element="onDetailStep2UpdatePanelElement"
+              @update-panel-side="onDetailStep2UpdatePanelSide"
+              @preset-selected="onDetailStep2PresetSelected"
+            />
+          </div>
+          <div class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
+            <div class="grid gap-2 w-full" style="grid-template-columns: auto 1fr auto; align-items: center;">
+              <button
+                type="button"
+                @click="onStep4Back"
+                class="step-nav-back-btn shrink-0 py-2.5 px-3 rounded-xl text-xs font-medium text-gray-400 hover:text-white border border-white/15 hover:border-white/25 transition-all touch-manipulation min-h-[44px]"
+              >
+                Назад
+              </button>
+              <div class="detail-step4-price text-center overflow-hidden px-1 min-w-0 flex items-center justify-center">
+                <span class="text-[15px] font-bold text-metric-green tabular-nums truncate">{{ formatCurrency(displayTotal) }} ₽</span>
+              </div>
+              <button
+                type="button"
+                :disabled="detailStep4NextDisabled"
+                @click="onStep4Next"
+                class="shrink-0 py-2.5 px-3 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-h-[44px] touch-manipulation"
+                :class="!detailStep4NextDisabled ? 'bg-metric-green text-black shadow-[0_0_15px_rgba(136,229,35,0.4)] hover:opacity-95 active:opacity-90' : 'bg-white/10 text-gray-500 cursor-not-allowed'"
+              >
+                <span>{{ detailDentIndex < (dents?.length ?? 0) - 1 ? 'Следующая вмятина →' : 'Рассчитать → Итог' }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+      <!-- Non-photo flow: geometry only step -->
       <Step2SizePanel
-        v-else-if="wizardStep === 3"
+        v-else-if="!usePhotoBasedFlow && wizardStep === 3"
         :selected-dent-size="selectedDentSize"
         :shape-variant="selectedDentSize?.shapeVariant ?? (selectedDentSize?.type === 'circle' ? 'oval' : 'strip')"
         :size-width-mm="sizeWidthMm"
@@ -133,17 +179,21 @@
         :free-stretch="freeStretchMode"
         :area-mm2="selectedDentSize?.areaMm2 ?? null"
         :can-next="dentsValid"
+        :dent-index="detailDentIndex + 1"
+        :dent-total="dents.length"
         @update:shape-variant="onShapeVariantChange"
         @update:free-stretch="onFreeStretchChange"
         @update:size-width-mm="onSizeWidthInput"
         @update:size-height-mm="onSizeHeightInput"
         @dimensions-focus="onDimensionsInputFocus"
         @fix-freeform="onFixFreeformShape"
-        @next="() => goToStep(4)"
-        @back="goBack"
+        @next="onStep4Next"
+        @back="onStep4Back"
       />
+      <!-- Non-photo flow: conditions step (legacy vehicle-based flow keeps separate step) -->
+      <!-- Non-photo flow: conditions — always Quick-style for visual parity with Quick mode -->
       <QuickStyleConditionsSection
-        v-else-if="props.useQuickUiInDetail && wizardStep === 4"
+        v-else-if="!usePhotoBasedFlow && wizardStep === 4"
         :model="form"
         :initial-data="initialData"
         :selected-part-name="selectedPart?.name"
@@ -156,23 +206,11 @@
         @pick="onQuickStylePickParam"
         @pick-armature="onQuickStylePickArmature"
       />
-      <Step3ConditionsPanel
-        v-else-if="!props.useQuickUiInDetail && wizardStep === 4"
-        :model="form"
-        :initial-data="initialData"
-        :selected-part-name="selectedPart?.name"
-        :base-price="roundPrice(basePrice)"
-        :total-price="displayTotal"
-        :show-info-tooltips="userSettings?.showInfoTooltips !== false"
-        :show-paint-material="userSettings?.showPaintMaterial !== false"
-        :show-sound-insulation="userSettings?.showSoundInsulation !== false"
-        @back="goBack"
-        @calculate="() => goToStep(5)"
-      />
       <QuickStyleFinalSection
         v-else-if="wizardStep === 5"
         :line-items="detailLineItems"
         :initial-data="initialData"
+        :detail-photo-url="detailPhotoDisplayUrl"
         :format-armaturnaya-summary="formatArmaturnayaSummary"
         :comment="estimateDraft.comment"
         :discount-percent="undefined"
@@ -300,7 +338,11 @@ import {
   setSelectedDentShapeFixed,
   convertSelectedDentToType,
   setDisplayUnit,
-  exportStageAsBlob
+  exportStageAsBlob,
+  setPhotoBackground,
+  clearPhotoBackground,
+  selectDentById,
+  getDents
 } from '../../graphics/konvaEditor';
 import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown, roundPrice, getPerDentCoresAndAddons } from '../../utils/priceCalc';
 import { normalizeGraphicsDentsForPricing, isRatioOneToOne } from '../../features/pricing/pricingAdapter';
@@ -314,12 +356,12 @@ import Step0ClientPanel from './Step0ClientPanel.vue';
 import Step1PlacementPanel from './Step1PlacementPanel.vue';
 import StepPhotoSelect from './StepPhotoSelect.vue';
 import Step2SizePanel from './Step2SizePanel.vue';
-import Step3ConditionsPanel from './Step3ConditionsPanel.vue';
 import StepDots from './StepDots.vue';
 import FreeformDrawModal from './FreeformDrawModal.vue';
 import QuickStyleClientSection from '../quickStyle/QuickStyleClientSection.vue';
 import QuickStyleConditionsSection from '../quickStyle/QuickStyleConditionsSection.vue';
 import QuickStyleFinalSection from '../quickStyle/QuickStyleFinalSection.vue';
+import QuickStyleStep2Section from '../quickStyle/QuickStyleStep2Section.vue';
 import { calculateDentPrice as calcDentViaAdapter } from '../../features/pricing/pricingAdapter';
 import { resolveDentShapeType } from '../../utils/resolveDentShapeType';
 import { formatArmaturnayaSummary, getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks';
@@ -386,18 +428,23 @@ async function openClientField(field, label, inputType) {
   if (value !== undefined && value !== null) props.estimateDraft[field] = value;
 }
 
+/** Photo-first flow: детализация начинается с фото/галереи, без выбора машины */
+const usePhotoBasedFlow = true;
+
 const wizardStep = ref(1);
 
 function initWizardStep() {
-  if (!props.showClientStep) wizardStep.value = 2;
+  if (!props.showClientStep) {
+    wizardStep.value = usePhotoBasedFlow ? 1 : 2;
+  }
 }
 
 watch(
   () => props.showClientStep,
   (show) => {
-    // Enforce settings immediately: when client step is disabled, skip it.
-    // When enabled again, do not force-jump backwards (avoid surprise navigation).
-    if (!show && wizardStep.value === 1) wizardStep.value = 2;
+    if (!show && wizardStep.value === 1) {
+      wizardStep.value = usePhotoBasedFlow ? 1 : 2;
+    }
   }
 );
 const graphicsRoot = ref(null);
@@ -420,6 +467,10 @@ const freeformPhotoMode = ref(false);
 const photoAsset = ref(null);
 const freeformPhotoUrl = ref('');
 const freeformCanvasSize = ref({ width: 320, height: 240 });
+/** Индекс вмятины при пошаговом редактировании на экране 4 (0-based). */
+const detailDentIndex = ref(0);
+/** Per-dent conditions for photo flow (Quick-style step 2). Map dentId -> { repairCode, riskCode, materialCode, carClassCode, disassemblyCodes, ... } */
+const detailDentConditions = ref({});
 let sizeApplyTimeout = null;
 let sizeEditByUser = false;
 
@@ -435,7 +486,7 @@ const matrixSafeTopStyle = computed(() => ({
 let hintObserver = null;
 
 function updateMatrixSafeTop() {
-  if (wizardStep.value <= 3) {
+  if (wizardStep.value <= (usePhotoBasedFlow ? 4 : 3)) {
     if (matrixSafeTop.value !== MIN_SAFE_TOP) matrixSafeTop.value = MIN_SAFE_TOP;
     return;
   }
@@ -501,8 +552,17 @@ const sizeMenuPortalTarget = computed(() => {
   return typeof document !== 'undefined' ? document.body : null;
 });
 
-const detailTotalSteps = computed(() => props.showClientStep ? 5 : 4);
-const detailLogicalStep = computed(() => props.showClientStep ? wizardStep.value : Math.max(1, wizardStep.value - 1));
+const detailTotalSteps = computed(() => {
+  if (!usePhotoBasedFlow) return props.showClientStep ? 5 : 4;
+  /** Photo flow: Client→Photo→Placement→Per-dent (combined)→Final = 5 steps with client, 4 without */
+  return props.showClientStep ? 5 : 4;
+});
+/** URL фото для отображения на финальном экране (photo-first flow) */
+const detailPhotoDisplayUrl = computed(() => freeformPhotoUrl.value || null);
+const detailLogicalStep = computed(() => {
+  if (!usePhotoBasedFlow) return props.showClientStep ? wizardStep.value : Math.max(1, wizardStep.value - 1);
+  return wizardStep.value;
+});
 const dentsForPricing = computed(() => {
   const ctx = {
     circleSizes: props.circleSizes,
@@ -518,6 +578,7 @@ const dentsForPricing = computed(() => {
   });
 });
 const basePrice = computed(() => calcBasePriceFromDents(dentsForPricing.value));
+/** Conditions for pricing: per-dent when available (photo flow), else shared form. */
 const conditionsForCalc = computed(() => props.conditionsForCalc || props.form);
 const totalPriceRaw = computed(() => {
   const dents = dentsForPricing.value;
@@ -587,13 +648,15 @@ const detailLineItems = computed(() => {
     initialData: props.initialData,
     roundStep: props.userSettings?.priceRoundStep ?? 0
   };
+  const condMap = detailDentConditions.value;
   const list = dents.map((dent) => {
     const bbox = dent?.bboxMm || {};
     const w = Number(bbox.width) || 0;
     const h = Number(bbox.height) || 0;
     const resolved = w > 0 && h > 0 ? resolveDentShapeType(w, h) : null;
     const shape = dent?.type === 'freeform' ? 'circle' : (resolved === 'stripe' ? 'strip' : 'circle');
-    const conditions = props.userSettings?.showPaintMaterial !== false ? cond : { ...cond, paintMaterialCode: null };
+    const perDent = condMap[dent?.id] ? { ...cond, ...condMap[dent.id] } : cond;
+    const conditions = props.userSettings?.showPaintMaterial !== false ? perDent : { ...perDent, paintMaterialCode: null };
     const result = calcDentViaAdapter(
       { shape, widthMm: w, heightMm: h, conditions, panelElement: props.selectedPart?.name },
       ctx
@@ -602,7 +665,7 @@ const detailLineItems = computed(() => {
     const dentDisplay = {
       ...dent,
       conditions,
-      panelElement: props.selectedPart?.name,
+      panelElement: perDent.panelElement ?? props.selectedPart?.name,
       bboxMm: dent.bboxMm,
       sizeLengthMm: w,
       sizeWidthMm: h
@@ -657,6 +720,66 @@ const detailArmatureSummary = computed(() =>
   formatArmaturnayaSummary(props.form?.disassemblyCodes, props.selectedPart?.name) || ''
 );
 
+/** Current dent in photo flow step 4. */
+const currentDetailDent = computed(() => {
+  const arr = dents.value || [];
+  const idx = detailDentIndex.value;
+  return arr[idx] ?? null;
+});
+
+/** Dents in Quick-style shape for step 2 chips (id only for chips). */
+const detailDentsForStep2 = computed(() => (dents.value || []).map((d) => ({ id: d?.id })));
+
+/** Active dent view model for QuickStyleStep2Section: dimensions from placement (bboxMm), conditions from detailDentConditions or form. */
+const detailActiveDentForStep2 = computed(() => {
+  const d = currentDetailDent.value;
+  if (!d) return null;
+  const bbox = d.bboxMm || {};
+  const w = Number(bbox.width) || 0;
+  const h = Number(bbox.height) || 0;
+  const condMap = detailDentConditions.value;
+  const fallback = props.form || {};
+  const cond = condMap[d.id]
+    ? { ...fallback, ...condMap[d.id] }
+    : { ...fallback };
+  if (!cond.disassemblyCodes?.length) cond.disassemblyCodes = ['Z0'];
+  return {
+    id: d.id,
+    sizeLengthMm: w,
+    sizeWidthMm: h,
+    panelSide: cond.panelSide ?? 'left',
+    panelElement: cond.panelElement ?? props.selectedPart?.name ?? null,
+    conditions: cond
+  };
+});
+
+/** Photo flow step 4: all dents have complete conditions (same validation as Quick step 2). */
+const detailConditionsComplete = computed(() => {
+  const arr = dents.value || [];
+  if (arr.length === 0) return false;
+  const condMap = detailDentConditions.value;
+  const fallback = props.form || {};
+  return arr.every((d) => {
+    const c = condMap[d.id] ? { ...fallback, ...condMap[d.id] } : fallback;
+    return !!(
+      c.repairCode &&
+      c.riskCode &&
+      c.materialCode &&
+      c.carClassCode &&
+      (c.disassemblyCodes?.length ?? 0) > 0
+    );
+  });
+});
+
+/** Photo flow step 4: кнопка «Следующая вмятина» — всегда активна при наличии следующей вмятины. «Рассчитать → Итог» — только при заполненных условиях. */
+const detailStep4NextDisabled = computed(() => {
+  const arr = dents.value || [];
+  const idx = detailDentIndex.value;
+  const hasNextDent = arr.length > 1 && idx < arr.length - 1;
+  if (hasNextDent) return false;
+  return !detailConditionsComplete.value;
+});
+
 function resetClientFields() {
   props.estimateDraft.clientName = '';
   props.estimateDraft.clientCompany = '';
@@ -664,6 +787,64 @@ function resetClientFields() {
   props.estimateDraft.carBrand = '';
   props.estimateDraft.carModel = '';
   props.estimateDraft.carPlate = '';
+}
+
+/** Photo flow step 4: switch active dent by chip click. */
+function onDetailStep2SetActive(dentId) {
+  const arr = dents.value || [];
+  const idx = arr.findIndex((d) => d?.id === dentId);
+  if (idx >= 0) {
+    detailDentIndex.value = idx;
+    selectDentById(dentId);
+  }
+}
+
+/** Photo flow step 4: user edited size via modal — update Konva. */
+async function onDetailStep2UpdateSize({ field, value }) {
+  const d = currentDetailDent.value;
+  if (!d || !selectedDentSize.value) return;
+  const bbox = d.bboxMm || {};
+  let w = Number(bbox.width) || 0;
+  let h = Number(bbox.height) || 0;
+  if (field === 'sizeLengthMm') w = value;
+  else if (field === 'sizeWidthMm') h = value;
+  if (w > 0 && h > 0) {
+    if (d.type === 'freeform') setSelectedDentUserDimensions(w, h);
+    else setSelectedDentSizeMm(w, h);
+  }
+}
+
+/** Photo flow step 4: user picked condition — store per dent. */
+function onDetailStep2UpdateConditions({ field, value }) {
+  const d = currentDetailDent.value;
+  if (!d?.id) return;
+  const map = detailDentConditions.value;
+  if (!map[d.id]) map[d.id] = {};
+  map[d.id][field] = value;
+  detailDentConditions.value = { ...map };
+  if (props.estimateDraft) props.estimateDraft.detailDentConditions = { ...map };
+}
+
+/** Photo flow step 4: user picked panel element. */
+function onDetailStep2UpdatePanelElement(value) {
+  onDetailStep2UpdateConditions({ field: 'panelElement', value });
+}
+
+/** Photo flow step 4: user picked panel side. */
+function onDetailStep2UpdatePanelSide(value) {
+  onDetailStep2UpdateConditions({ field: 'panelSide', value });
+}
+
+/** Photo flow step 4: user selected preset — update Konva dimensions. */
+function onDetailStep2PresetSelected(preset) {
+  const d = currentDetailDent.value;
+  if (!d || !preset?.widthMm || !preset?.heightMm) return;
+  const w = Number(preset.widthMm) || 0;
+  const h = Number(preset.heightMm) || 0;
+  if (w > 0 && h > 0) {
+    if (d.type === 'freeform') setSelectedDentUserDimensions(w, h);
+    else setSelectedDentSizeMm(w, h);
+  }
 }
 
 function handleAutofillClient(fields) {
@@ -847,21 +1028,42 @@ watch([sizeWidthMm, sizeHeightMm], () => {
   }, 150);
 });
 
+if (import.meta.env?.DEV) {
+  watch(
+    () => [wizardStep.value, dents.value?.length],
+    ([step, len]) => {
+      if (usePhotoBasedFlow && step > 3 && (len ?? 0) === 0) {
+        console.error('[DETAIL ASSERT] dents[] is empty after placement step — propagation broken!');
+      }
+    }
+  );
+}
+
 watch(dents, (val) => {
   emit('dents-change', val);
-  if (wizardStep.value === 3 && val.length === 0) {
-    goToStep(2);
+  const sizeStep = usePhotoBasedFlow ? 4 : 3;
+  const placementStep = usePhotoBasedFlow ? 3 : 2;
+  if (wizardStep.value === sizeStep && val.length === 0) {
+    goToStep(placementStep);
+  } else if (wizardStep.value === sizeStep && val.length > 0) {
+    const idx = detailDentIndex.value;
+    if (idx >= val.length) {
+      detailDentIndex.value = Math.max(0, val.length - 1);
+      selectDentById(val[detailDentIndex.value]?.id);
+    }
   }
 }, { deep: true });
 
 watch(wizardStep, (step, prev) => {
-  if (step === 5 && props.estimateDraft && !props.estimateDraft.id) {
+  const finalStep = usePhotoBasedFlow ? 5 : 5;
+  const stepBeforeFinal = usePhotoBasedFlow ? 4 : 4;
+  if (step === finalStep && props.estimateDraft && !props.estimateDraft.id) {
     props.estimateDraft.id = generateRecordId();
   }
-  if (step === 5 && props.estimateDraft) {
+  if (step === finalStep && props.estimateDraft) {
     syncFreeformPhotosToAttachments();
   }
-  if (props.autoSave && step === 5 && prev === 4 && totalPrice.value > 0 && !props.historySaving) {
+  if (props.autoSave && step === finalStep && prev === stepBeforeFinal && totalPrice.value > 0 && !props.historySaving) {
     nextTick(() => onSaveHistory());
   }
 });
@@ -874,25 +1076,49 @@ watch(wizardStep, (step, prev) => {
  * Step 4: → Step 3.
  */
 function goBack() {
-  switch (wizardStep.value) {
-    case 1:
-      emit('close');
-      break;
-    case 2:
-      if (props.showClientStep) goToStep(1);
-      else emit('close');
-      break;
-    case 3:
-      goToStep(2);
-      break;
-    case 4:
-      goToStep(3);
-      break;
-    case 5:
-      goToStep(4);
-      break;
-    default:
-      goToStep(1);
+  const step = wizardStep.value;
+  if (usePhotoBasedFlow) {
+    switch (step) {
+      case 1:
+        emit('close');
+        break;
+      case 2:
+        if (props.showClientStep) goToStep(1);
+        else emit('close');
+        break;
+      case 3:
+        goToStep(props.showClientStep ? 2 : 1);
+        break;
+      case 4:
+        goToStep(3);
+        break;
+      case 5:
+        goToStep(4);
+        break;
+      default:
+        goToStep(1);
+    }
+  } else {
+    switch (step) {
+      case 1:
+        emit('close');
+        break;
+      case 2:
+        if (props.showClientStep) goToStep(1);
+        else emit('close');
+        break;
+      case 3:
+        goToStep(2);
+        break;
+      case 4:
+        goToStep(3);
+        break;
+      case 5:
+        goToStep(4);
+        break;
+      default:
+        goToStep(1);
+    }
   }
 }
 
@@ -902,7 +1128,39 @@ function goBack() {
  */
 function goToStep(step) {
   wizardStep.value = step;
+  const sizeStepNum = usePhotoBasedFlow ? 4 : 3;
+  if (step === sizeStepNum && dents.value?.length > 0) {
+    detailDentIndex.value = 0;
+    nextTick(() => selectDentById(dents.value[0]?.id));
+  }
 }
+
+/** Экран 4: назад — предыдущая вмятина или на экран размещения. */
+function onStep4Back() {
+  const arr = dents.value || [];
+  const idx = detailDentIndex.value;
+  if (arr.length <= 0) return;
+  if (idx > 0) {
+    detailDentIndex.value = idx - 1;
+    selectDentById(arr[idx - 1]?.id);
+  } else {
+    goBack();
+  }
+}
+
+/** Экран 4: вперёд — следующая вмятина или на экран условий (non-photo) / Final (photo). */
+function onStep4Next() {
+  const arr = dents.value || [];
+  const idx = detailDentIndex.value;
+  if (arr.length <= 0) return;
+  if (idx < arr.length - 1) {
+    detailDentIndex.value = idx + 1;
+    selectDentById(arr[idx + 1]?.id);
+  } else {
+    goToStep(usePhotoBasedFlow ? 5 : 4);
+  }
+}
+
 
 /**
  * Сохранить в историю: добавляет скриншот матрицы в вложения, затем эмитит save-history.
@@ -938,6 +1196,9 @@ function syncFreeformPhotosToAttachments() {
   const draft = props.estimateDraft;
   if (!draft) return;
   const keys = new Set((dents.value || []).map((d) => d?.photoAssetKey).filter(Boolean));
+  if (usePhotoBasedFlow && photoAsset.value?.key && !keys.has(photoAsset.value.key)) {
+    keys.add(photoAsset.value.key);
+  }
   if (keys.size === 0) return;
   const current = draft.attachments || [];
   const currentKeys = new Set(current.map((a) => a?.idbKey).filter(Boolean));
@@ -979,6 +1240,9 @@ function resetDentsOnly() {
     URL.revokeObjectURL(freeformPhotoUrl.value);
     freeformPhotoUrl.value = '';
   }
+  if (usePhotoBasedFlow) {
+    clearPhotoBackground();
+  }
   props.form.repairCode = null;
   props.form.riskCode = null;
   props.form.materialCode = null;
@@ -986,6 +1250,8 @@ function resetDentsOnly() {
   props.form.disassemblyCodes = ['Z0'];
   props.form.paintMaterialCode = null;
   props.form.soundInsulationCode = null;
+  detailDentConditions.value = {};
+  if (props.estimateDraft) props.estimateDraft.detailDentConditions = {};
   initWizardStep();
   emit('dents-change', []);
 }
@@ -997,6 +1263,24 @@ function resetDentsOnly() {
 function resetAll() {
   if (dents.value.length > 0 && !confirm('Сбросить все вмятины и начать заново?')) return;
   resetDentsOnly();
+}
+
+/** Геометрия: 20×20 мм. displayScale 5 — фигуры крупнее на экране. В фото-режиме — мин. 100px круг, 120×50 полоса. */
+const QUICK_ADD_SIZE_MM = { w: 20, h: 20 };
+const QUICK_ADD_DISPLAY_SCALE = 5;
+
+function onAddType(type) {
+  if (type === 'circle' || type === 'strip') {
+    const sizes = type === 'circle' ? props.circleSizes : props.stripSizes;
+    const sizeCode = sizes[0]?.code ?? (type === 'circle' ? 'S2' : 'L5');
+    addDent(type, sizeCode, sizes, {
+      sizeMmOverride: QUICK_ADD_SIZE_MM,
+      displayScale: QUICK_ADD_DISPLAY_SCALE
+    });
+    return;
+  }
+  activeToolType.value = type;
+  showSizeMenu.value = true;
 }
 
 function openSizeMenu(type) {
@@ -1013,7 +1297,7 @@ function confirmAddShape(sizeCode) {
 }
 
 function deleteCurrent() {
-  deleteSelected();
+  deleteSelected(selectedDentSize.value?.id);
 }
 
 function onShapeVariantChange(variant) {
@@ -1060,7 +1344,21 @@ function openFreeformModal() {
 }
 
 function onAddFreeform() {
+  if (usePhotoBasedFlow && freeformPhotoUrl.value) {
+    updateFreeformCanvasSize();
+    showFreeformModal.value = true;
+    return;
+  }
+  if (freeformPhotoMode.value && freeformPhotoUrl.value) {
+    updateFreeformCanvasSize();
+    showFreeformModal.value = true;
+    return;
+  }
   freeformPhotoMode.value = true;
+}
+
+function onPhotoAssetUpdate(v) {
+  photoAsset.value = v;
 }
 
 async function onPhotoSelectNext() {
@@ -1078,12 +1376,45 @@ async function onPhotoSelectNext() {
   showFreeformModal.value = true;
 }
 
+/** Photo-first: загрузить фото в canvas и перейти к разметке (без модалки) */
+async function onPhotoSelectNextPhotoFirst() {
+  const key = photoAsset.value?.key;
+  if (!key) return;
+
+  try {
+    const blob = await getAttachment(key);
+    if (blob) {
+      if (freeformPhotoUrl.value) URL.revokeObjectURL(freeformPhotoUrl.value);
+      freeformPhotoUrl.value = URL.createObjectURL(blob);
+      try {
+        await setPhotoBackground(blob);
+      } catch (bgErr) {
+        console.warn('[DentMetric] setPhotoBackground failed, continuing:', bgErr);
+      }
+    }
+    updateFreeformCanvasSize();
+  } catch (e) {
+    console.error('[DentMetric] Photo load for canvas failed', e);
+    return;
+  }
+  goToStep(props.showClientStep ? 3 : 2);
+}
+
+/** На экране размещения: применить user photo как фон матрицы (если ещё не применён). */
+async function applyPhotoBackgroundIfNeeded() {
+  const key = photoAsset.value?.key;
+  if (!key) return;
+  try {
+    const blob = await getAttachment(key);
+    if (blob) await setPhotoBackground(blob);
+  } catch (_) {
+    /* ignore */
+  }
+}
+
 function closeFreeformModal() {
   showFreeformModal.value = false;
-  if (freeformPhotoUrl.value) {
-    URL.revokeObjectURL(freeformPhotoUrl.value);
-    freeformPhotoUrl.value = '';
-  }
+  /* Не отзываем freeformPhotoUrl — кнопка «Произвольная форма» может вызываться повторно */
 }
 
 function onFreeformConfirm(points) {
@@ -1102,6 +1433,18 @@ const initKonvaEditor = async () => {
   if (!konvaContainer.value || !props.selectedPart) return;
   konvaReady.value = false;
   const baseUrl = (typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL) || '';
+  /** Photo-first: user photo имеет приоритет над vehicle-матрицей. Если фото выбрано — передаём blob. */
+  let photoBlob = null;
+  if (usePhotoBasedFlow && photoAsset.value?.key) {
+    try {
+      photoBlob = await getAttachment(photoAsset.value.key);
+    } catch (_) {
+      /* ignore */
+    }
+  }
+  if (import.meta.env?.DEV) {
+    console.log('[WIZARD] initKonvaEditor, usePhotoBasedFlow:', usePhotoBasedFlow, 'photoAsset:', photoAsset.value?.key, 'photoBlob loaded:', !!photoBlob);
+  }
   try {
     await initKonva(
       konvaContainer.value,
@@ -1112,7 +1455,8 @@ const initKonvaEditor = async () => {
         emit('dents-change', newDents);
       },
       baseUrl,
-      (info) => { selectedDentSize.value = info; }
+      (info) => { selectedDentSize.value = info; },
+      { photoBlob: photoBlob ?? undefined }
     );
     konvaReady.value = true;
   } catch (e) {
@@ -1120,7 +1464,8 @@ const initKonvaEditor = async () => {
     throw e;
   }
   /* Применить текущий шаг (draggable формы vs handle) после init */
-  setEditable(wizardStep.value >= 2 && wizardStep.value <= 3, wizardStep.value);
+  const editableMaxStep = usePhotoBasedFlow ? 4 : 3;
+  setEditable(wizardStep.value >= 1 && wizardStep.value <= editableMaxStep, wizardStep.value);
   setDisplayUnit(props.userSettings?.sizeUnit || 'mm');
   updateMobileGrid();
   /* Повторный fit после layout: контейнер мог иметь 0 размер при init */
@@ -1137,13 +1482,35 @@ watch(
   (step) => {
     nextTick(() => {
       updateMatrixSafeTop();
-      setEditable(step >= 2 && step <= 3, step);
+      const editableMaxStep = usePhotoBasedFlow ? 4 : 3;
+      /** Этапы 1–4: canvas интерактивен (выбор/удаление вмятин). Шаг 1 включён — на нём может быть placement при !showClientStep. */
+      setEditable(step >= 1 && step <= editableMaxStep, step);
       updateMobileGrid();
-      if (step === 3) {
+      if (step === (usePhotoBasedFlow ? 4 : 3)) {
         setKeepRatio(!freeStretchMode.value);
         setTimeout(() => scheduleFit('step2-show'), 200);
       }
       if (step >= 4) setTimeout(() => scheduleFit('resize'), 150);
+      /** Step after placement: sync dents from konvaEditor (canonical source) to ensure all placed dents propagate to the next screen (multi-dent fix). */
+      const calcStep = usePhotoBasedFlow ? 4 : 3;
+      if (step === calcStep) {
+        const konvaDents = getDents();
+        if (Array.isArray(konvaDents) && konvaDents.length > 0) {
+          const needSync = (dents.value?.length ?? 0) !== konvaDents.length || (dents.value || []).some((d, i) => d?.id !== konvaDents[i]?.id);
+          if (needSync) {
+            dents.value = konvaDents;
+            emit('dents-change', konvaDents);
+            if (detailDentIndex.value >= konvaDents.length) {
+              detailDentIndex.value = Math.max(0, konvaDents.length - 1);
+              nextTick(() => selectDentById(konvaDents[detailDentIndex.value]?.id));
+            }
+          }
+        }
+      }
+      /** Photo-first: на экране размещения (step 3) гарантируем фон = user photo. Задержка для готовности Konva. */
+      if (usePhotoBasedFlow && step === (props.showClientStep ? 3 : 2) && photoAsset.value?.key) {
+        setTimeout(() => applyPhotoBackgroundIfNeeded(), 50);
+      }
     });
   },
   { immediate: true }
@@ -1167,6 +1534,30 @@ watch(
     if (unit) setDisplayUnit(unit);
   }
 );
+
+if (import.meta.env.DEV) {
+  watch(
+    () => selectedDentSize.value?.id,
+    (id) => {
+      if (id && dents.value?.some((d) => String(d?.id) === String(id))) return;
+      if (id && !dents.value?.some((d) => String(d?.id) === String(id))) {
+        console.error('[DELETE ASSERT] selectedDentSize.id points to non-existent dent:', id);
+      }
+    }
+  );
+  watch(
+    () => dents.value,
+    (list) => {
+      if (!list?.length) return;
+      const ids = (list || []).map((d) => d?.id).filter(Boolean);
+      const unique = new Set(ids.map(String));
+      if (unique.size !== ids.length) {
+        console.error('[DELETE ASSERT] Duplicate dent ids in dents:', ids);
+      }
+    },
+    { deep: true }
+  );
+}
 
 watch(
   () => [props.selectedClassId, props.selectedPartId, props.selectedPart],
@@ -1213,7 +1604,7 @@ onBeforeUnmount(() => {
   destroyKonva();
 });
 
-defineExpose({ resetDentsOnly, totalPrice });
+defineExpose({ resetDentsOnly, totalPrice, getPhotoAssetKey: () => photoAsset.value?.key ?? null });
 </script>
 
 <style scoped>
@@ -1383,6 +1774,10 @@ defineExpose({ resetDentsOnly, totalPrice });
   height: var(--controlsMaxH);
   max-height: var(--controlsMaxH);
 }
+/* Step 3 (placement): больше высоты для блока без скролла на мобильных */
+.graphics-step-3 .graphics-controls-area {
+  --controlsMaxH: clamp(200px, 26vh, 320px);
+}
 
 .graphics-step-2 :deep(.graphics-panel-content),
 .graphics-step-3 :deep(.graphics-panel-content) {
@@ -1447,7 +1842,9 @@ defineExpose({ resetDentsOnly, totalPrice });
   flex: 0 0 auto;
   padding-bottom: 1.25rem;
 }
-.graphics-step-4 :deep(.graphics-action-bar) {
+.graphics-step-4 :deep(.graphics-action-bar),
+.detail-step4-wrap :deep(.graphics-action-bar) {
+  position: relative;
   flex-shrink: 0;
   margin-top: 0;
   padding-top: 0.5rem;
@@ -1515,16 +1912,11 @@ defineExpose({ resetDentsOnly, totalPrice });
   box-sizing: border-box;
 }
 
+/* Action bar: relative (in-flow) to avoid content overlap. QuickStyle components use flex + shrink-0. */
 :deep(.graphics-action-bar) {
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  position: relative;
+  flex-shrink: 0;
   z-index: 30;
-  padding: 0.5rem 0.5rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
-  background: rgba(10, 12, 16, 0.85);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 :deep(.actionbar-total-btn) {

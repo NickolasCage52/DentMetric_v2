@@ -1,6 +1,6 @@
 <template>
   <div class="quick-style-client flex flex-col min-h-0 flex-1 overflow-hidden">
-    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 p-3 pb-6">
+    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pt-3 pb-6">
       <div class="card-metallic rounded-2xl p-5 space-y-3">
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-1.5">
@@ -63,7 +63,7 @@
         <p v-if="clientRequired && !canNext" class="text-[10px] text-gray-500 text-center">Заполните обязательные поля</p>
       </div>
     </div>
-    <div class="graphics-action-bar shrink-0 p-3 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
+    <div class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
       <div class="flex items-center gap-2 w-full">
         <button type="button" @click="$emit('back')" class="step-nav-back-btn shrink-0 py-2.5 px-3 rounded-xl text-xs font-medium text-gray-400 hover:text-white border border-white/15 hover:border-white/25 transition-all touch-manipulation min-h-[44px]">Назад</button>
         <button type="button" @click="$emit('next')" :disabled="!canNext" :class="canNext ? 'bg-metric-green text-black shadow-[0_0_15px_rgba(136,229,35,0.4)] hover:opacity-95 active:opacity-90' : 'bg-white/10 text-gray-500 cursor-not-allowed'" class="flex-1 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-h-[44px] touch-manipulation">

@@ -86,6 +86,14 @@ export function normalizeHistoryRecord(raw: any): any | null {
     const total = raw.total ?? raw.totalPrice ?? raw.totalEstimate;
     normalized.total = typeof total === 'string' ? parseFloat(total) || 0 : (Number(total) || 0);
     if (normalized.rawTotal == null) normalized.rawTotal = normalized.total;
+    // Manual price overlay (Rule 3): preserve DM calculation, allow user override
+    const dmPrice = raw.dmCalculatedPrice ?? raw.total ?? raw.totalPrice ?? raw.totalEstimate;
+    normalized.dmCalculatedPrice = typeof dmPrice === 'string' ? parseFloat(dmPrice) || 0 : (Number(dmPrice) || 0);
+    normalized.manualAdjustedPrice = raw.manualAdjustedPrice != null ? (typeof raw.manualAdjustedPrice === 'string' ? parseFloat(raw.manualAdjustedPrice) : Number(raw.manualAdjustedPrice)) : null;
+    normalized.isPriceManuallyAdjusted = raw.isPriceManuallyAdjusted === true;
+    if (normalized.isPriceManuallyAdjusted && normalized.manualAdjustedPrice != null) {
+      normalized.total = Number(normalized.manualAdjustedPrice) || normalized.total;
+    }
     if (typeof normalized.rawTotal === 'string') normalized.rawTotal = parseFloat(normalized.rawTotal as string) || 0;
     if (normalized.totalActual == null) normalized.totalActual = null;
 
@@ -114,6 +122,9 @@ export function normalizeHistoryRecord(raw: any): any | null {
     if (normalized.comment == null) normalized.comment = '';
     if (normalized.attachments == null || !Array.isArray(normalized.attachments)) {
       normalized.attachments = [];
+    }
+    if (normalized.recordAttachments == null || !Array.isArray(normalized.recordAttachments)) {
+      normalized.recordAttachments = raw.recordAttachments ?? raw.attachments ?? [];
     }
     if (normalized.photoAssets == null || !Array.isArray(normalized.photoAssets)) {
       normalized.photoAssets = [];
@@ -339,10 +350,18 @@ export function updateEstimate(id: string, partial: any) {
     if (partial.status != null) merged.status = mapStatusForSave(partial.status);
     if (partial.bookingAt !== undefined) merged.bookingAt = partial.bookingAt;
     if (partial.attachments !== undefined) merged.attachments = partial.attachments;
+    if (partial.recordAttachments !== undefined) merged.recordAttachments = partial.recordAttachments;
     if (partial.clientMood !== undefined) merged.clientMood = partial.clientMood;
     if (partial.orderDiscount !== undefined) merged.orderDiscount = partial.orderDiscount;
+    if (partial.discountPercent !== undefined) merged.discountPercent = Number(partial.discountPercent) || 0;
     if (partial.dents !== undefined) merged.dents = partial.dents;
     if (partial.prepayment !== undefined) merged.prepayment = partial.prepayment;
+    if (partial.dmCalculatedPrice !== undefined) merged.dmCalculatedPrice = partial.dmCalculatedPrice;
+    if (partial.manualAdjustedPrice !== undefined) merged.manualAdjustedPrice = partial.manualAdjustedPrice;
+    if (partial.isPriceManuallyAdjusted !== undefined) merged.isPriceManuallyAdjusted = partial.isPriceManuallyAdjusted;
+    if (merged.isPriceManuallyAdjusted && merged.manualAdjustedPrice != null) {
+      merged.total = Number(merged.manualAdjustedPrice) || merged.total;
+    }
     return merged;
   });
   persist(items);

@@ -11,10 +11,10 @@ const BOUNDS_MARGIN_PX = 12;
 const GRID_PADDING_PX = 2;
 /** Отключить визуальную сетку в детализации. */
 const GRID_ENABLED = false;
-/** B) Hit area: доля от размера фигуры, min/max px (удобный захват пальцем, но не мешает другим). */
-const HIT_SIZE_MIN = 8;
-const HIT_SIZE_MAX = 16;
-const HIT_SIZE_RATIO = 0.42;
+/** B) Hit area: доля от размера фигуры, min/max px (удобный захват пальцем, особенно на touch). */
+const HIT_SIZE_MIN = 24;
+const HIT_SIZE_MAX = 36;
+const HIT_SIZE_RATIO = 0.65;
 /** C) Stroke: тоньше для маленьких (minSizePx < 40), clamp. */
 const STROKE_THIN = 0.8;
 const STROKE_NORMAL = 1.4;
@@ -117,8 +117,8 @@ function getActiveNode() {
   if (!tr) return null;
   const nodes = tr.nodes();
   if (nodes && nodes.length > 0) return nodes[0];
-  /** На этапе 1 Transformer не привязан — используем activeDent для выбора и удаления. */
-  if (useMmMode && activeDent) return activeDent;
+  /** На этапе 1–2 Transformer не привязан — используем activeDent для выбора и удаления (mm и legacy). */
+  if (activeDent) return activeDent;
   return null;
 }
 
@@ -135,63 +135,73 @@ function getDentShape(node) {
   return null;
 }
 
-/** Create or update W×H label inside dent. Hide until sizes known. */
-function updateDentDimLabel(dentNode, widthMm, heightMm) {
-  if (!dentNode) return;
-  if (!useMmMode) return;
-  const hasMm = (Number(widthMm) || 0) > 0 && (Number(heightMm) || 0) > 0;
-  if (!pxPerMm && !hasMm) return;
-  const w = Number(widthMm) || 0;
-  const h = Number(heightMm) || 0;
-  const shape = getDentShape(dentNode);
+/** Номер вмятины (1, 2, 3…) — крупно, по центру, читаемо на любом фоне. */
+function updateDentNumberLabel(node, indexNumber) {
+  if (!node || !layerDents) return;
+  const shape = getDentShape(node);
   if (!shape) return;
-  let label = dentNode._dimLabel;
-  if (w <= 0 || h <= 0) {
-    if (label) {
-      label.visible(false);
-      const layer = dentNode.getLayer();
-      if (layer) layer.batchDraw();
-    }
-    return;
-  }
-  const unit = displayUnit === 'cm' ? 'см' : 'мм';
-  const wD = displayUnit === 'cm' ? (w / 10).toFixed(1) : Math.round(w);
-  const hD = displayUnit === 'cm' ? (h / 10).toFixed(1) : Math.round(h);
-  const text = `${wD}×${hD} ${unit}`;
-  const parent = dentNode.getParent ? dentNode.getParent() : dentNode.parent;
+  const parent = node.getParent ? node.getParent() : node.parent;
+  const rect = shape.getClientRect ? shape.getClientRect({ relativeTo: parent }) : { x: 0, y: 0, width: 20, height: 20 };
+  if (!rect || rect.width <= 0 || rect.height <= 0) return;
+  const text = String(indexNumber);
+  let label = node._numLabel;
   if (!label) {
     label = new Konva.Text({
       text,
-      fontSize: 14,
+      fontSize: 28,
       fontFamily: 'sans-serif',
-      fill: '#ffffff',
-      shadowColor: '#000',
-      shadowBlur: 3,
-      shadowOffset: { x: 1, y: 1 },
+      fontStyle: 'bold',
+      fill: '#FFFFFF',
+      stroke: '#000000',
+      strokeWidth: 2,
+      shadowColor: 'black',
+      shadowBlur: 4,
+      shadowOpacity: 0.8,
       listening: false,
-      name: 'dent-dim-label'
+      name: 'dent-num-label'
     });
-    dentNode._dimLabel = label;
-    if (dentNode.className === 'Group' && dentNode.add) {
-      dentNode.add(label);
-    } else if (parent && parent.add) {
-      parent.add(label);
-    }
+    node._numLabel = label;
+    if (node.className === 'Group' && node.add) node.add(label);
+    else if (parent && parent.add) parent.add(label);
   } else {
     label.text(text);
   }
-  const rect = shape.getClientRect ? shape.getClientRect({ relativeTo: parent }) : { x: 0, y: 0, width: 1, height: 1 };
+  const sizePx = Math.min(rect.width, rect.height);
+  const fontSize = Math.max(24, Math.min(48, Math.round(sizePx * 0.5)));
+  label.fontSize(fontSize);
   const cx = rect.x + rect.width / 2;
   const cy = rect.y + rect.height / 2;
   label.position({ x: cx, y: cy });
   label.offsetX(label.width() / 2);
   label.offsetY(label.height() / 2);
-  const sizePx = Math.min(rect.width, rect.height);
-  const fontSize = Math.max(11, Math.min(22, Math.round(sizePx / 4.5)));
-  label.fontSize(fontSize);
   label.visible(true);
-  const layer = dentNode.getLayer ? dentNode.getLayer() : (dentNode.getParent?.()?.getLayer?.());
+  const layer = node.getLayer ? node.getLayer() : (node.getParent?.()?.getLayer?.());
   if (layer) layer.batchDraw();
+}
+
+/** Refresh number labels for all dents (1, 2, 3...) after add/delete. */
+function refreshAllDentNumberLabels() {
+  if (!layerDents) return;
+  const values = Array.from(dentsMap.values());
+  const children = layerDents.getChildren ? layerDents.getChildren() : [];
+  for (const node of children) {
+    if (node === tr || node === handleGroup) continue;
+    const meta = node._dentMeta;
+    if (!meta) continue;
+    const idx = values.findIndex((d) => d?.id === meta.id);
+    if (idx >= 0) updateDentNumberLabel(node, idx + 1);
+  }
+}
+
+/** Размеры (25×25 мм) внутри вмятины отключены — показываем только номер вмятины. */
+function updateDentDimLabel(dentNode) {
+  if (!dentNode) return;
+  const label = dentNode._dimLabel;
+  if (label) {
+    label.visible(false);
+    const layer = dentNode.getLayer?.();
+    if (layer) layer.batchDraw();
+  }
 }
 
 function isFreeformMeta(meta) {
@@ -226,8 +236,8 @@ function selectNode(node) {
   }
   if (node && node.moveToTop) node.moveToTop();
   if (tr.getParent() === layerDents) tr.moveToTop();
+  activeDent = node && node.getAttr?.('name') === 'dent' ? node : null;
   if (useMmMode) {
-    activeDent = node && node.getAttr?.('name') === 'dent' ? node : null;
     if (handleGroup) {
       if (activeDent) {
         handleGroup.visible(true);
@@ -241,17 +251,17 @@ function selectNode(node) {
   debugFreeformState('select');
   const layer = layerDents.getLayer ? layerDents.getLayer() : layerDents;
   if (layer) layer.batchDraw();
-  if (onSelectedDentChangeCallback) onSelectedDentChangeCallback(getSelectedDentSizeMm());
+  const info = getSelectedDentSizeMm();
+  if (import.meta.env?.DEV && info) console.log('[KONVA] dent selected', info.id);
+  if (onSelectedDentChangeCallback) onSelectedDentChangeCallback(info);
 }
 
 /** Снять выделение. B) Скрываем handle. */
 function clearSelection() {
   if (!tr) return;
   tr.nodes([]);
-  if (useMmMode) {
-    activeDent = null;
-    if (handleGroup) handleGroup.visible(false);
-  }
+  activeDent = null;
+  if (useMmMode && handleGroup) handleGroup.visible(false);
   clearFreeformEditHandles();
   const layer = layerDents ? (layerDents.getLayer ? layerDents.getLayer() : layerDents) : null;
   if (layer) layer.batchDraw();
@@ -538,9 +548,13 @@ function loadPartImage(src) {
 /**
  * Инициализация Konva: поддержка детали как изображения (realSizeMm) или legacy Path
  * Для деталей с изображением — асинхронная загрузка картинки.
+ *
+ * @param {Object} [options] - { photoBlob: Blob } — при наличии заменяет vehicle-изображение
+ *   пользовательским фото (Detail mode photo-first flow). Приоритет фото над vehicle.
  */
-export async function initKonva(containerEl, partData, priceMap, onDentChange, baseUrlOption = '', onSelectedDentChange = null) {
+export async function initKonva(containerEl, partData, priceMap, onDentChange, baseUrlOption = '', onSelectedDentChange = null, options = {}) {
   if (!containerEl || !partData) return;
+  if (import.meta.env?.DEV) console.log('[KONVA INIT] photoBlob provided:', !!options?.photoBlob);
 
   containerRef = containerEl;
   baseUrl = baseUrlOption || '';
@@ -569,6 +583,9 @@ export async function initKonva(containerEl, partData, priceMap, onDentChange, b
     stage.destroy();
     stage = null;
   }
+  /** При переинициализации сбрасываем dentsMap и уведомляем UI — иначе остаются stale-записи от разрушенных узлов */
+  dentsMap.clear();
+  if (onDentChangeCallback) onDentChangeCallback([]);
   /** Сброс handleGroup — иначе при смене детали (капот→дверь→крыло) handle остаётся ссылкой на уничтоженный узел */
   handleGroup = null;
   activeDent = null;
@@ -597,11 +614,16 @@ export async function initKonva(containerEl, partData, priceMap, onDentChange, b
     layerGrid = new Konva.Group();
     layerGrid.listening(false);
     layerGrid.setAttr('isBackground', true);
-    layerDents = new Konva.Group();
+    layerDents = new Konva.Group({ listening: true });
     contentGroup.add(layerParts);
     contentGroup.add(layerGrid);
     contentGroup.add(layerDents);
     await initImagePart(w, h);
+    /** Photo-first flow: user photo имеет приоритет над vehicle-матрицей */
+    if (options?.photoBlob && stage && contentGroup && layerParts) {
+      if (import.meta.env?.DEV) console.log('[KONVA INIT] applying photo background');
+      await setPhotoBackground(options.photoBlob);
+    }
     contentWidth = imageRect ? imageRect.width : 0;
     contentHeight = imageRect ? imageRect.height : 0;
     contentGroup.offset({ x: 0, y: 0 });
@@ -623,7 +645,7 @@ export async function initKonva(containerEl, partData, priceMap, onDentChange, b
     layerParts = new Konva.Layer();
     stage.add(layerParts);
     initLegacyPathPart(w, h);
-    layerDents = new Konva.Layer();
+    layerDents = new Konva.Layer({ listening: true });
     stage.add(layerDents);
   }
 
@@ -651,7 +673,45 @@ export async function initKonva(containerEl, partData, priceMap, onDentChange, b
   if (useMmMode) createHandleGroup();
   if (useMmMode && handleGroup) layerDents.add(handleGroup);
 
+  /** Найти вмятину среди target и его предков (для hit detection). */
+  function findDentFromNode(n) {
+    if (!n) return null;
+    if (n.getAttr?.('name') === 'dent' && n._dentMeta) return n;
+    const p = n.getParent?.();
+    return p ? findDentFromNode(p) : null;
+  }
+
+  function handleStagePointerDown() {
+    const pos = stage.getPointerPosition();
+    const hitNode = pos ? stage.getIntersection(pos) : null;
+    const dentNode = findDentFromNode(hitNode);
+    if (dentNode) {
+      activeDent = dentNode;
+      selectNode(dentNode);
+    }
+  }
+
+  stage.on('mousedown touchstart', handleStagePointerDown);
+  /** Доп. обработчик на layerDents — срабатывает при клике по дочерним вмятинам. */
+  if (layerDents) {
+    layerDents.on('click tap', (e) => {
+      const t = e.target;
+      const dent = t?.getAttr?.('name') === 'dent' && t._dentMeta ? t : (t?.getParent?.()?.getAttr?.('name') === 'dent' ? t.getParent() : null);
+      if (dent && dent._dentMeta) {
+        activeDent = dent;
+        selectNode(dent);
+      }
+    });
+  }
   stage.on('click tap', (e) => {
+    const pos = stage.getPointerPosition();
+    const hitNode = pos ? stage.getIntersection(pos) : null;
+    const dentNode = findDentFromNode(hitNode);
+    if (dentNode) {
+      activeDent = dentNode;
+      selectNode(dentNode);
+      return;
+    }
     const t = e.target;
     const isStage = t === stage;
     const isBackground = t?.getAttr && t.getAttr('isBackground') === true;
@@ -663,10 +723,8 @@ export async function initKonva(containerEl, partData, priceMap, onDentChange, b
     const isLayerDents = layerDents && t === layerDents;
     if (isStage || isBackground || isContentGroup || isLayer || isLayerDents) {
       tr.nodes([]);
-      if (useMmMode) {
-        activeDent = null;
-        if (handleGroup) handleGroup.visible(false);
-      }
+      activeDent = null;
+      if (useMmMode && handleGroup) handleGroup.visible(false);
       const layer = layerDents?.getLayer ? layerDents.getLayer() : layerDents;
       if (layer) layer.batchDraw();
       if (onSelectedDentChangeCallback) onSelectedDentChangeCallback(null);
@@ -775,7 +833,7 @@ function updateHitArea(shape) {
   const sizePx = getDentMinSizePx(shape);
   const sizeStage = sizePx * scaleVal;
   const baseHit = Math.max(HIT_SIZE_MIN, Math.min(HIT_SIZE_MAX, sizeStage * HIT_SIZE_RATIO));
-  const hit = Math.max(2, baseHit / scaleVal);
+  const hit = Math.max(12, Math.min(48, baseHit / scaleVal));
   shape.hitStrokeWidth(hit);
 }
 
@@ -917,6 +975,8 @@ export function setEditorInteractive(interactive, step = 2) {
     handleGroup.visible(!!interactive && !!activeDent);
   }
   if (!interactive) {
+    activeDent = null;
+    if (onSelectedDentChangeCallback) onSelectedDentChangeCallback(null);
     clearFreeformEditHandles();
   } else if (freeformEditMode) {
     updateFreeformEditHandles(getActiveNode());
@@ -1018,6 +1078,13 @@ export function setPhotoBackground(blob) {
         lastFitH = 0;
         doResizeAndFitOnce();
 
+        /** Явная перерисовка canvas — гарантия отображения фото пользователя */
+        const layer = contentGroup.getLayer ? contentGroup.getLayer() : null;
+        if (layer) layer.batchDraw();
+        if (stage && stage.batchDraw) stage.batchDraw();
+
+        if (import.meta.env?.DEV) console.log('[KONVA] setPhotoBackground done, canvas updated, size:', img.width, 'x', img.height);
+
         URL.revokeObjectURL(url);
         resolve({ width: img.width, height: img.height });
       } catch (e) {
@@ -1040,7 +1107,8 @@ export function clearPhotoBackground() {
   }
   layerPhoto = null;
   if (layerGrid) layerGrid.visible(true);
-  if (contentGroup) contentGroup.batchDraw();
+  const layer = contentGroup?.getLayer?.();
+  if (layer && layer.batchDraw) layer.batchDraw();
 }
 
 /**
@@ -1685,6 +1753,12 @@ function updateShapeCalc(shape, type, id, sizes) {
     areaMm2 = areaPxGeom / (pxPerMm * pxPerMm);
     areaMm2ForPrice = areaPxForPrice / (pxPerMm * pxPerMm);
     cellsCount = areaMm2 / (CELL_MM * CELL_MM);
+  } else if (meta.sizeMm && !isFreeformType) {
+    const w = meta.sizeMm.w ?? 25;
+    const h = meta.sizeMm.h ?? 25;
+    areaMm2 = baseType === 'circle' ? Math.PI * (w / 2) * (h / 2) : w * h;
+    areaMm2ForPrice = areaMm2;
+    if (CELL_MM > 0) cellsCount = areaMm2 / (CELL_MM * CELL_MM);
   }
 
   let isComplex = false;
@@ -1725,7 +1799,7 @@ function updateShapeCalc(shape, type, id, sizes) {
   if (!isFreeformType && typeForMatrix === 'circle' && sizes && sizes.length > 0) {
     const withArea = sizes.filter((s) => (s.areaMm2 ?? s.area) != null);
     if (withArea.length > 0) {
-      const areaVal = areaMm2 ?? areaPx;
+      const areaVal = areaMm2 ?? (pxPerMm != null && pxPerMm > 0 ? areaPxGeom / (pxPerMm * pxPerMm) : null);
       sizeCode = getClosestSizeCodeByAreaMm2(areaVal, withArea) || 'S2';
     }
   }
@@ -1753,6 +1827,13 @@ function updateShapeCalc(shape, type, id, sizes) {
     : undefined;
 
   const dentType = meta.type || baseType;
+  /** When pxPerMm is null (photo mode): use meta.sizeMm for preset dents, userBboxMm for freeform. */
+  const fallbackBboxMm = !isFreeformType && meta.sizeMm
+    ? { width: meta.sizeMm.w ?? 25, height: meta.sizeMm.h ?? 25 }
+    : null;
+  const resolvedBboxMm = userBboxMm || (useMmMode && pxPerMm && bbox
+    ? { width: (bbox?.width ?? 0) / pxPerMm, height: (bbox?.height ?? 0) / pxPerMm }
+    : null) || fallbackBboxMm;
   const dentData = {
     id,
     type: dentType,
@@ -1761,9 +1842,7 @@ function updateShapeCalc(shape, type, id, sizes) {
     areaPx: areaPxGeom,
     areaMm2: areaMm2 ?? undefined,
     bboxPx: { width: bbox?.width ?? 0, height: bbox?.height ?? 0 },
-    bboxMm: (userBboxMm || (useMmMode && pxPerMm && bbox))
-      ? (userBboxMm || { width: (bbox?.width ?? 0) / pxPerMm, height: (bbox?.height ?? 0) / pxPerMm })
-      : undefined,
+    bboxMm: resolvedBboxMm || undefined,
     cellsCount: cellsCount != null ? Math.round(cellsCount * 100) / 100 : undefined,
     isComplex,
     price,
@@ -1777,6 +1856,7 @@ function updateShapeCalc(shape, type, id, sizes) {
     fixedAspectRatio: Number.isFinite(meta.fixedAspectRatio) ? meta.fixedAspectRatio : null
   };
   dentsMap.set(id, dentData);
+  refreshAllDentNumberLabels();
   if (onDentChangeCallback) {
     onDentChangeCallback(Array.from(dentsMap.values()));
   }
@@ -1862,8 +1942,24 @@ function normalizeFreeformPoints(line, rect) {
  */
 export function getSelectedDentSizeMm() {
   const node = getActiveNode();
-  if (!node || !node._dentMeta || !useMmMode) return null;
+  if (!node || !node._dentMeta) return null;
   const meta = node._dentMeta;
+  /** Legacy mode (без mm): минимальный объект для активации кнопки «Удалить». */
+  if (!useMmMode) {
+    return {
+      id: meta.id,
+      type: meta.type || meta.baseType || 'circle',
+      shapeVariant: meta.shapeVariant || (meta.type === 'circle' ? 'oval' : 'strip'),
+      widthMm: 0,
+      heightMm: 0,
+      freeformEnabled: isFreeformMeta(meta),
+      shapeKind: meta.shapeKind,
+      areaMm2: undefined,
+      isShapeFixed: meta.isShapeFixed === true,
+      freeStretchEnabled: meta.isFreeStretchEnabled === true,
+      fixedAspectRatio: meta.fixedAspectRatio ?? null
+    };
+  }
   if (meta.type === 'freeform' && (pxPerMm == null || pxPerMm <= 0)) {
     const w = meta.userWidthMm ?? 0;
     const h = meta.userHeightMm ?? 0;
@@ -1919,14 +2015,23 @@ export function getSelectedDentSizeMm() {
 /**
  * Установить размеры выбранной вмятины по мм; центр сохраняется.
  * Вызывает applyBounds, updateShapeCalc, positionHandle.
+ * Когда pxPerMm null (photo mode): сохраняет userWidthMm/userHeightMm в meta и обновляет dentsMap.
  */
 export function setSelectedDentSizeMm(widthMm, heightMm) {
   const node = getActiveNode();
-  if (!node || !node._dentMeta || !useMmMode || pxPerMm == null || pxPerMm <= 0) return;
+  if (!node || !node._dentMeta) return;
   const meta = node._dentMeta;
-  /* freeform: разрешаем менять размер при ручном вводе (Своб. растяж. или зафиксирована форма) */
   const wMm = clamp(normalizeNumber(widthMm, SIZE_MM_MIN), SIZE_MM_MIN, SIZE_MM_MAX);
   const hMm = clamp(normalizeNumber(heightMm, SIZE_MM_MIN), SIZE_MM_MIN, SIZE_MM_MAX);
+  if (pxPerMm == null || pxPerMm <= 0) {
+    meta.userWidthMm = wMm;
+    meta.userHeightMm = hMm;
+    meta.sizeMm = { w: wMm, h: hMm };
+    updateShapeCalc(node, meta.type, meta.id, meta.sizes);
+    if (onSelectedDentChangeCallback) onSelectedDentChangeCallback(getSelectedDentSizeMm());
+    return;
+  }
+  if (!useMmMode) return;
   const wPx = wMm * pxPerMm;
   const hPx = hMm * pxPerMm;
   if (node.className === 'Ellipse') {
@@ -2057,6 +2162,10 @@ export function convertSelectedDentToType(targetType) {
     node._dimLabel.destroy();
     node._dimLabel = null;
   }
+  if (node._numLabel) {
+    node._numLabel.destroy();
+    node._numLabel = null;
+  }
   node.destroy();
   setupDentInteractions(shape, targetType, id, sizes);
   selectNode(shape);
@@ -2180,6 +2289,10 @@ export function setSelectedDentFreeformEnabled(enabled) {
       node._dimLabel.destroy();
       node._dimLabel = null;
     }
+    if (node._numLabel) {
+      node._numLabel.destroy();
+      node._numLabel = null;
+    }
     node.destroy();
     setupDentInteractions(line, baseType, id, sizes);
     if (freeformEditMode) updateFreeformEditHandles(line);
@@ -2241,6 +2354,10 @@ export function setSelectedDentFreeformEnabled(enabled) {
   if (node._dimLabel) {
     node._dimLabel.destroy();
     node._dimLabel = null;
+  }
+  if (node._numLabel) {
+    node._numLabel.destroy();
+    node._numLabel = null;
   }
   node.destroy();
   setupDentInteractions(shape, baseType, id, sizes);
@@ -2394,11 +2511,13 @@ function setupDentInteractions(shape, type, id, sizes) {
     }
     updateHandler();
     if (useMmMode && handleGroup) positionHandle(shape);
-    if (onSelectedDentChangeCallback) onSelectedDentChangeCallback(getSelectedDentSizeMm());
+    const info = getSelectedDentSizeMm();
+  if (import.meta.env?.DEV && info) console.log('[KONVA] dent selected', info.id);
+  if (onSelectedDentChangeCallback) onSelectedDentChangeCallback(info);
   });
   shape.on('click tap', (e) => {
     e.cancelBubble = true;
-    if (useMmMode) activeDent = shape;
+    activeDent = shape;
     selectNode(shape);
     if (freeformEditMode && shape.className === 'Line' && shape._dentMeta?.freeformEnabled) {
       const p = getPointerPosRelativeToLayer();
@@ -2407,8 +2526,8 @@ function setupDentInteractions(shape, type, id, sizes) {
   });
 
   layerDents.add(shape);
-  /** На этапах 1–2: форма draggable (и за вмятину, и за крестик). */
-  shape.draggable(wizardStep <= 2);
+  /** На этапах 1–4: форма draggable (размещение и редактирование размера — можно тянуть вмятину). */
+  shape.draggable(wizardStep <= 4);
   if (handleGroup) handleGroup.moveToTop();
   updateStroke(shape);
   updateHitArea(shape);
@@ -2574,6 +2693,8 @@ export function addFreeformDentFromPoints(points, sizes, photoAssetKey = null) {
     y: centerLayer.y - bboxHeight / 2
   });
   line.setAttr('type', 'freeform');
+  const freeformW = pxPerMm != null && pxPerMm > 0 ? bboxWidth / pxPerMm : 25;
+  const freeformH = pxPerMm != null && pxPerMm > 0 ? bboxHeight / pxPerMm : 25;
   line._dentMeta = {
     id,
     type: 'freeform',
@@ -2586,7 +2707,9 @@ export function addFreeformDentFromPoints(points, sizes, photoAssetKey = null) {
     isFreeStretchEnabled: false,
     isShapeFixed: false,
     fixedAspectRatio: null,
-    photoAssetKey: photoAssetKey || null
+    photoAssetKey: photoAssetKey || null,
+    userWidthMm: Math.max(SIZE_MM_MIN, Math.round(freeformW * 10) / 10),
+    userHeightMm: Math.max(SIZE_MM_MIN, Math.round(freeformH * 10) / 10)
   };
   setupDentInteractions(line, 'strip', id, sizes);
 }
@@ -2605,11 +2728,21 @@ export function setSelectedDentShapeFixed() {
   if (onSelectedDentChangeCallback) onSelectedDentChangeCallback(getSelectedDentSizeMm());
 }
 
-export function addDent(type, sizeCode, sizes) {
+/**
+ * @param {string} type - 'circle' | 'strip'
+ * @param {string} sizeCode - код пресета
+ * @param {Array} sizes - массив размеров
+ * @param {{ sizeMmOverride?: {w:number,h:number}, displayScale?: number }} [options] - sizeMmOverride: геометрия 20×20; displayScale: множитель отображения на экране (этап 3)
+ */
+export function addDent(type, sizeCode, sizes, options = {}) {
   if (!stage || !layerDents || !tr) return;
 
   const sizeObj = sizes.find((s) => s.code === sizeCode);
   if (!sizeObj) return;
+
+  const { sizeMmOverride, displayScale = 1 } = options;
+  const sizeMm = sizeMmOverride || (sizeObj.mm ? { w: sizeObj.mm.w ?? 25, h: sizeObj.mm.h ?? 25 } : { w: 25, h: 25 });
+  const scale = Math.max(1, Number(displayScale) || 1);
 
   const id = Date.now();
   let centerX, centerY;
@@ -2626,18 +2759,23 @@ export function addDent(type, sizeCode, sizes) {
 
   let shape;
 
+  /** В фото-режиме (без pxPerMm) — минимальный размер для удобства: круг ~100px, полоса 120×50. */
+  const MIN_CIRCLE_RADIUS_PX = 50;
+  const MIN_STRIP_W_PX = 120;
+  const MIN_STRIP_H_PX = 50;
+
   if (type === 'circle') {
     let radiusX, radiusY;
-    if (useMmMode && pxPerMm != null && sizeObj.mm) {
-      radiusX = (sizeObj.mm.w / 2) * pxPerMm;
-      radiusY = (sizeObj.mm.h / 2) * pxPerMm;
+    if (useMmMode && pxPerMm != null) {
+      radiusX = (sizeMm.w / 2) * pxPerMm * scale;
+      radiusY = (sizeMm.h / 2) * pxPerMm * scale;
     } else {
-      const r = sizeObj.radius ?? 20;
-      radiusX = r;
-      radiusY = r;
+      const r = (sizeMm.w || sizeMm.h || 20) / 2;
+      radiusX = Math.max(r * scale, MIN_CIRCLE_RADIUS_PX);
+      radiusY = Math.max(r * scale, MIN_CIRCLE_RADIUS_PX);
     }
-    const rx = radiusX || 15;
-    const ry = radiusY || 15;
+    const rx = Math.max(radiusX || 15, 15);
+    const ry = Math.max(radiusY || 15, 15);
     shape = new Konva.Ellipse({
       x: centerX,
       y: centerY,
@@ -2656,12 +2794,14 @@ export function addDent(type, sizeCode, sizes) {
     shape.setAttr('type', 'circle');
   } else {
     let w, h;
-    if (useMmMode && pxPerMm != null && sizeObj.mm) {
-      w = (sizeObj.mm.w || sizeObj.w) * pxPerMm;
-      h = (sizeObj.mm.h || sizeObj.h) * pxPerMm;
+    if (useMmMode && pxPerMm != null) {
+      w = (sizeMm.w || sizeObj.mm?.w || 20) * pxPerMm * scale;
+      h = (sizeMm.h || sizeObj.mm?.h || 20) * pxPerMm * scale;
     } else {
-      w = sizeObj.w ?? 40;
-      h = sizeObj.h ?? 20;
+      const baseW = (sizeMm.w || sizeObj.w) ?? 40;
+      const baseH = (sizeMm.h || sizeObj.h) ?? 20;
+      w = Math.max(baseW * scale, MIN_STRIP_W_PX);
+      h = Math.max(baseH * scale, MIN_STRIP_H_PX);
     }
     shape = new Konva.Rect({
       x: centerX,
@@ -2682,14 +2822,16 @@ export function addDent(type, sizeCode, sizes) {
     shape.setAttr('type', 'strip');
   }
 
-  const wMm = type === 'circle' ? (shape.radiusX?.() ?? 0) * 2 / (pxPerMm || 1) : (shape.width?.() ?? 0) / (pxPerMm || 1);
-  const hMm = type === 'circle' ? (shape.radiusY?.() ?? 0) * 2 / (pxPerMm || 1) : (shape.height?.() ?? 0) / (pxPerMm || 1);
+  const wMm = sizeMm.w ?? 25;
+  const hMm = sizeMm.h ?? 25;
   const shapeVariant = inferShapeVariant(type, wMm, hMm);
   shape._dentMeta = {
     id,
     type,
     baseType: type,
     sizes,
+    sizeCode,
+    sizeMm: { w: sizeMm.w ?? 25, h: sizeMm.h ?? 25 },
     shapeVariant,
     shapeKind: type === 'circle' ? 'oval' : 'stripe',
     freeformEnabled: false,
@@ -2731,8 +2873,26 @@ export function addDent(type, sizeCode, sizes) {
   // if (import.meta.env?.DEV) console.debug('[Konva] dent added at', centerX, centerY, 'partBounds', partBounds);
 }
 
-export function deleteSelected() {
-  const node = getActiveNode();
+/** Найти ноду вмятины по id (fallback когда getActiveNode() возвращает null из‑за рассинхрона). */
+function findDentNodeById(dentId) {
+  if (dentId == null || !layerDents) return null;
+  const children = layerDents.getChildren?.() || [];
+  const idStr = String(dentId);
+  for (const n of children) {
+    if (n === tr || n === handleGroup) continue;
+    if (n._dentMeta && String(n._dentMeta.id) === idStr) return n;
+  }
+  return null;
+}
+
+export function deleteSelected(preferredDentId = null) {
+  let node = getActiveNode();
+  if (!node && preferredDentId != null) {
+    node = findDentNodeById(preferredDentId);
+    if (import.meta.env?.DEV && node) {
+      console.log('[DELETE DEBUG] getActiveNode was null, found by id:', preferredDentId);
+    }
+  }
   if (!node || !node._dentMeta) return;
   dentsMap.delete(node._dentMeta.id);
   tr.nodes([]);
@@ -2745,7 +2905,12 @@ export function deleteSelected() {
     node._dimLabel.destroy();
     node._dimLabel = null;
   }
+  if (node._numLabel) {
+    node._numLabel.destroy();
+    node._numLabel = null;
+  }
   node.destroy();
+  refreshAllDentNumberLabels();
   const layer = layerDents ? layerDents.getLayer() : null;
   if (layer) layer.batchDraw();
   if (onDentChangeCallback) onDentChangeCallback(Array.from(dentsMap.values()));
@@ -2823,6 +2988,21 @@ export function exportStageAsBlob() {
 
 export function getDents() {
   return Array.from(dentsMap.values());
+}
+
+/** Выбрать вмятину по id (для пошагового редактирования на экране размера). */
+export function selectDentById(dentId) {
+  if (!layerDents || dentId == null) return false;
+  const children = layerDents.getChildren ? layerDents.getChildren() : [];
+  for (const node of children) {
+    if (node === tr || node === handleGroup) continue;
+    const meta = node._dentMeta;
+    if (meta && String(meta.id) === String(dentId)) {
+      selectNode(node);
+      return true;
+    }
+  }
+  return false;
 }
 
 export function destroyKonva() {
