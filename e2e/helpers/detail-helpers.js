@@ -48,3 +48,67 @@ export async function openSettingsSection(page, sectionTitle) {
   await header.click();
   await page.waitForTimeout(300);
 }
+
+/**
+ * Navigate to Detail mode dimensions step (marking flow).
+ * Flow: Detail -> client skip -> gallery -> draw dent -> "Задать размеры".
+ * Returns true if dimensions screen is reached, false if we need to skip the test.
+ */
+export async function goToDetailDimensions(page) {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByTestId('btn-open-metric').click({ force: true });
+  await page.getByTestId('btn-detail-mode').click({ force: true });
+  await page.waitForTimeout(500);
+
+  const continueClientBtn = page.getByRole('button', { name: /Продолжить|Далее/i });
+  if (await continueClientBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+    await continueClientBtn.click({ force: true });
+    await page.waitForTimeout(500);
+  }
+
+  const galleryBtn = page.locator('[data-testid="btn-photo-from-gallery"]');
+  if (!(await galleryBtn.isVisible({ timeout: 3000 }).catch(() => false))) {
+    return false;
+  }
+
+  const [fileChooser] = await Promise.all([
+    page.waitForEvent('filechooser', { timeout: 5000 }),
+    galleryBtn.click(),
+  ]);
+  await fileChooser.setFiles(testImagePath);
+  await page.waitForTimeout(2000);
+
+  const drawBtn = page.locator('.marking-draw-btn').filter({ hasText: /Вмятину/i });
+  if (!(await drawBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
+    return false;
+  }
+  await drawBtn.click();
+  await page.waitForTimeout(400);
+
+  const canvasArea = page.locator('.marking-canvas-area');
+  if (!(await canvasArea.isVisible({ timeout: 3000 }).catch(() => false))) {
+    return false;
+  }
+  const box = await canvasArea.boundingBox();
+  if (!box) return false;
+
+  const cx = box.x + box.width / 2;
+  const cy = box.y + box.height / 2;
+  await page.mouse.move(cx - 40, cy - 40);
+  await page.mouse.down();
+  await page.mouse.move(cx - 20, cy - 30);
+  await page.mouse.move(cx + 20, cy - 20);
+  await page.mouse.move(cx + 40, cy + 30);
+  await page.mouse.move(cx - 40, cy + 20);
+  await page.mouse.move(cx - 40, cy - 40);
+  await page.mouse.up();
+  await page.waitForTimeout(600);
+
+  const goToDimsBtn = page.locator('[data-testid="btn-go-to-dimensions"]');
+  if (!(await goToDimsBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
+    return false;
+  }
+  await goToDimsBtn.click();
+  await page.waitForTimeout(500);
+  return true;
+}

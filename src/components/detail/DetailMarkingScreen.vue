@@ -1011,12 +1011,15 @@ function updateSecondaryDimension(dentId, field, e) {
 }
 .dimensions-scroll {
   flex: 1 1 0;
-  min-height: 120px;
+  min-height: 0;
   overflow-y: auto;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 .dimensions-proceed {
   flex-shrink: 0;
@@ -1262,6 +1265,9 @@ function updateSecondaryDimension(dentId, field, e) {
   padding: 12px;
   border-left: 3px solid var(--dm-border);
   cursor: pointer;
+  box-sizing: border-box;
+  width: 100%;
+  overflow: hidden;
 }
 .dimensions-card--secondary {
   border-left-color: var(--dm-danger, #e53935);
@@ -1320,19 +1326,32 @@ function updateSecondaryDimension(dentId, field, e) {
 }
 .dimensions-card__fields {
   display: flex;
-  gap: 10px;
+  flex-direction: row;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 .dimensions-field {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
+  overflow: hidden;
 }
 .dimensions-field label {
   font-size: 11px;
   color: var(--dm-text-secondary, #888);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
 }
 .dimensions-field input {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
   height: 44px;
   border-radius: 8px;
   border: 1.5px solid var(--dm-border, #2a2a2a);
@@ -1343,6 +1362,10 @@ function updateSecondaryDimension(dentId, field, e) {
   text-align: center;
   padding: 0 8px;
   -webkit-appearance: none;
+  appearance: none;
+}
+.dimensions-field input[type='number'] {
+  -moz-appearance: textfield;
 }
 .dimensions-field input::-webkit-outer-spin-button,
 .dimensions-field input::-webkit-inner-spin-button {
