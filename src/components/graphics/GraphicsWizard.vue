@@ -2013,6 +2013,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   konvaReady.value = false;
+  if (useNewDetailFlow) detailResetSession();
   window.removeEventListener('resize', updateMobileGrid);
   window.removeEventListener('resize', updateMatrixSafeTop);
   const vv = window.visualViewport;

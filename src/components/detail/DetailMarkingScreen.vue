@@ -16,15 +16,15 @@
     <div class="marking-controls" :class="{ 'marking-controls--marking': currentStep === 'marking' }">
 
       <div class="marking-controls__top-bar">
-        <button type="button" class="dm-back-btn-sm" @click="$emit('back')">← Назад</button>
+        <button type="button" class="dm-back-btn-sm" @click="$emit('back')">←</button>
         <span class="marking-controls__step-label">
           {{ currentStep === 'marking' ? 'Разметка' : 'Размеры' }}
         </span>
-        <div style="width: 64px" />
+        <div class="marking-controls__top-spacer" />
       </div>
 
       <DetailProgressDots
-        v-if="detailSteps?.length"
+        v-if="detailSteps?.length && currentStep === 'marking'"
         :steps="detailSteps"
         :current-index="detailStepIndex"
       />
@@ -156,13 +156,16 @@
       </template>
 
       <template v-else-if="currentStep === 'dimensions'">
-        <div class="dimensions-header">
-          <span class="dimensions-header__text">Введите размеры всех зон</span>
-          <span class="dimensions-header__count">{{ filledCount }} / {{ totalCount }} заполнено</span>
-        </div>
-
-        <div class="dimensions-progress">
-          <div class="dimensions-progress__fill" :style="{ width: progressPercent + '%' }" />
+        <div class="dimensions-top">
+          <span class="dimensions-top__count">{{ filledCount }}/{{ totalCount }}</span>
+          <div class="dimensions-top__progress">
+            <div class="dimensions-top__fill" :style="{ width: progressPercent + '%' }" />
+          </div>
+          <DetailProgressDots
+            v-if="detailSteps?.length"
+            :steps="detailSteps"
+            :current-index="detailStepIndex"
+          />
         </div>
 
         <div class="dimensions-scroll">
@@ -189,10 +192,10 @@
                 <label>Длина (мм)</label>
                 <input
                   type="number"
-                  inputmode="decimal"
+                  inputmode="numeric"
                   :value="dent.dimensions?.lengthMm > 0 ? dent.dimensions.lengthMm : ''"
                   @input="updateDimension(dent.id, 'length', $event)"
-                  placeholder="Длина"
+                  placeholder="0"
                   min="1"
                 />
               </div>
@@ -200,10 +203,10 @@
                 <label>Ширина (мм)</label>
                 <input
                   type="number"
-                  inputmode="decimal"
+                  inputmode="numeric"
                   :value="dent.dimensions?.widthMm > 0 ? dent.dimensions.widthMm : ''"
                   @input="updateDimension(dent.id, 'width', $event)"
-                  placeholder="Ширина"
+                  placeholder="0"
                   min="1"
                 />
               </div>
@@ -220,10 +223,10 @@
                   <label>Длина (мм)</label>
                   <input
                     type="number"
-                    inputmode="decimal"
+                    inputmode="numeric"
                     :value="dent.secondaryDeformation.dimensions?.lengthMm > 0 ? dent.secondaryDeformation.dimensions.lengthMm : ''"
                     @input="updateSecondaryDimension(dent.id, 'length', $event)"
-                    placeholder="Длина"
+                    placeholder="0"
                     min="1"
                   />
                 </div>
@@ -231,10 +234,10 @@
                   <label>Ширина (мм)</label>
                   <input
                     type="number"
-                    inputmode="decimal"
+                    inputmode="numeric"
                     :value="dent.secondaryDeformation.dimensions?.widthMm > 0 ? dent.secondaryDeformation.dimensions.widthMm : ''"
                     @input="updateSecondaryDimension(dent.id, 'width', $event)"
-                    placeholder="Ширина"
+                    placeholder="0"
                     min="1"
                   />
                 </div>
@@ -968,7 +971,7 @@ function updateSecondaryDimension(dentId, field, e) {
   flex-shrink: 0;
   background: var(--dm-surface, #161616);
   border-top: 1px solid var(--dm-border, #2a2a2a);
-  padding: 8px 14px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 7px;
@@ -978,26 +981,40 @@ function updateSecondaryDimension(dentId, field, e) {
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
 }
+@media (max-width: 600px) {
+  .marking-controls {
+    padding: 4px 10px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+}
 .marking-controls__top-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
+  min-height: 0;
+}
+.marking-controls__top-spacer {
+  width: 36px;
 }
 .marking-controls__step-label {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--dm-text-primary, #fff);
+  color: var(--dm-text-secondary, #888);
 }
 .dm-back-btn-sm {
-  min-height: 44px;
-  padding: 0 10px;
-  border-radius: 8px;
+  min-height: 32px;
+  min-width: 36px;
+  padding: 0 6px;
+  border-radius: 6px;
   background: transparent;
   color: var(--dm-text-secondary, #888);
   border: 1px solid var(--dm-border, #2a2a2a);
-  font-size: 13px;
+  font-size: 16px;
+  line-height: 1;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .marking-controls--marking {
   max-height: 38vh;
@@ -1226,33 +1243,35 @@ function updateSecondaryDimension(dentId, field, e) {
 .marking-proceed-btn:active {
   transform: scale(0.98);
 }
-.dimensions-header {
+.dimensions-top {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 2px 0;
+  gap: 8px;
+  flex-shrink: 0;
+  padding: 2px 0 6px;
+}
+.dimensions-top__count {
+  font-size: 11px;
+  color: var(--dm-text-secondary, #888);
   flex-shrink: 0;
 }
-.dimensions-header__text {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--dm-text-primary, #fff);
-}
-.dimensions-header__count {
-  font-size: 12px;
-  color: var(--dm-text-secondary, #888);
-}
-.dimensions-progress {
+.dimensions-top__progress {
+  flex: 1;
+  min-width: 0;
   height: 3px;
   border-radius: 2px;
   background: var(--dm-border, #2a2a2a);
   overflow: hidden;
-  flex-shrink: 0;
 }
-.dimensions-progress__fill {
+.dimensions-top__fill {
   height: 100%;
   background: var(--dm-accent, #a0e040);
   transition: width 0.3s ease;
+}
+.dimensions-top :deep(.detail-progress-dots) {
+  flex-shrink: 0;
+  height: 14px;
+  padding: 0;
 }
 .dimensions-list {
   display: flex;
@@ -1285,9 +1304,8 @@ function updateSecondaryDimension(dentId, field, e) {
 .dimensions-card__header {
   display: flex;
   align-items: center;
-  gap: 8px;
-  justify-content: space-between;
-  font-size: 13px;
+  gap: 6px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--dm-text-primary);
   margin-bottom: 10px;
@@ -1295,13 +1313,13 @@ function updateSecondaryDimension(dentId, field, e) {
   flex-wrap: wrap;
 }
 .dimensions-card__badge {
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #000;
   flex-shrink: 0;
@@ -1332,6 +1350,12 @@ function updateSecondaryDimension(dentId, field, e) {
   box-sizing: border-box;
   overflow: hidden;
 }
+@media (max-width: 380px) {
+  .dimensions-card__fields {
+    flex-direction: column;
+    gap: 8px;
+  }
+}
 .dimensions-field {
   flex: 1 1 0;
   min-width: 0;
@@ -1343,21 +1367,19 @@ function updateSecondaryDimension(dentId, field, e) {
 .dimensions-field label {
   font-size: 11px;
   color: var(--dm-text-secondary, #888);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   display: block;
+  margin-bottom: 4px;
 }
 .dimensions-field input {
   width: 100%;
   box-sizing: border-box;
   min-width: 0;
-  height: 44px;
+  min-height: 48px;
   border-radius: 8px;
   border: 1.5px solid var(--dm-border, #2a2a2a);
   background: var(--dm-surface, #161616);
   color: var(--dm-text-primary, #fff);
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   text-align: center;
   padding: 0 8px;
