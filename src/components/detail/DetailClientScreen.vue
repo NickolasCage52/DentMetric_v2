@@ -213,6 +213,7 @@ function handleConfirm() {
 .detail-screen {
   display: flex;
   flex-direction: column;
+  flex: 1 1 0;
   height: 100%;
   min-height: 0;
   overflow: hidden;
@@ -220,10 +221,13 @@ function handleConfirm() {
 }
 .detail-screen__content {
   flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
   padding: 16px;
   padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
-  min-height: 0;
 }
 </style>
