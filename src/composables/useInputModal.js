@@ -34,7 +34,8 @@ export function openInputModal(options = {}) {
     max: options.max ?? null,
     step: options.step ?? null,
     allowDecimals: options.allowDecimals !== false,
-    multiline: options.multiline === true
+    multiline: options.multiline === true,
+    mask: options.mask ?? null
   };
   modalOpen.value = true;
   return new Promise((resolve) => {

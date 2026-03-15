@@ -30,15 +30,15 @@
           <input
             v-if="!config.multiline"
             ref="inputRef"
-            :type="config.inputType"
+            :type="effectiveInputType"
             :value="localValue"
             :placeholder="config.placeholder"
             :min="config.min"
             :max="config.max"
             :step="config.step"
-            :inputmode="config.inputType === 'number' ? 'decimal' : (config.inputType === 'tel' ? 'tel' : 'text')"
+            :inputmode="effectiveInputMode"
             class="input-modal-field w-full rounded-xl bg-[#151515] border border-[#333] px-4 py-3 text-white focus:border-metric-green/50 outline-none min-h-[48px] text-[16px]"
-            @input="localValue = $event.target.value"
+            @input="onInput($event.target.value)"
             @keydown.enter.prevent="handleConfirm"
           />
           <textarea
@@ -75,7 +75,7 @@
 </template>
 
 <script setup>
-import { ref, watch, nextTick, onUnmounted } from 'vue';
+import { ref, watch, nextTick, onUnmounted, computed } from 'vue';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -106,15 +106,62 @@ onUnmounted(() => {
   document.body.style.touchAction = '';
 });
 
-watch(
-  () => [props.modelValue, props.config?.value],
-  () => {
-    const val = props.config?.value;
-    if (val !== undefined && val !== null) {
-      localValue.value = String(val);
-    } else {
-      localValue.value = '';
+const mask = () => props.config?.mask;
+
+const effectiveInputType = computed(() => {
+  if (mask() === 'phone' || mask() === 'name') return 'text';
+  return props.config?.inputType ?? 'text';
+});
+
+const effectiveInputMode = computed(() => {
+  if (mask() === 'phone') return 'tel';
+  if (props.config?.inputType === 'number') return 'decimal';
+  if (props.config?.inputType === 'tel') return 'tel';
+  return 'text';
+});
+
+function applyMask(raw) {
+  if (raw == null) return mask() === 'phone' ? '+7' : '';
+  const m = mask();
+  if (m === 'phone') {
+    const digits = String(raw).replace(/\D/g, '');
+    if (digits.length === 0) return '+7';
+    let rest = digits;
+    if (rest.startsWith('7') && rest.length > 1) rest = rest.slice(1);
+    else if (rest.startsWith('8') && rest.length > 1) rest = rest.slice(1);
+    else if (rest === '7' || rest === '8') return '+7';
+    return '+7' + rest.slice(0, 10);
+  }
+  if (m === 'name') {
+    return String(raw).replace(/[^a-zA-Zа-яА-ЯёЁ\s\-]/gi, '');
+  }
+  return raw;
+}
+
+function getInitialValue() {
+  const val = props.config?.value;
+  if (val !== undefined && val !== null) {
+    const s = String(val);
+    if (mask() === 'phone' && s) {
+      const digits = s.replace(/\D/g, '');
+      if (digits.length > 0) {
+        let rest = digits;
+        if (rest.startsWith('7') && rest.length > 1) rest = rest.slice(1);
+        else if (rest.startsWith('8') && rest.length > 1) rest = rest.slice(1);
+        else if (rest === '7' || rest === '8') return '+7';
+        return '+7' + rest.slice(0, 10);
+      }
     }
+    return s;
+  }
+  if (mask() === 'phone') return '+7';
+  return '';
+}
+
+watch(
+  () => [props.modelValue, props.config?.value, mask()],
+  () => {
+    localValue.value = getInitialValue();
     errorMessage.value = '';
   },
   { immediate: true }
@@ -124,18 +171,43 @@ watch(
   () => props.modelValue,
   (open) => {
     if (open) {
-      const val = props.config?.value;
-      localValue.value = val !== undefined && val !== null ? String(val) : '';
+      localValue.value = getInitialValue();
       errorMessage.value = '';
       nextTick(() => inputRef.value?.focus());
     }
   }
 );
 
+function onInput(val) {
+  if (mask()) {
+    localValue.value = applyMask(val);
+  } else {
+    localValue.value = val;
+  }
+}
+
 function validate() {
   const type = props.config?.inputType;
+  const m = mask();
   const raw = localValue.value.trim();
-  if (type === 'number' || type === 'tel') {
+
+  if (m === 'phone') {
+    const digits = raw.replace(/\D/g, '');
+    const rest = digits.startsWith('7') ? digits.slice(1) : digits.startsWith('8') ? digits.slice(1) : digits;
+    if (rest.length > 0 && rest.length < 10) {
+      errorMessage.value = 'Введите 10 цифр номера';
+      return null;
+    }
+    if (rest.length < 10) return '';
+    return raw;
+  }
+  if (m === 'name') {
+    return raw;
+  }
+  if (type === 'tel' && !m) {
+    return raw;
+  }
+  if (type === 'number') {
     const n = parseFloat(String(raw).replace(',', '.'));
     if (raw !== '' && !Number.isFinite(n)) {
       errorMessage.value = 'Введите число';
@@ -160,7 +232,13 @@ function handleConfirm() {
   const result = validate();
   if (result === null) return;
   const type = props.config?.inputType;
-  const out = type === 'number' || type === 'tel' ? (typeof result === 'number' ? result : (result === '' ? null : parseFloat(String(result).replace(',', '.')))) : result;
+  const m = mask();
+  let out = result;
+  if (m === 'phone' || (type === 'tel' && !m)) {
+    out = typeof result === 'string' ? result : String(result ?? '');
+  } else if (type === 'number') {
+    out = typeof result === 'number' ? result : (result === '' ? null : parseFloat(String(result).replace(',', '.')));
+  }
   emit('confirm', out);
   emit('update:modelValue', false);
 }

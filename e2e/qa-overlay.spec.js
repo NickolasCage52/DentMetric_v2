@@ -54,19 +54,19 @@ test.describe('QA overlay smoke', () => {
 
       // Mode selection
       await page.getByTestId('nav-metric').click({ force: true });
-      await page.getByTestId('metric-standard').waitFor({ state: 'visible', timeout: 5000 });
+      await page.getByTestId('btn-quick-mode').waitFor({ state: 'visible', timeout: 5000 });
       await page.evaluate(() => window.__dmQa?.resetCls?.());
       await page.waitForTimeout(200);
       await expectClean(page, `${vp.name} mode selection`);
 
       // Quick calc screen (Step 1 or Step 2 layout)
-      await page.getByTestId('metric-standard').click({ force: true });
+      await page.getByTestId('btn-quick-mode').click({ force: true });
       await page.getByTestId('step-dots').waitFor({ state: 'visible', timeout: 5000 });
       await page.evaluate(() => window.__dmQa?.resetCls?.());
       await page.waitForTimeout(250);
       await expectClean(page, `${vp.name} quick calc entry`);
 
-      const nextBtn = page.getByTestId('btn-go-next');
+      const nextBtn = page.getByTestId('btn-next-step');
       await nextBtn.waitFor({ state: 'visible', timeout: 5000 });
       if (await nextBtn.isEnabled()) await nextBtn.click({ force: true });
       await page.waitForTimeout(300);
@@ -98,8 +98,8 @@ test.describe('QA overlay smoke', () => {
 
     // Quick calc: reach Step 2 and open a couple of modals (layout/scroll stability)
     await page.getByTestId('nav-metric').click({ force: true });
-    await page.getByTestId('metric-standard').click({ force: true });
-    const nextBtn = page.getByTestId('btn-go-next');
+    await page.getByTestId('btn-quick-mode').click({ force: true });
+    const nextBtn = page.getByTestId('btn-next-step');
     await nextBtn.waitFor({ state: 'visible', timeout: 5000 });
     if (await nextBtn.isEnabled()) await nextBtn.click({ force: true });
     await page.getByTestId('quick-step2').waitFor({ state: 'visible', timeout: 5000 });
@@ -109,7 +109,7 @@ test.describe('QA overlay smoke', () => {
 
     // Detail wizard: open and wait for Konva init (no crashes outside Telegram)
     await page.getByTestId('nav-metric').click({ force: true });
-    await page.getByTestId('metric-graphics').click({ force: true });
+    await page.getByTestId('btn-detail-mode').click({ force: true });
     await page.getByRole('button', { name: /Продолжить.*Размещение/i }).click({ force: true });
     await expect(page.getByTestId('graphics-konva')).toHaveAttribute('data-ready', '1', { timeout: 15000 });
     await expectClean(page, 'detail step placement');

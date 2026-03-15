@@ -39,6 +39,7 @@ img {
   --wow-tile-glow-active: 0 0 24px rgba(136, 229, 35, 0.35);
   --wow-vignette-opacity: 0.55;
   --bottom-nav-h: calc(64px + env(safe-area-inset-bottom, 0px));
+  --tab-bar-height: var(--bottom-nav-h);
 
   /* Detail mode (Graphics Wizard) — типографика и отступы */
   --dm-detail-font-xs: 10px;
@@ -70,6 +71,16 @@ img {
   --header-logo-side-w: 70px;
   /* Unified DM logo size (PDF правка 12) */
   --dm-logo-size: 1.75rem;
+
+  /* UX hardening: surface/border for footers, action bars */
+  --dm-bg: #0f0f0f;
+  --dm-surface: #161616;
+  --dm-surface-2: #1e1e1e;
+  --dm-border: #2a2a2a;
+  --dm-text-primary: #ffffff;
+  --dm-text-secondary: #888888;
+  --dm-accent: var(--metric-green);
+  --dm-danger: #e53935;
 }
 
 /* Part C: Background gradient animation */
@@ -295,7 +306,8 @@ h3 { font-size: clamp(1rem, 2.5vw, 1.25rem); }
 .graphics-step-2 .graphics-controls-area,
 .graphics-step-3 .graphics-controls-area,
 .graphics-step-4 .graphics-controls-area,
-.graphics-step-5 .graphics-controls-area {
+.graphics-step-5 .graphics-controls-area,
+.graphics-step-6 .graphics-controls-area {
   --qc-section-gap: 6px;
   --qc-card-px: 10px;
   --qc-card-py: 8px;
@@ -337,34 +349,40 @@ h3 { font-size: clamp(1rem, 2.5vw, 1.25rem); }
   padding: 6px 10px;
   border-radius: 0.625rem;
 }
-/* Detail step 4: geometry block — match Quick (qc-compact) exactly */
-.graphics-step-4 .graphics-controls-area .qc-geo-btn {
+/* Detail step 4 + 5: geometry block — match Quick (qc-compact) exactly */
+.graphics-step-4 .graphics-controls-area .qc-geo-btn,
+.graphics-step-5 .graphics-controls-area .qc-geo-btn {
   min-height: 42px;
   padding: 6px 10px;
   border-radius: 0.625rem;
 }
-.graphics-step-4 .graphics-controls-area .qc-geo-btn .qc-geo-label {
+.graphics-step-4 .graphics-controls-area .qc-geo-btn .qc-geo-label,
+.graphics-step-5 .graphics-controls-area .qc-geo-btn .qc-geo-label {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: #9ca3af;
 }
-.graphics-step-4 .graphics-controls-area .qc-geo-btn .qc-geo-value {
+.graphics-step-4 .graphics-controls-area .qc-geo-btn .qc-geo-value,
+.graphics-step-5 .graphics-controls-area .qc-geo-btn .qc-geo-value {
   font-size: 13px;
   font-weight: 600;
   margin-top: 1px;
 }
-.graphics-step-4 .graphics-controls-area .qc-info-rows {
+.graphics-step-4 .graphics-controls-area .qc-info-rows,
+.graphics-step-5 .graphics-controls-area .qc-info-rows {
   font-size: 11px;
   line-height: 1.35;
   color: #6b7280;
   margin-top: 4px;
 }
-.graphics-step-4 .graphics-controls-area .qc-info-rows span {
+.graphics-step-4 .graphics-controls-area .qc-info-rows span,
+.graphics-step-5 .graphics-controls-area .qc-info-rows span {
   color: #88e523;
 }
-.graphics-step-4 .graphics-controls-area .qc-preset-chip {
+.graphics-step-4 .graphics-controls-area .qc-preset-chip,
+.graphics-step-5 .graphics-controls-area .qc-preset-chip {
   font-size: 10px;
   font-weight: 700;
   text-transform: lowercase;

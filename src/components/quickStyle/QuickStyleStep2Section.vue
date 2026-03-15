@@ -1,6 +1,6 @@
 <template>
   <div class="quick-style-step2 qc-compact" style="display:flex;flex-direction:column;gap:var(--qc-section-gap)">
-    <div class="mb-2 flex items-start justify-between gap-2">
+    <div v-if="!hideDentSelector" class="mb-2 flex items-start justify-between gap-2">
       <div class="flex-1 min-w-0">
         <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">ПОВРЕЖДЕНИЯ</div>
         <div class="flex gap-1.5 flex-wrap items-center">
@@ -258,6 +258,7 @@ const props = defineProps({
   selectedPartName: { type: String, default: null },
   hideAddRemove: { type: Boolean, default: false },
   hideReset: { type: Boolean, default: false },
+  hideDentSelector: { type: Boolean, default: false },
   hidePanelSide: { type: Boolean, default: false },
   hidePanelElement: { type: Boolean, default: false }
 });

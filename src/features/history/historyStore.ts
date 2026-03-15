@@ -168,6 +168,11 @@ export function normalizeHistoryRecord(raw: any): any | null {
     normalized.clientMood = normalized.clientMood ?? null;
     normalized.orderDiscount = normalized.orderDiscount ?? { enabled: false, value: 0 };
 
+    if (normalized.lineItemsSnapshot == null && raw.lineItemsSnapshot != null) {
+      normalized.lineItemsSnapshot = raw.lineItemsSnapshot;
+    }
+    if (normalized.calculatedAt == null) normalized.calculatedAt = raw.calculatedAt ?? raw.createdAt ?? null;
+
     const dentsObj = normalized.dents as Record<string, unknown>;
     if (dentsObj?.items && Array.isArray(dentsObj.items)) {
       (dentsObj.items as any[]) = (dentsObj.items as any[]).map((d) => {
@@ -309,13 +314,15 @@ export function saveEstimate(estimateDraft: any) {
   if (!estimateDraft) return null;
   const id = estimateDraft.id || generateRecordId();
   const status = mapStatusForSave(estimateDraft.status ?? 'estimate');
-  const norm = normalizeHistoryRecord({
+  const raw = {
     ...estimateDraft,
     id,
     createdAt: estimateDraft.createdAt || new Date().toISOString(),
     status,
     attachments: estimateDraft.attachments ?? []
-  });
+  };
+  const cloned = JSON.parse(JSON.stringify(raw));
+  const norm = normalizeHistoryRecord(cloned);
   if (!norm) return null;
   const items = [...historyItems.value];
   items.unshift(norm);

@@ -74,7 +74,7 @@
         </template>
         <div class="wow-tile-grid wow-screen-shell__tiles">
             <button
-              data-testid="metric-standard"
+              data-testid="btn-quick-mode"
               @click="selectMetricMode('standard')"
               class="wow-tile home-btn home-btn-primary"
             >
@@ -85,7 +85,7 @@
               <span class="text-[10px] text-gray-500">Короткий расчёт</span>
             </button>
             <button
-              data-testid="metric-graphics"
+              data-testid="btn-detail-mode"
               @click="selectMetricMode('graphics')"
               class="wow-tile home-btn home-btn-primary"
             >
@@ -569,7 +569,8 @@
         @home="goHome"
           @close="closeEditor"
           @dents-change="(d) => graphicsState.dents = d"
-        @save-history="saveCurrentEstimate('detail')"
+        @save-history="(e) => saveCurrentEstimate('detail', e?.lineItems)"
+        @book-history="(e) => saveAndBookEstimate('detail', e?.lineItems)"
         :history-enabled="requireFeature('historyEnabled')"
         @open-record="openRecordFromSheet"
         />
@@ -593,7 +594,7 @@
             <div class="quick-nav-price-value text-[17px] font-bold text-metric-green tabular-nums truncate">{{ animatedQuickPrice.toLocaleString('ru-RU') }} ₽</div>
           </div>
           <button
-            data-testid="btn-go-next"
+            data-testid="btn-next-step"
             type="button"
             @click="goQuickNext"
             :disabled="(quickStep === 1 && userSettings.showClientQuick && !clientDataValid) || ((quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)) && !quickStep2Valid)"
@@ -818,7 +819,7 @@
       <!-- Sticky action bar: fixed above tab bar, always visible -->
       <div class="history-detail-actions">
         <div class="history-detail-actions__inner flex gap-2 p-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] bg-black border-t border-white/10">
-          <button type="button" @click="selectedHistoryId = null" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[44px]">Назад</button>
+          <button type="button" data-testid="btn-history-back" @click="selectedHistoryId = null" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[44px]">Назад</button>
           <button v-if="!isEditingHistory" type="button" @click="startHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[44px]">Редакт.</button>
           <button type="button" @click="deleteHistoryConfirm(selectedHistory.id)" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-red-400 border border-red-500/40 rounded-xl min-h-[44px]">Удалить</button>
         </div>
@@ -827,349 +828,378 @@
     </div>
 
     <!-- Section: Settings -->
-    <div ref="settingsScrollRef" v-if="currentSection === 'settings'" class="content-padding-bottom p-4 space-y-5 overflow-y-auto">
-      <div class="app-header-logo-bar">
-        <div class="app-header-logo-bar__left">
-          <button
-            type="button"
-            @click="goHome"
-            class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
-          >
-            <span>←</span>
-            <span>Домой</span>
-          </button>
+    <div v-if="currentSection === 'settings'" class="settings-screen flex flex-col min-h-0 flex-1">
+      <div ref="settingsScrollRef" class="settings-screen__content">
+        <div class="app-header-logo-bar shrink-0">
+          <div class="app-header-logo-bar__left">
+            <button type="button" @click="goHome" class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1">
+              <span>←</span><span>Домой</span>
+            </button>
+          </div>
+          <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" style="border:none;box-shadow:none" onerror="this.style.display='none'">
+          <div class="app-header-logo-bar__right"></div>
         </div>
-        <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" style="border:none;box-shadow:none" onerror="this.style.display='none'">
-        <div class="app-header-logo-bar__right"></div>
-      </div>
-      <h2 class="text-xl font-bold text-white px-1">Настройки</h2>
+        <h1 class="settings-screen__title">Настройки</h1>
+        <div class="settings-sections">
+        <!-- 1. Ценообразование -->
+        <div ref="(el) => setSettingsSectionRef('pricing', el)" class="settings-section-card card-metallic rounded-2xl overflow-hidden">
+          <div class="dm-section-header" :class="{ 'dm-section-header--open': settingsOpenSection === 'pricing' }" @click="toggleSettingsSection('pricing')">
+            <div class="dm-section-header__left">
+              <span class="dm-section-header__icon">💰</span>
+              <span class="dm-section-header__title">Ценообразование</span>
+            </div>
+            <span class="dm-section-header__chevron" :class="{ open: settingsOpenSection === 'pricing' }">›</span>
+          </div>
+          <div v-show="settingsOpenSection === 'pricing'" class="settings-section-content">
+            <div class="dm-settings-row dm-settings-row--stacked">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Округление цены</span>
+                <span class="dm-settings-row__description">Применяется только к отображению и сохранению.</span>
+              </div>
+              <div class="dm-settings-row__control dm-settings-row__control--full">
+                <div class="dm-segment-group">
+                  <label v-for="opt in PRICE_ROUND_OPTIONS" :key="opt.value" class="dm-segment-btn" :class="{ active: userSettings.priceRoundStep === opt.value }">
+                    <input v-model="userSettings.priceRoundStep" type="radio" :value="opt.value" class="sr-only">
+                    <span>{{ opt.label }}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Единицы размеров</span>
+                <span class="dm-settings-row__description">Отображение в списках. Ввод всегда в мм.</span>
+              </div>
+              <div class="dm-settings-row__control">
+              <div class="dm-segment-group">
+                <label class="dm-segment-btn" :class="{ active: userSettings.sizeUnit === 'mm' }">
+                  <input v-model="userSettings.sizeUnit" type="radio" value="mm" class="sr-only">
+                  <span>мм</span>
+                </label>
+                <label class="dm-segment-btn" :class="{ active: userSettings.sizeUnit === 'cm' }">
+                  <input v-model="userSettings.sizeUnit" type="radio" value="cm" class="sr-only">
+                  <span>см</span>
+                </label>
+              </div>
+              </div>
+            </div>
+            <div class="dm-settings-subsection-label">Регулятор цен: Круг / Овал</div>
+            <div class="dm-settings-row dm-settings-row--stacked">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Множитель</span>
+                <span class="dm-settings-row__description">Применяется к базовым ценам при расчёте.</span>
+              </div>
+              <div class="dm-settings-row__control dm-settings-row__control--full">
+                <div class="dm-segment-group">
+                  <button type="button" data-testid="price-regulator-round-minus" class="dm-segment-btn" :class="{ active: effectivePriceMultiplierRoundOval === 90 }" @click="applyPriceRegulator('roundOval', -10)">−10%</button>
+                  <button type="button" data-testid="price-regulator-round-zero" class="dm-segment-btn" :class="{ active: effectivePriceMultiplierRoundOval === 100 }" @click="applyPriceRegulator('roundOval', 0)">0%</button>
+                  <button type="button" data-testid="price-regulator-round-plus" class="dm-segment-btn" :class="{ active: effectivePriceMultiplierRoundOval === 110 }" @click="applyPriceRegulator('roundOval', 10)">+10%</button>
+                </div>
+              </div>
+            </div>
+            <p class="dm-settings-multiplier-value">Множитель: {{ effectivePriceMultiplierRoundOval }}%</p>
+            <div class="dm-settings-subsection-label">Регулятор цен: Полоса / Царапина</div>
+            <div class="dm-settings-row dm-settings-row--stacked">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Множитель</span>
+                <span class="dm-settings-row__description">Применяется к базовым ценам при расчёте.</span>
+              </div>
+              <div class="dm-settings-row__control dm-settings-row__control--full">
+                <div class="dm-segment-group">
+                  <button type="button" data-testid="price-regulator-stripe-minus" class="dm-segment-btn" :class="{ active: effectivePriceMultiplierStripe === 90 }" @click="applyPriceRegulator('stripe', -10)">−10%</button>
+                  <button type="button" data-testid="price-regulator-stripe-zero" class="dm-segment-btn" :class="{ active: effectivePriceMultiplierStripe === 100 }" @click="applyPriceRegulator('stripe', 0)">0%</button>
+                  <button type="button" data-testid="price-regulator-stripe-plus" class="dm-segment-btn" :class="{ active: effectivePriceMultiplierStripe === 110 }" @click="applyPriceRegulator('stripe', 10)">+10%</button>
+                </div>
+              </div>
+            </div>
+            <p class="dm-settings-multiplier-value">Множитель: {{ effectivePriceMultiplierStripe }}%</p>
+            <div class="dm-settings-subsection-label">Скидка на 2-ю вмятину (один элемент)</div>
+            <div class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Включить</span>
+              </div>
+              <label class="dm-settings-row__toggle">
+                <input data-testid="settings-discount-same-part" v-model="userSettings.discountSamePartEnabled" type="checkbox" class="sr-only peer">
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
+              </label>
+            </div>
+            <div v-if="userSettings.discountSamePartEnabled" class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Скидка (%)</span>
+              </div>
+              <button type="button" data-testid="settings-discount-same-part-percent" class="dm-number-input dm-number-input--action" @click="openDiscountSamePartModal">
+                <span>{{ userSettings.discountSamePartValue }}</span>
+                <span class="dm-number-input__edit">✎</span>
+              </button>
+            </div>
+            <div class="dm-settings-subsection-label">Скидка на 2-ю вмятину (другой элемент)</div>
+            <div class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Включить</span>
+              </div>
+              <label class="dm-settings-row__toggle">
+                <input data-testid="settings-discount-diff-part" v-model="userSettings.discountDiffPartEnabled" type="checkbox" class="sr-only peer">
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
+              </label>
+            </div>
+            <div v-if="userSettings.discountDiffPartEnabled" class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Скидка (%)</span>
+              </div>
+              <button type="button" data-testid="settings-discount-diff-part-percent" class="dm-number-input dm-number-input--action" @click="openDiscountDiffPartModal">
+                <span>{{ userSettings.discountDiffPartValue }}</span>
+                <span class="dm-number-input__edit">✎</span>
+              </button>
+            </div>
+            <div class="dm-settings-subsection-label">1.2 Базовый прайс</div>
+            <p class="settings-helper-text mb-2">Для правильного формирования стоимости работ, задайте свой прайс на удаление ПЛАВНОЙ вмятины в ЛЁГКОМ доступе. На данный момент средние рыночные значения уже установлены. Всё остальное матричная система расчёта DentMetric посчитает сама.</p>
+            <div class="dm-settings-subsection-label">Круг/Овал</div>
+            <div v-for="size in initialData.circleSizes" :key="size.code" class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">{{ size.code }}</span>
+                <span class="dm-settings-row__description">{{ size.name }}</span>
+              </div>
+              <input type="number" v-model.number="userSettings.prices[size.code]" inputmode="numeric" class="dm-number-input dm-number-input--wide">
+            </div>
+            <div class="dm-settings-subsection-label">Полоса / Царапина</div>
+            <div v-for="size in initialData.stripSizes" :key="size.code" class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">{{ size.code }}</span>
+                <span class="dm-settings-row__description">{{ size.name }}</span>
+              </div>
+              <input type="number" v-model.number="userSettings.prices[size.code]" inputmode="numeric" class="dm-number-input dm-number-input--wide">
+            </div>
+          </div>
+        </div>
 
-      <div class="space-y-3">
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
-          <div class="flex items-center space-x-3">
-            <span class="text-lg opacity-80">💰</span>
-            <span class="font-bold text-sm text-white">Ценообразование</span>
-          </div>
-          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="px-5 pb-5 pt-0 space-y-4 border-t border-white/5 mt-2 pt-4">
-        <div>
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Округление цены</p>
-          <div class="flex flex-wrap gap-2">
-            <label
-              v-for="opt in PRICE_ROUND_OPTIONS"
-              :key="opt.value"
-              class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border cursor-pointer transition-all min-h-[44px]"
-              :class="userSettings.priceRoundStep === opt.value ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/10 hover:border-white/20 text-gray-400'"
-            >
-              <input v-model="userSettings.priceRoundStep" type="radio" :value="opt.value" class="sr-only">
-              <span class="text-sm">{{ opt.label }}</span>
-            </label>
-          </div>
-          <p class="text-[10px] text-gray-500 mt-2">Применяется только к отображению и сохранению.</p>
-        </div>
-        <div>
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Единицы размеров</p>
-          <div class="flex gap-2">
-            <label
-              class="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border cursor-pointer transition-all min-h-[44px]"
-              :class="userSettings.sizeUnit === 'mm' ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/10 hover:border-white/20 text-gray-400'"
-            >
-              <input v-model="userSettings.sizeUnit" type="radio" value="mm" class="sr-only">
-              <span class="text-sm font-medium">мм</span>
-            </label>
-            <label
-              class="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl border cursor-pointer transition-all min-h-[44px]"
-              :class="userSettings.sizeUnit === 'cm' ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/10 hover:border-white/20 text-gray-400'"
-            >
-              <input v-model="userSettings.sizeUnit" type="radio" value="cm" class="sr-only">
-              <span class="text-sm font-medium">см</span>
-            </label>
-          </div>
-          <p class="text-[10px] text-gray-500 mt-2">Отображение в списках. Ввод всегда в мм.</p>
-        </div>
-        <div class="border-t border-white/10 pt-4 mt-2">
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Регулятор цен: Круг / Овал</p>
-          <p class="text-[10px] text-gray-500 mb-2">Множитель применяется к базовым ценам при расчёте.</p>
-          <div class="flex gap-2">
-            <button type="button" data-testid="price-regulator-round-minus" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierRoundOval === 90 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('roundOval', -10)">−10%</button>
-            <button type="button" data-testid="price-regulator-round-zero" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierRoundOval === 100 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('roundOval', 0)">0%</button>
-            <button type="button" data-testid="price-regulator-round-plus" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierRoundOval === 110 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('roundOval', 10)">+10%</button>
-          </div>
-          <p class="text-[10px] text-gray-500 mt-1">Множитель: {{ effectivePriceMultiplierRoundOval }}%</p>
-        </div>
-        <div class="border-t border-white/10 pt-4 mt-2">
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Регулятор цен: Полоса / Царапина</p>
-          <p class="text-[10px] text-gray-500 mb-2">Множитель применяется к базовым ценам при расчёте.</p>
-          <div class="flex gap-2">
-            <button type="button" data-testid="price-regulator-stripe-minus" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierStripe === 90 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('stripe', -10)">−10%</button>
-            <button type="button" data-testid="price-regulator-stripe-zero" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierStripe === 100 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('stripe', 0)">0%</button>
-            <button type="button" data-testid="price-regulator-stripe-plus" class="flex-1 py-2.5 rounded-xl border text-sm font-semibold transition-all touch-manipulation min-h-[44px]" :class="effectivePriceMultiplierStripe === 110 ? 'bg-metric-green/20 border-metric-green text-white' : 'border-white/20 hover:border-metric-green/50 hover:bg-metric-green/10 text-gray-300 hover:text-white'" @click="applyPriceRegulator('stripe', 10)">+10%</button>
-          </div>
-          <p class="text-[10px] text-gray-500 mt-1">Множитель: {{ effectivePriceMultiplierStripe }}%</p>
-        </div>
-        <div class="border-t border-white/10 pt-4 mt-2">
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Скидка на 2-ю вмятину (один элемент)</p>
-          <div class="flex items-center justify-between gap-3 py-1">
-            <span class="text-sm text-gray-300 flex-1">Включить</span>
-            <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input data-testid="settings-discount-same-part" v-model="userSettings.discountSamePartEnabled" type="checkbox" class="sr-only peer">
-              <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-              <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-            </label>
-          </div>
-          <div v-if="userSettings.discountSamePartEnabled" class="flex items-center justify-between gap-3 py-2">
-            <span class="text-sm text-gray-300 flex-1">Скидка (%)</span>
-            <button type="button" data-testid="settings-discount-same-part-percent" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-sm text-white min-h-[44px] min-w-[100px] touch-manipulation" @click="openDiscountSamePartModal">
-              <span>{{ userSettings.discountSamePartValue }}</span>
-              <span class="text-gray-500 shrink-0">✎</span>
-            </button>
-          </div>
-        </div>
-        <div class="border-t border-white/10 pt-4 mt-2">
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Скидка на 2-ю вмятину (другой элемент)</p>
-          <div class="flex items-center justify-between gap-3 py-1">
-            <span class="text-sm text-gray-300 flex-1">Включить</span>
-            <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input data-testid="settings-discount-diff-part" v-model="userSettings.discountDiffPartEnabled" type="checkbox" class="sr-only peer">
-              <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-              <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-            </label>
-          </div>
-          <div v-if="userSettings.discountDiffPartEnabled" class="flex items-center justify-between gap-3 py-2">
-            <span class="text-sm text-gray-300 flex-1">Скидка (%)</span>
-            <button type="button" data-testid="settings-discount-diff-part-percent" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-sm text-white min-h-[44px] min-w-[100px] touch-manipulation" @click="openDiscountDiffPartModal">
-              <span>{{ userSettings.discountDiffPartValue }}</span>
-              <span class="text-gray-500 shrink-0">✎</span>
-            </button>
-          </div>
-        </div>
-        <div class="border-t border-white/10 pt-4 mt-2">
-          <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">1.2 Базовый прайс</p>
-          <p class="text-xs text-gray-400 leading-relaxed mb-3">Для правильного формирования стоимости работ, задайте свой прайс на удаление ПЛАВНОЙ вмятины в ЛЁГКОМ доступе. На данный момент средние рыночные значения уже установлены. Всё остальное матричная система расчёта DentMetric посчитает сама.</p>
-          <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Круг/Овал</p>
-          <div class="space-y-3">
-            <div v-for="size in initialData.circleSizes" :key="size.code" class="flex items-center justify-between gap-3">
-              <div class="flex flex-col min-w-0">
-                <span class="font-medium text-sm text-gray-300">{{ size.code }}</span>
-                <span class="text-xs text-gray-500">{{ size.name }}</span>
-              </div>
-              <input type="number" v-model.number="userSettings.prices[size.code]" inputmode="numeric" class="dm-price-box w-28 min-w-[7rem] min-h-[44px] bg-[#151515] border border-[#333] rounded-lg p-2.5 text-right font-medium text-white focus:border-metric-green/50 outline-none shrink-0">
+        <!-- 2. Арматурные работы -->
+        <div ref="(el) => setSettingsSectionRef('armature', el)" class="settings-section-card card-metallic rounded-2xl overflow-hidden">
+          <div class="dm-section-header" :class="{ 'dm-section-header--open': settingsOpenSection === 'armature' }" @click="toggleSettingsSection('armature')">
+            <div class="dm-section-header__left">
+              <span class="dm-section-header__icon">🔧</span>
+              <span class="dm-section-header__title">Арматурные работы</span>
             </div>
+            <span class="dm-section-header__chevron" :class="{ open: settingsOpenSection === 'armature' }">›</span>
           </div>
-        </div>
-        <div class="border-t border-white/10 pt-4 mt-2">
-          <p class="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-2">Полоса / Царапина</p>
-          <div class="space-y-3">
-            <div v-for="size in initialData.stripSizes" :key="size.code" class="flex items-center justify-between gap-3">
-              <div class="flex flex-col min-w-0">
-                <span class="font-medium text-sm text-gray-300">{{ size.code }}</span>
-                <span class="text-xs text-gray-500">{{ size.name }}</span>
+          <div v-show="settingsOpenSection === 'armature'" class="settings-section-content">
+            <p class="settings-helper-text mb-2">Редактирование цен системных работ и добавление пользовательских.</p>
+            <div v-for="w in systemArmatureWorks" :key="w.code" class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">{{ w.name }}</span>
               </div>
-              <input type="number" v-model.number="userSettings.prices[size.code]" inputmode="numeric" class="dm-price-box w-28 min-w-[7rem] min-h-[44px] bg-[#151515] border border-[#333] rounded-lg p-2.5 text-right font-medium text-white focus:border-metric-green/50 outline-none shrink-0">
-            </div>
-          </div>
-        </div>
-        <div class="border-t border-white/10 pt-4 mt-2">
-          <p class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Арматурные работы</p>
-          <p class="text-[10px] text-gray-500 mb-3">Редактирование цен системных работ и добавление пользовательских.</p>
-          <div class="space-y-3">
-            <div v-for="w in systemArmatureWorks" :key="w.code" class="flex items-center justify-between gap-3">
-              <span class="font-medium text-sm text-gray-300 truncate">{{ w.name }}</span>
               <div class="flex items-center gap-1 shrink-0">
-                <input type="number" :value="effectiveArmaturePrice(w.code)" @input="setArmaturePriceOverride(w.code, $event.target.value)" inputmode="numeric" class="dm-price-box w-24 min-h-[40px] bg-[#151515] border border-[#333] rounded-lg px-2.5 py-2 text-right text-sm font-medium text-white focus:border-metric-green/50 outline-none">
+                <input type="number" :value="effectiveArmaturePrice(w.code)" @input="setArmaturePriceOverride(w.code, $event.target.value)" inputmode="numeric" class="dm-number-input">
                 <span class="text-gray-500 text-sm">₽</span>
               </div>
             </div>
-            <div v-for="(cw, idx) in userSettings.customArmatureWorks" :key="cw.id">
-              <div class="flex items-center gap-2">
-                <input type="text" v-model="cw.name" placeholder="Название" class="flex-1 bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:border-metric-green outline-none">
-                <input type="number" v-model.number="cw.price" placeholder="₽" class="w-24 bg-[#151515] border border-[#333] rounded-lg px-2.5 py-2 text-right text-sm text-white focus:border-metric-green outline-none">
-                <button type="button" @click="removeCustomArmatureWork(idx)" class="p-2 text-red-400 hover:bg-red-500/10 rounded-lg" aria-label="Удалить">✕</button>
+            <div v-for="(cw, idx) in userSettings.customArmatureWorks" :key="cw.id" class="dm-settings-row dm-settings-row--custom">
+              <input type="text" v-model="cw.name" placeholder="Название" class="dm-text-input flex-1">
+              <input type="number" v-model.number="cw.price" placeholder="₽" class="dm-number-input">
+              <button type="button" @click="removeCustomArmatureWork(idx)" class="dm-settings-row__remove" aria-label="Удалить">✕</button>
+            </div>
+            <div class="dm-settings-row dm-settings-row--add">
+              <input v-model="newArmatureWorkName" type="text" placeholder="введите название" class="dm-text-input flex-1">
+              <input v-model.number="newArmatureWorkPrice" type="number" placeholder="₽" class="dm-number-input">
+              <button type="button" @click="addCustomArmatureWork" class="dm-segment-btn dm-segment-btn--add">+</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Интерфейс -->
+        <div ref="(el) => setSettingsSectionRef('interface', el)" class="settings-section-card card-metallic rounded-2xl overflow-hidden">
+          <div class="dm-section-header" :class="{ 'dm-section-header--open': settingsOpenSection === 'interface' }" @click="toggleSettingsSection('interface')">
+            <div class="dm-section-header__left">
+              <span class="dm-section-header__icon">⚙️</span>
+              <span class="dm-section-header__title">Интерфейс</span>
+            </div>
+            <span class="dm-section-header__chevron" :class="{ open: settingsOpenSection === 'interface' }">›</span>
+          </div>
+          <div v-show="settingsOpenSection === 'interface'" class="settings-section-content">
+            <div class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Показывать подсказки (i)</span>
               </div>
+              <label class="dm-settings-row__toggle">
+                <input data-testid="settings-show-tooltips" v-model="userSettings.showInfoTooltips" type="checkbox" class="sr-only peer">
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
+              </label>
             </div>
-            <div class="flex gap-2">
-              <input v-model="newArmatureWorkName" type="text" placeholder="введите название" class="flex-1 bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:border-metric-green outline-none">
-              <input v-model.number="newArmatureWorkPrice" type="number" placeholder="₽" class="w-24 bg-[#151515] border border-[#333] rounded-lg px-2.5 py-2 text-right text-sm text-white focus:border-metric-green outline-none">
-              <button type="button" @click="addCustomArmatureWork" class="px-3 py-2 rounded-lg text-sm font-bold bg-metric-green/20 text-metric-green border border-metric-green/40 hover:bg-metric-green/30">+</button>
+            <div class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Экран клиента в режиме «Быстрый»</span>
+              </div>
+              <label class="dm-settings-row__toggle">
+                <input data-testid="settings-show-client-quick" v-model="userSettings.showClientQuick" type="checkbox" class="sr-only peer">
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
+              </label>
+            </div>
+            <div class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Экран клиента в режиме «Детализация»</span>
+              </div>
+              <label class="dm-settings-row__toggle">
+                <input data-testid="settings-show-client-detail" v-model="userSettings.showClientDetail" type="checkbox" class="sr-only peer">
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
+              </label>
             </div>
           </div>
         </div>
-        </div>
-      </details>
 
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
-          <div class="flex items-center space-x-3">
-            <span class="text-lg opacity-80">⚙️</span>
-            <span class="font-bold text-sm text-white">Интерфейс</span>
+        <!-- 4. Клиент -->
+        <div ref="(el) => setSettingsSectionRef('client', el)" class="settings-section-card card-metallic rounded-2xl overflow-hidden">
+          <div class="dm-section-header" :class="{ 'dm-section-header--open': settingsOpenSection === 'client' }" @click="toggleSettingsSection('client')">
+            <div class="dm-section-header__left">
+              <span class="dm-section-header__icon">👤</span>
+              <span class="dm-section-header__title">Клиент</span>
+            </div>
+            <span class="dm-section-header__chevron" :class="{ open: settingsOpenSection === 'client' }">›</span>
           </div>
-          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="px-5 pb-5 pt-0 space-y-4 border-t border-white/5 mt-2 pt-4">
-          <div class="flex items-center justify-between gap-3 py-1">
-            <span class="text-sm text-gray-300 flex-1">Показывать подсказки (i)</span>
-            <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input data-testid="settings-show-tooltips" v-model="userSettings.showInfoTooltips" type="checkbox" class="sr-only peer">
-              <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-              <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-            </label>
-          </div>
-          <div class="flex items-center justify-between gap-3 py-1">
-            <span class="text-sm text-gray-300 flex-1">Экран клиента в режиме «Быстрый»</span>
-            <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input data-testid="settings-show-client-quick" v-model="userSettings.showClientQuick" type="checkbox" class="sr-only peer">
-              <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-              <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-            </label>
-          </div>
-          <div class="flex items-center justify-between gap-3 py-1">
-            <span class="text-sm text-gray-300 flex-1">Экран клиента в режиме «Детализация»</span>
-            <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input data-testid="settings-show-client-detail" v-model="userSettings.showClientDetail" type="checkbox" class="sr-only peer">
-              <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-              <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-            </label>
-          </div>
-        </div>
-      </details>
-
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
-          <div class="flex items-center space-x-3">
-            <span class="text-lg opacity-80">👤</span>
-            <span class="font-bold text-sm text-white">Клиент</span>
-          </div>
-          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="px-5 pb-5 pt-0 space-y-4 border-t border-white/5 mt-2 pt-4">
-          <div class="flex items-center justify-between gap-3 py-1">
-            <span class="text-sm text-gray-300 flex-1">Данные клиента обязательны</span>
-            <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input data-testid="settings-client-required" v-model="userSettings.clientRequired" type="checkbox" class="sr-only peer">
-              <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-              <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-            </label>
-          </div>
-          <div class="border-t border-white/10 pt-3 space-y-3" :class="{ 'opacity-70': !userSettings.clientRequired }">
-            <div class="flex items-center justify-between gap-3 py-1">
-              <span class="text-sm text-gray-300 flex-1">Телефон обязателен</span>
-              <label class="relative inline-flex items-center cursor-pointer shrink-0">
+          <div v-show="settingsOpenSection === 'client'" class="settings-section-content">
+            <div class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Данные клиента обязательны</span>
+              </div>
+              <label class="dm-settings-row__toggle">
+                <input data-testid="settings-client-required" v-model="userSettings.clientRequired" type="checkbox" class="sr-only peer">
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
+              </label>
+            </div>
+            <div class="dm-settings-row" :class="{ 'opacity-70': !userSettings.clientRequired }">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Телефон обязателен</span>
+              </div>
+              <label class="dm-settings-row__toggle">
                 <input data-testid="settings-require-phone" v-model="userSettings.requirePhone" type="checkbox" class="sr-only peer" :disabled="!userSettings.clientRequired">
-                <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-                <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
               </label>
             </div>
-            <div class="flex items-center justify-between gap-3 py-1">
-              <span class="text-sm text-gray-300 flex-1">Имя обязательно</span>
-              <label class="relative inline-flex items-center cursor-pointer shrink-0">
+            <div class="dm-settings-row" :class="{ 'opacity-70': !userSettings.clientRequired }">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Имя обязательно</span>
+              </div>
+              <label class="dm-settings-row__toggle">
                 <input data-testid="settings-require-name" v-model="userSettings.requireName" type="checkbox" class="sr-only peer" :disabled="!userSettings.clientRequired">
-                <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-                <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
               </label>
             </div>
-            <div class="flex items-center justify-between gap-3 py-1">
-              <span class="text-sm text-gray-300 flex-1">Марка/Модель обязательны</span>
-              <label class="relative inline-flex items-center cursor-pointer shrink-0">
+            <div class="dm-settings-row" :class="{ 'opacity-70': !userSettings.clientRequired }">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Марка/Модель обязательны</span>
+              </div>
+              <label class="dm-settings-row__toggle">
                 <input data-testid="settings-require-car-brand-model" v-model="userSettings.requireCarBrandModel" type="checkbox" class="sr-only peer" :disabled="!userSettings.clientRequired">
-                <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-                <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
               </label>
             </div>
           </div>
         </div>
-      </details>
 
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
-          <div class="flex items-center space-x-3">
-            <span class="text-lg opacity-80">📋</span>
-            <span class="font-bold text-sm text-white">Обязательные поля</span>
+        <!-- 5. Обязательные поля -->
+        <div ref="(el) => setSettingsSectionRef('required', el)" class="settings-section-card card-metallic rounded-2xl overflow-hidden">
+          <div class="dm-section-header" :class="{ 'dm-section-header--open': settingsOpenSection === 'required' }" @click="toggleSettingsSection('required')">
+            <div class="dm-section-header__left">
+              <span class="dm-section-header__icon">📋</span>
+              <span class="dm-section-header__title">Обязательные поля</span>
+            </div>
+            <span class="dm-section-header__chevron" :class="{ open: settingsOpenSection === 'required' }">›</span>
           </div>
-          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="px-5 pb-5 pt-0 space-y-4 border-t border-white/5 mt-2 pt-4">
-        <p class="text-[10px] text-gray-500">Включите только нужные параметры, чтобы ускорить быстрый расчёт.</p>
-        <div class="space-y-4">
-          <div class="flex items-center justify-between gap-3 py-1">
-            <span class="text-sm text-gray-300 flex-1">Показывать Время ремонта (мастера)</span>
-            <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input data-testid="settings-show-repair-time" v-model="userSettings.showRepairTime" type="checkbox" class="sr-only peer">
-              <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-              <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-            </label>
-          </div>
-          <div class="flex items-center justify-between gap-3 py-1">
-            <span class="text-sm text-gray-300 flex-1">Показывать Материал ЛКП</span>
-            <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input data-testid="settings-show-paint-material" v-model="userSettings.showPaintMaterial" type="checkbox" class="sr-only peer">
-              <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-              <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-            </label>
-          </div>
-          <div class="flex items-center justify-between gap-3 py-1">
-            <span class="text-sm text-gray-300 flex-1">Показывать Шумоизоляция</span>
-            <label class="relative inline-flex items-center cursor-pointer shrink-0">
-              <input data-testid="settings-show-sound-insulation" v-model="userSettings.showSoundInsulation" type="checkbox" class="sr-only peer">
-              <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-              <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-            </label>
+          <div v-show="settingsOpenSection === 'required'" class="settings-section-content">
+            <p class="settings-helper-text mb-2">Включите только нужные параметры, чтобы ускорить быстрый расчёт.</p>
+            <div class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Показывать Время ремонта (мастера)</span>
+              </div>
+              <label class="dm-settings-row__toggle">
+                <input data-testid="settings-show-repair-time" v-model="userSettings.showRepairTime" type="checkbox" class="sr-only peer">
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
+              </label>
+            </div>
+            <div class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Показывать Материал ЛКП</span>
+              </div>
+              <label class="dm-settings-row__toggle">
+                <input data-testid="settings-show-paint-material" v-model="userSettings.showPaintMaterial" type="checkbox" class="sr-only peer">
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
+              </label>
+            </div>
+            <div class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Показывать Шумоизоляция</span>
+              </div>
+              <label class="dm-settings-row__toggle">
+                <input data-testid="settings-show-sound-insulation" v-model="userSettings.showSoundInsulation" type="checkbox" class="sr-only peer">
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
+              </label>
+            </div>
           </div>
         </div>
-        </div>
-      </details>
 
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
-          <div class="flex items-center space-x-3">
-            <span class="text-lg opacity-80">📁</span>
-            <span class="font-bold text-sm text-white">История</span>
+        <!-- 6. История -->
+        <div ref="(el) => setSettingsSectionRef('history', el)" class="settings-section-card card-metallic rounded-2xl overflow-hidden">
+          <div class="dm-section-header" :class="{ 'dm-section-header--open': settingsOpenSection === 'history' }" @click="toggleSettingsSection('history')">
+            <div class="dm-section-header__left">
+              <span class="dm-section-header__icon">📁</span>
+              <span class="dm-section-header__title">История</span>
+            </div>
+            <span class="dm-section-header__chevron" :class="{ open: settingsOpenSection === 'history' }">›</span>
           </div>
-          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="px-5 pb-5 pt-0 border-t border-white/5 mt-2 pt-4">
-        <div class="flex items-center justify-between gap-3 py-1">
-          <span class="text-sm text-gray-300 flex-1">Автосохранение в историю</span>
-          <label class="relative inline-flex items-center cursor-pointer shrink-0">
-            <input data-testid="settings-auto-save-history" v-model="userSettings.autoSaveHistory" type="checkbox" class="sr-only peer">
-            <div class="w-11 h-6 bg-white/10 rounded-full peer peer-checked:bg-metric-green transition-colors"></div>
-            <div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-5"></div>
-          </label>
+          <div v-show="settingsOpenSection === 'history'" class="settings-section-content">
+            <div class="dm-settings-row">
+              <div class="dm-settings-row__label-area">
+                <span class="dm-settings-row__label">Автосохранение в историю</span>
+              </div>
+              <label class="dm-settings-row__toggle">
+                <input data-testid="settings-auto-save-history" v-model="userSettings.autoSaveHistory" type="checkbox" class="sr-only peer">
+                <div class="dm-toggle-track peer-checked:dm-toggle-track--on"></div>
+                <div class="dm-toggle-thumb peer-checked:translate-x-5"></div>
+              </label>
+            </div>
+          </div>
         </div>
-        </div>
-      </details>
 
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
-          <div class="flex items-center space-x-3">
-            <span class="text-lg opacity-80">👷</span>
-            <span class="font-bold text-sm text-white">Мастера</span>
+        <!-- 7. Мастера -->
+        <div ref="(el) => setSettingsSectionRef('masters', el)" class="settings-section-card card-metallic rounded-2xl overflow-hidden">
+          <div class="dm-section-header" :class="{ 'dm-section-header--open': settingsOpenSection === 'masters' }" @click="toggleSettingsSection('masters')">
+            <div class="dm-section-header__left">
+              <span class="dm-section-header__icon">👷</span>
+              <span class="dm-section-header__title">Мастера</span>
+            </div>
+            <span class="dm-section-header__chevron" :class="{ open: settingsOpenSection === 'masters' }">›</span>
           </div>
-          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="px-5 pb-5 pt-0 space-y-4 border-t border-white/5 mt-2 pt-4">
-        <div class="flex justify-between items-center">
-          <span class="text-sm text-gray-400">Имя и ставка (₽/час)</span>
-          <button @click="addMaster" class="text-xs text-metric-green border border-metric-green px-2.5 py-1.5 rounded-lg hover:bg-metric-green hover:text-black transition-colors">+ Добавить</button>
-        </div>
-        <div class="space-y-3">
-          <div v-for="(m, idx) in userSettings.masters" :key="idx" class="flex gap-2 items-center">
-            <input v-model="m.name" placeholder="Имя" class="flex-1 bg-[#151515] border border-[#333] rounded-lg p-2.5 text-sm text-white focus:border-metric-green outline-none">
-            <input type="number" v-model.number="m.rate" placeholder="₽/час" class="w-24 bg-[#151515] border border-[#333] rounded-lg p-2.5 text-sm text-right text-white focus:border-metric-green outline-none">
-            <button type="button" @click="removeMaster(idx)" class="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors" aria-label="Удалить">
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-            </button>
+          <div v-show="settingsOpenSection === 'masters'" class="settings-section-content">
+            <div class="dm-settings-row dm-settings-row--header">
+              <span class="dm-settings-row__label">Имя и ставка (₽/час)</span>
+              <button type="button" @click="addMaster" class="dm-segment-btn dm-segment-btn--add">+ Добавить</button>
+            </div>
+            <div v-for="(m, idx) in userSettings.masters" :key="idx" class="dm-settings-row dm-settings-row--custom">
+              <input v-model="m.name" placeholder="Имя" class="dm-text-input flex-1">
+              <input type="number" v-model.number="m.rate" placeholder="₽/час" class="dm-number-input">
+              <button type="button" @click="removeMaster(idx)" class="dm-settings-row__remove" aria-label="Удалить">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              </button>
+            </div>
           </div>
         </div>
         </div>
-      </details>
-
       </div>
 
-      <div class="flex flex-col space-y-3 pt-2">
-        <button @click="saveSettings" class="cta-primary w-full bg-metric-green text-black font-bold py-3.5 rounded-xl active:opacity-90 shadow-[0_0_15px_rgba(136,229,35,0.4)] min-h-[48px]">Сохранить настройки</button>
-        <button @click="resetDefaults" class="w-full text-gray-400 text-sm font-medium py-3 hover:text-white transition-colors rounded-xl">Сбросить к стандартным</button>
+      <!-- Sticky save bar (sibling of content, not inside scroll) -->
+      <div class="settings-screen__footer">
+        <button type="button" data-testid="btn-save-settings" @click="saveSettings" class="dm-btn dm-btn--primary dm-btn--full">Сохранить настройки</button>
+        <button type="button" @click="resetDefaults" class="dm-btn dm-btn--secondary dm-btn--full">Сбросить к стандартным</button>
       </div>
     </div>
 
@@ -1367,6 +1397,7 @@
     >
       <button
         type="button"
+        data-testid="nav-history"
         @click="goToHistory"
         class="bottom-nav-btn flex-1 min-w-0 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[52px] touch-manipulation"
         :class="currentSection === 'history' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
@@ -1378,6 +1409,7 @@
       </button>
       <button
         type="button"
+        data-testid="nav-settings"
         @click="switchSection('settings')"
         class="bottom-nav-btn flex-1 min-w-0 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[52px] touch-manipulation"
         :class="currentSection === 'settings' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
@@ -1412,6 +1444,7 @@
       </button>
       <button
         type="button"
+        data-testid="nav-home"
         @click="goHome"
         class="bottom-nav-btn flex-1 min-w-0 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[52px] touch-manipulation"
         :class="currentSection === 'home' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
@@ -1543,8 +1576,22 @@ const metricScrollRef = ref(null);
 const historyScrollRef = ref(null);
 const settingsScrollRef = ref(null);
 const infoScrollRef = ref(null);
-const settingsAccordionPricing = ref(true);
-const settingsAccordionIndividual = ref(true);
+/** Settings accordion: all sections closed on entry. Use section id to toggle. */
+const settingsOpenSection = ref(null);
+const settingsSectionRefs = {};
+function setSettingsSectionRef(id, el) {
+  settingsSectionRefs[id] = el;
+}
+function toggleSettingsSection(id) {
+  const wasOpen = settingsOpenSection.value === id;
+  settingsOpenSection.value = wasOpen ? null : id;
+  if (!wasOpen && id) {
+    nextTick(() => {
+      const el = settingsSectionRefs[id];
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+}
 
 function scrollToTop(el) {
   if (!el?.scrollTo) return;
@@ -1663,7 +1710,7 @@ const groupedHistoryBreakdown = computed(() => {
   }));
 });
 
-/** Line items для истории — пересчёт через calculateEstimateTotals при открытии (не доверяем сохранённым derived). */
+/** Line items для истории — используем сохранённый snapshot при наличии, иначе fallback для старых записей. */
 const historyLineItems = computed(() => {
   const h = selectedHistory.value;
   const dentItems = selectedHistoryDentItems.value;
@@ -1671,6 +1718,30 @@ const historyLineItems = computed(() => {
   const roundStep = userSettings.priceRoundStep ?? 0;
 
   if (!dentItems?.length) return [];
+
+  const snapshot = h?.lineItemsSnapshot;
+  if (Array.isArray(snapshot) && snapshot.length > 0) {
+    return snapshot.map((item) => {
+      const dent = item.dent || {};
+      const dentDisplay = {
+        ...dent,
+        conditions: dent.conditions || {},
+        panelElement: dent.panelElement ?? '',
+        sizeLengthMm: dent.sizeLengthMm ?? dent.bboxMm?.width,
+        sizeWidthMm: dent.sizeWidthMm ?? dent.bboxMm?.height,
+        bboxMm: dent.bboxMm ?? { width: dent.sizeLengthMm, height: dent.sizeWidthMm }
+      };
+      return {
+        dent: dentDisplay,
+        base: item.base ?? 0,
+        breakdown: item.breakdown ?? [],
+        appliedTotal: item.appliedTotal ?? item.base ?? 0,
+        preDiscountTotal: item.preDiscountTotal ?? item.base ?? 0,
+        discountPercent: item.discountPercent ?? discPct,
+        discountAmount: item.discountAmount ?? 0
+      };
+    });
+  }
 
   const ctx = {
     sizesWithArea: circleSizesWithArea,
@@ -1782,6 +1853,25 @@ const historyLineItems = computed(() => {
     };
   });
 });
+
+if (import.meta.env.DEV) {
+  function assertPriceImmutability(record) {
+    if (!record?.lineItemsSnapshot?.length) return;
+    const storedSum = record.lineItemsSnapshot.reduce((s, i) => s + (i.appliedTotal ?? i.base ?? 0), 0);
+    const savedTotal = Number(record.total ?? record.dmCalculatedPrice ?? 0);
+    if (savedTotal > 0 && Math.abs(storedSum - savedTotal) > 100) {
+      console.warn('[PRICE IMMUTABILITY] Record snapshot sum differs from saved total.', 'Stored sum:', storedSum, 'Saved total:', savedTotal, 'Record id:', record.id);
+    }
+  }
+  watch(
+    () => [historyItems.value, selectedHistoryId.value],
+    () => {
+      const rec = historyItems.value?.find((r) => r?.id === selectedHistoryId.value);
+      if (rec) assertPriceImmutability(rec);
+    },
+    { immediate: true }
+  );
+}
 
 /** Итог по истории: manual override > sum of line items > saved total. */
 const historyDisplayTotal = computed(() => {
@@ -3084,7 +3174,7 @@ function resetDraftState() {
   resetDentsOnly();
 }
 
-function buildEstimatePayload(mode) {
+function buildEstimatePayload(mode, lineItemsOverride) {
   const client = {
     name: estimateDraft.clientName,
     company: estimateDraft.clientCompany,
@@ -3095,6 +3185,11 @@ function buildEstimatePayload(mode) {
     date: estimateDraft.inspectDate,
     time: estimateDraft.inspectTime
   };
+  const lineItemsSnapshot = mode === 'detail' && Array.isArray(lineItemsOverride) && lineItemsOverride.length > 0
+    ? lineItemsOverride
+    : mode === 'quick' && quickLineItems.value?.length > 0
+      ? JSON.parse(JSON.stringify(quickLineItems.value))
+      : null;
   const conditions = {
     repairCode: form.repairCode,
     riskCode: form.riskCode,
@@ -3130,7 +3225,10 @@ function buildEstimatePayload(mode) {
       };
     });
     const dentPhotoKeys = (graphicsState.dents || []).map((d) => d.photoAssetKey).filter(Boolean);
-    const mainPhotoKey = graphicsWizardRef.value?.getPhotoAssetKey?.() ?? null;
+    const mainPhotoKey =
+      graphicsWizardRef.value?.getPhotoAssetKey?.() ??
+      graphicsWizardRef.value?.getDetailSession?.()?.photoAssetKey ??
+      null;
     const photoAssets = [...new Set([...dentPhotoKeys, ...(mainPhotoKey ? [mainPhotoKey] : [])])];
     return {
       id: estimateDraft.id,
@@ -3141,8 +3239,11 @@ function buildEstimatePayload(mode) {
       dents: { count: dentItems.length, items: dentItems },
       photoAssets,
       breakdown: estimateDraft.breakdown || [],
+      lineItemsSnapshot,
+      calculatedAt: new Date().toISOString(),
       total: displayTotal.value,
       rawTotal: totalPrice.value,
+      dmCalculatedPrice: totalPrice.value,
       discountPercent: discPct || 0,
       comment: estimateDraft.comment || '',
       attachments: estimateDraft.attachments || [],
@@ -3172,6 +3273,8 @@ function buildEstimatePayload(mode) {
     element,
     dents: { count: dentItems.length, items: dentItems },
     breakdown: estimateDraft.breakdown || [],
+    lineItemsSnapshot,
+    calculatedAt: new Date().toISOString(),
     total: displayTotal.value,
     rawTotal: totalPrice.value,
     discountPercent: discPct || 0,
@@ -3181,7 +3284,7 @@ function buildEstimatePayload(mode) {
   };
 }
 
-async function saveCurrentEstimate(modeOverride) {
+async function saveCurrentEstimate(modeOverride, lineItemsOverride) {
   if (isSavingHistory.value) return;
   if (!requireFeature('historyEnabled')) return;
   if (!checkHistoryLimit(historyItems.value.length)) return;
@@ -3189,7 +3292,7 @@ async function saveCurrentEstimate(modeOverride) {
   if (totalPrice.value <= 0) return;
   isSavingHistory.value = true;
   try {
-    const payload = buildEstimatePayload(mode);
+    const payload = buildEstimatePayload(mode, lineItemsOverride);
     saveEstimate(payload);
     if (foundClient.value?.allRecords?.length) {
       postSaveAnalytics.value = calcPostSaveAnalytics(totalPrice.value, foundClient.value.allRecords);
@@ -3210,7 +3313,7 @@ async function saveCurrentEstimate(modeOverride) {
   }
 }
 
-async function saveAndBookEstimate(modeOverride) {
+async function saveAndBookEstimate(modeOverride, lineItemsOverride) {
   if (isSavingHistory.value) return;
   if (!requireFeature('historyEnabled')) return;
   if (!checkHistoryLimit(historyItems.value.length)) return;
@@ -3218,7 +3321,7 @@ async function saveAndBookEstimate(modeOverride) {
   if (totalPrice.value <= 0) return;
   isSavingHistory.value = true;
   try {
-    const payload = buildEstimatePayload(mode);
+    const payload = buildEstimatePayload(mode, lineItemsOverride);
     payload.status = 'scheduled';
     payload.bookingAt = new Date().toISOString();
     saveEstimate(payload);
@@ -3511,14 +3614,18 @@ const resetDefaults = () => {
 };
 
 async function openClientField(field, label, inputType, placeholder) {
+  const mask = field === 'clientPhone' ? 'phone' : field === 'clientName' ? 'name' : null;
   const value = await openInputModal({
     title: 'Данные клиента',
     label,
     value: estimateDraft[field] ?? '',
     inputType,
-    placeholder
+    placeholder,
+    mask
   });
-  if (value !== undefined && value !== null) estimateDraft[field] = value;
+  if (value !== undefined && value !== null) {
+    estimateDraft[field] = typeof value === 'string' ? value : String(value);
+  }
 }
 
 /** Редактирование клиента на экране итогового расчёта (step 3): переход на шаг 1 или открытие первого поля */
@@ -3587,14 +3694,18 @@ async function openQuickDentSizeModal(dent, field, label) {
 }
 
 async function openHistoryEditField(field, label, inputType) {
+  const mask = field === 'clientPhone' ? 'phone' : field === 'clientName' ? 'name' : null;
   const value = await openInputModal({
     title: 'Редактирование',
     label,
     value: historyEditDraft[field] ?? '',
     inputType,
-    placeholder: label
+    placeholder: label,
+    mask
   });
-  if (value !== undefined && value !== null) historyEditDraft[field] = value;
+  if (value !== undefined && value !== null) {
+    historyEditDraft[field] = typeof value === 'string' ? value : String(value);
+  }
 }
 
 async function openHistoryCommentModal() {
@@ -3839,6 +3950,267 @@ onBeforeUnmount(() => {
 .client-input-row {
   min-height: 36px;
 }
+
+/* ═══ Settings module — History/Profile quality patterns ═══ */
+.settings-screen {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+.settings-screen__content {
+  flex: 1 1 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 16px;
+  padding-bottom: 8px;
+}
+.settings-screen__title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 16px;
+}
+.settings-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.settings-section-card {
+  background: linear-gradient(180deg, #1e1e1e 0%, #121212 100%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+.dm-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  min-height: 52px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+.dm-section-header:hover { background: rgba(255, 255, 255, 0.03); }
+.dm-section-header__left { display: flex; align-items: center; gap: 10px; }
+.dm-section-header__icon { font-size: 18px; opacity: 0.9; }
+.dm-section-header__title { font-size: 14px; font-weight: 700; color: #fff; }
+.dm-section-header__chevron {
+  font-size: 18px;
+  color: #9ca3af;
+  transition: transform 0.2s ease;
+}
+.dm-section-header__chevron.open { transform: rotate(90deg); }
+.settings-section-content {
+  padding: 12px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+/* Subsection labels (standalone, between rows) */
+.dm-settings-subsection-label,
+.settings-subsection-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: #888;
+  margin-top: 16px;
+  margin-bottom: 4px;
+  padding: 0;
+}
+.dm-settings-subsection-label:first-child,
+.settings-subsection-label:first-child { margin-top: 0; }
+.dm-settings-multiplier-value {
+  font-size: 11px;
+  color: #888;
+  margin-top: -6px;
+  margin-bottom: 8px;
+  padding: 0;
+}
+.settings-helper-text {
+  font-size: 11px;
+  color: #6b7280;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.dm-settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  min-height: 48px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  gap: 12px;
+}
+.dm-settings-row:last-child { border-bottom: none; }
+/* Stacked variant: label+helper on top, control full-width below (for wide button groups) */
+.dm-settings-row--stacked {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  padding: 14px 0;
+}
+.dm-settings-row__control--full {
+  width: 100%;
+}
+/* Left text block: label on top, helper below — flex column stacks them */
+.dm-settings-row__label-area {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.dm-settings-row__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.3;
+}
+.dm-settings-row__description {
+  font-size: 11px;
+  font-weight: 400;
+  color: #6b7280;
+  line-height: 1.4;
+}
+.dm-settings-row__control { flex-shrink: 0; }
+.dm-segment-group {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.dm-segment-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #9ca3af;
+  cursor: pointer;
+  min-height: 36px;
+  transition: all 0.15s;
+}
+.dm-segment-btn:hover { border-color: rgba(255, 255, 255, 0.2); color: #e5e7eb; }
+.dm-segment-btn.active {
+  background: #88e523;
+  border-color: #88e523;
+  color: #000;
+  font-weight: 600;
+}
+label.dm-segment-btn { margin: 0; }
+.dm-segment-btn--add {
+  background: rgba(136, 229, 35, 0.15);
+  border-color: rgba(136, 229, 35, 0.4);
+  color: #88e523;
+}
+.dm-segment-btn--add:hover { background: rgba(136, 229, 35, 0.25); }
+.dm-settings-row__toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.dm-toggle-track {
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  transition: background 0.2s;
+}
+.dm-toggle-track--on { background: #88e523; }
+.dm-toggle-thumb {
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+}
+/* Toggle thumb uses Tailwind peer-checked:translate-x-5 */
+.dm-number-input {
+  width: 80px;
+  min-height: 40px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #151515;
+  color: #fff;
+  font-size: 15px;
+  text-align: center;
+  padding: 0 8px;
+}
+.dm-number-input--wide { width: 7rem; min-width: 7rem; text-align: right; }
+.dm-number-input--action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  min-width: 100px;
+}
+.dm-number-input__edit { color: #6b7280; font-size: 12px; }
+.dm-text-input {
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #333;
+  background: #151515;
+  color: #fff;
+  font-size: 14px;
+}
+.dm-settings-row__remove {
+  padding: 8px;
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.dm-settings-row--custom,
+.dm-settings-row--add { flex-wrap: wrap; }
+.dm-settings-row--header { border-bottom: none; padding-bottom: 8px; }
+
+.settings-screen__footer {
+  flex-shrink: 0;
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  background: var(--dm-surface, #161616);
+  border-top: 1px solid var(--dm-border, rgba(255, 255, 255, 0.1));
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.dm-btn {
+  min-height: 50px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dm-btn--primary {
+  background: #88e523;
+  color: #000;
+  box-shadow: 0 0 15px rgba(136, 229, 35, 0.4);
+}
+.dm-btn--primary:active { opacity: 0.9; }
+.dm-btn--secondary {
+  background: transparent;
+  color: #9ca3af;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.dm-btn--secondary:hover { color: #fff; }
+.dm-btn--full { width: 100%; }
+
 .app-root {
   --app-footer-height: calc(64px + env(safe-area-inset-bottom, 0px));
   --content-padding-bottom: calc(var(--app-footer-height) + 1rem);

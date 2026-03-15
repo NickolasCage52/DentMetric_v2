@@ -1,6 +1,6 @@
 <template>
   <div class="photo-select-screen quick-style-photo flex flex-col min-h-0 flex-1 overflow-hidden">
-    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pt-3 pb-6">
+    <div class="flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pt-3 pb-6" style="-webkit-overflow-scrolling: touch">
       <div class="card-metallic rounded-2xl p-5 space-y-3">
         <div class="qc-section-title text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1">ФОТО ПОВРЕЖДЕНИЯ</div>
         <p class="text-[11px] text-gray-400 leading-snug">
@@ -10,6 +10,7 @@
         <div class="grid grid-cols-2 gap-2">
           <button
             type="button"
+            data-testid="btn-photo-from-camera"
             class="photo-btn card-metallic rounded-xl p-5 flex flex-col items-center justify-center gap-2 min-h-[88px] active:scale-95 hover:border-metric-green/50 transition-all touch-manipulation border border-white/10"
             @click="openCamera"
           >
@@ -22,6 +23,7 @@
           </button>
           <button
             type="button"
+            data-testid="btn-photo-from-gallery"
             class="photo-btn card-metallic rounded-xl p-5 flex flex-col items-center justify-center gap-2 min-h-[88px] active:scale-95 hover:border-metric-green/50 transition-all touch-manipulation border border-white/10"
             @click="openGallery"
           >
@@ -64,7 +66,7 @@
       @change="onFileSelected"
     />
 
-    <div class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
+    <div class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10" style="background: var(--dm-surface, #161616)">
       <div class="flex items-center gap-2 w-full">
         <button
           type="button"
@@ -75,6 +77,7 @@
         </button>
         <button
           type="button"
+          data-testid="btn-continue"
           @click="$emit('next')"
           :disabled="!photoAsset"
           :class="photoAsset ? 'bg-metric-green text-black shadow-[0_0_15px_rgba(136,229,35,0.4)] hover:opacity-95 active:opacity-90' : 'bg-white/10 text-gray-500 cursor-not-allowed'"

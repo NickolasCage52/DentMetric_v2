@@ -2,7 +2,7 @@
   <div
     ref="graphicsRoot"
     class="graphics-fullscreen-wrapper"
-    :class="['graphics-step-' + wizardStep, { 'graphics-step-photo': freeformPhotoMode || (usePhotoBasedFlow && ((props.showClientStep && wizardStep === 2) || (!props.showClientStep && wizardStep === 1))) }]"
+    :class="graphicsRootClass"
     :style="matrixSafeTopStyle"
   >
     <StepHeader
@@ -52,6 +52,7 @@
         <button
           v-if="wizardStep <= (usePhotoBasedFlow ? 4 : 3)"
           type="button"
+          data-testid="btn-delete-dent"
           class="hud-delete-btn"
           :class="{ 'hud-delete-btn--active': selectedDentSize }"
           :disabled="!selectedDentSize"
@@ -67,19 +68,101 @@
         </button>
       </div>
     </div>
-    <!-- Индикаторы этапов: фиксированная зона ниже матрицы -->
-    <div class="graphics-progress-area">
-      <StepDots :current-step="detailLogicalStep" :total-steps="detailTotalSteps" />
-    </div>
     <!-- Controls: z-index выше stage, чтобы селекты всегда были кликабельны -->
     <div
       ref="controlsAreaRef"
-      class="graphics-controls-area shrink-0 border-t border-white/10 bg-black/80 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[env(safe-area-inset-bottom,0px)]"
+      class="graphics-controls-area shrink-0 border-t border-white/10 bg-black/80 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pb-[env(safe-area-inset-bottom,0px)] relative z-10 pointer-events-auto"
       :style="controlsAreaKeyboardStyle"
     >
-      <!-- Photo-based Detail: always use Quick client screen (same as Quick mode). Step0ClientPanel not used in active flow. -->
+      <!-- NEW Detail flow: client → camera → marking → dimensions → parameters → result -->
+      <DetailClientScreen
+        v-if="useNewDetailFlow && detailSession.currentStep === 'client'"
+        :detail-steps="DETAIL_STEPS"
+        :detail-step-index="detailStepIndex"
+        :client="detailSession.client"
+        :client-required="clientRequired"
+        :history-enabled="props.historyEnabled"
+        :found-client="detailFoundClient"
+        :on-confirm="onDetailClientConfirmed"
+        @client-confirmed="onDetailClientConfirmed"
+        @back="goBack"
+        @open-history="openClientHistorySheet"
+      />
+      <DetailCameraScreen
+        v-else-if="useNewDetailFlow && detailSession.currentStep === 'camera'"
+        :detail-steps="DETAIL_STEPS"
+        :detail-step-index="detailStepIndex"
+        @photo-captured="onDetailPhotoCaptured"
+        @back="detailGoToStep('client')"
+      />
+      <DetailMarkingScreen
+        v-else-if="useNewDetailFlow && (detailSession.currentStep === 'marking' || detailSession.currentStep === 'dimensions')"
+        :detail-steps="DETAIL_STEPS"
+        :detail-step-index="detailStepIndex"
+        :photo-data-url="detailSession.photoDataUrl"
+        :dents="detailSession.dents"
+        :current-step="detailSession.currentStep"
+        :selected-dent-id="detailSession.selectedDentId"
+        :all-dimensions-filled="detailAllDimensionsFilled"
+        @dent-added="(pts) => detailAddDent(pts)"
+        @secondary-added="(p) => detailAddSecondaryDeformation(p.parentDentId, p.points)"
+        @dimensions-set="(e) => detailSetDentDimensions(e.dentId, e.dims)"
+        @secondary-dimensions-set="(e) => detailSetSecondaryDimensions(e.dentId, e.dims)"
+        @dent-deleted="detailDeleteDent"
+        @dent-selected="detailSetSelectedDentId"
+        @dent-moved="(e) => detailSetDentOutline(e.dentId, e.newPoints)"
+        @go-to-dimensions="detailGoToStep('dimensions')"
+        @proceed="onDetailMarkingComplete"
+        @back="detailSession.currentStep === 'dimensions' ? detailGoToStep('marking') : detailGoToStep('camera')"
+      />
+      <DetailParameterScreen
+        v-else-if="useNewDetailFlow && detailSession.currentStep === 'parameters' && detailCurrentDent"
+        :detail-steps="DETAIL_STEPS"
+        :detail-step-index="detailStepIndex"
+        :dent="detailCurrentDent"
+        :dents="detailSession.dents"
+        :dent-count="detailSession.dents.length"
+        :current-index="detailSession.currentDentIndex"
+        :photo-data-url="detailSession.photoDataUrl"
+        :is-last-dent="detailSession.currentDentIndex === detailSession.dents.length - 1"
+        :initial-data="initialData"
+        :user-settings="userSettings"
+        :selected-part-name="selectedPart?.name"
+        @next="onDetailParameterNext"
+        @go-to-index="onDetailParameterGoToIndex"
+        @apply-to-all="detailApplyParametersToAll"
+        @prev="onDetailParameterPrev"
+        @back="detailGoToStep('dimensions')"
+        @update-size="onDetailParamUpdateSize"
+        @update-conditions="onDetailParamUpdateConditions"
+        @preset-selected="onDetailParamPresetSelected"
+      />
+      <DetailResultScreen
+        v-else-if="useNewDetailFlow && detailSession.currentStep === 'result'"
+        :detail-steps="DETAIL_STEPS"
+        :detail-step-index="detailStepIndex"
+        :session="detailSession"
+        :line-items="detailLineItemsForNewFlow"
+        :initial-data="initialData"
+        :format-armaturnaya-summary="formatArmaturnayaSummary"
+        :comment="estimateDraft.comment"
+        :record-id="estimateDraft.id || ''"
+        :attachments="estimateDraft.attachments || []"
+        :client-mood="estimateDraft.clientMood ?? null"
+        :prepayment="estimateDraft.prepayment ?? { amount: 0, method: null }"
+        :history-saving="historySaving"
+        @back="onDetailResultBack"
+        @save="onDetailSave"
+        @record="onDetailBook"
+        @open-discount="(d) => openDetailDiscountModal(d)"
+        @open-comment="openDetailCommentModal"
+        @update:attachments="(v) => (estimateDraft.attachments = v)"
+        @update:client-mood="(v) => (estimateDraft.clientMood = v)"
+        @update:prepayment="(v) => (estimateDraft.prepayment = v)"
+      />
+      <!-- LEGACY / non-new flow: original photo-based Detail -->
       <QuickStyleClientSection
-        v-if="wizardStep === 1 && props.showClientStep"
+        v-else-if="!useNewDetailFlow && wizardStep === 1 && props.showClientStep"
         :model="props.estimateDraft"
         :client-required="clientRequired"
         :can-next="clientValid"
@@ -94,14 +177,14 @@
         @autofill-client="handleAutofillClient"
       />
       <StepPhotoSelect
-        v-else-if="usePhotoBasedFlow && ((props.showClientStep && wizardStep === 2) || (!props.showClientStep && wizardStep === 1))"
+        v-else-if="!useNewDetailFlow && usePhotoBasedFlow && ((props.showClientStep && wizardStep === 2) || (!props.showClientStep && wizardStep === 1))"
         :model-value="photoAsset"
         @back="goBack"
         @next="onPhotoSelectNextPhotoFirst"
         @update:model-value="onPhotoAssetUpdate"
       />
       <Step1PlacementPanel
-        v-else-if="usePhotoBasedFlow && ((props.showClientStep && wizardStep === 3) || (!props.showClientStep && wizardStep === 2))"
+        v-else-if="!useNewDetailFlow && usePhotoBasedFlow && ((props.showClientStep && wizardStep === 3) || (!props.showClientStep && wizardStep === 2))"
         :can-next="dents.length >= 1"
         @add-type="onAddType"
         @add-freeform="onAddFreeform"
@@ -124,7 +207,7 @@
         @update:model-value="onPhotoAssetUpdate"
       />
       <!-- Photo flow step 4: Quick screen 2 repeated per dent — same UI, logic, validation as Quick mode. Dimensions prefilled from placement, editable. -->
-      <template v-else-if="usePhotoBasedFlow && wizardStep === 4">
+      <template v-else-if="!useNewDetailFlow && usePhotoBasedFlow && wizardStep === 4">
         <div class="detail-per-dent-combined detail-step4-wrap flex flex-col min-h-0 flex-1 overflow-hidden qc-compact relative">
           <div class="detail-step4-content flex-1 min-h-0 overflow-y-auto overscroll-contain pt-3" style="display:flex;flex-direction:column;gap:var(--qc-section-gap);-webkit-overflow-scrolling:touch;padding-bottom:calc(72px + env(safe-area-inset-bottom,0px) + 16px)">
             <QuickStyleStep2Section
@@ -144,7 +227,7 @@
               @preset-selected="onDetailStep2PresetSelected"
             />
           </div>
-          <div class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
+          <div class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10 pl-4 pr-4" style="background: var(--dm-surface, #161616)">
             <div class="grid gap-2 w-full" style="grid-template-columns: auto 1fr auto; align-items: center;">
               <button
                 type="button"
@@ -207,7 +290,7 @@
         @pick-armature="onQuickStylePickArmature"
       />
       <QuickStyleFinalSection
-        v-else-if="wizardStep === 5"
+        v-else-if="!useNewDetailFlow && wizardStep === 5"
         :line-items="detailLineItems"
         :initial-data="initialData"
         :detail-photo-url="detailPhotoDisplayUrl"
@@ -319,7 +402,7 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount, inject } from 'vue';
 
-const emit = defineEmits(['update:selectedClassId', 'update:selectedPartId', 'close', 'dents-change', 'home', 'save-history', 'open-record']);
+const emit = defineEmits(['update:selectedClassId', 'update:selectedPartId', 'close', 'dents-change', 'home', 'save-history', 'book-history', 'open-record']);
 import {
   initKonva,
   destroyKonva,
@@ -356,7 +439,6 @@ import Step0ClientPanel from './Step0ClientPanel.vue';
 import Step1PlacementPanel from './Step1PlacementPanel.vue';
 import StepPhotoSelect from './StepPhotoSelect.vue';
 import Step2SizePanel from './Step2SizePanel.vue';
-import StepDots from './StepDots.vue';
 import FreeformDrawModal from './FreeformDrawModal.vue';
 import QuickStyleClientSection from '../quickStyle/QuickStyleClientSection.vue';
 import QuickStyleConditionsSection from '../quickStyle/QuickStyleConditionsSection.vue';
@@ -371,6 +453,16 @@ import { applyClientFields } from '../../utils/clientSearch';
 import { useClientSearch } from '../../composables/useClientSearch';
 import ClientHistorySheet from '../ClientHistorySheet.vue';
 import { getAttachment, saveAttachment, generateMatrixAttachmentKey } from '../../utils/attachmentStorage';
+import { useDetailSession } from '../../composables/useDetailSession';
+import DetailClientScreen from '../detail/DetailClientScreen.vue';
+import DetailCameraScreen from '../detail/DetailCameraScreen.vue';
+import DetailMarkingScreen from '../detail/DetailMarkingScreen.vue';
+import DetailParameterScreen from '../detail/DetailParameterScreen.vue';
+import DetailResultScreen from '../detail/DetailResultScreen.vue';
+import { DETAIL_STEPS } from '../../types/detailSession';
+
+/** New photo-based Detail flow: client → camera → marking → dimensions → parameters → result */
+const useNewDetailFlow = true;
 
 const props = defineProps({
   form: { type: Object, required: true },
@@ -400,6 +492,26 @@ const openSelectModal = inject('openSelectModal');
 const { foundClient: detailFoundClient, searchByPhone, searchByName } = useClientSearch(() => loadHistory());
 const isDetailHistorySheetOpen = ref(false);
 
+const detailSessionApi = useDetailSession();
+const {
+  session: detailSessionRef,
+  goToStep: detailGoToStep,
+  setClient: detailSetClient,
+  setPhoto: detailSetPhoto,
+  setSelectedDentId: detailSetSelectedDentId,
+  addDent: detailAddDent,
+  addSecondaryDeformation: detailAddSecondaryDeformation,
+  setDentDimensions: detailSetDentDimensions,
+  setSecondaryDimensions: detailSetSecondaryDimensions,
+  setDentOutline: detailSetDentOutline,
+  deleteDent: detailDeleteDent,
+  applyParametersToAll: detailApplyParametersToAll,
+  allDimensionsFilled: detailAllDimensionsFilled,
+  currentDent: detailCurrentDent,
+  resetSession: detailResetSession,
+} = detailSessionApi;
+const detailSession = detailSessionRef;
+
 watch(() => props.estimateDraft?.clientPhone, (phone) => {
   searchByPhone(phone ?? '');
 }, { immediate: true });
@@ -418,14 +530,18 @@ function openRecordFromSheet(record) {
 }
 
 async function openClientField(field, label, inputType) {
+  const mask = field === 'clientPhone' ? 'phone' : field === 'clientName' ? 'name' : null;
   const value = await openInputModal({
     title: 'Данные клиента',
     label,
     value: props.estimateDraft[field] ?? '',
     inputType,
-    placeholder: label
+    placeholder: label,
+    mask
   });
-  if (value !== undefined && value !== null) props.estimateDraft[field] = value;
+  if (value !== undefined && value !== null) {
+    props.estimateDraft[field] = typeof value === 'string' ? value : String(value);
+  }
 }
 
 /** Photo-first flow: детализация начинается с фото/галереи, без выбора машины */
@@ -543,6 +659,22 @@ function onDimensionsInputFocus(panelEl) {
   });
 }
 
+const graphicsRootClass = computed(() => {
+  const detailSteps = ['client', 'camera', 'marking', 'dimensions', 'parameters', 'result'];
+  const stepNum = useNewDetailFlow
+    ? Math.min(6, Math.max(1, detailSteps.indexOf(detailSession.value.currentStep) + 1))
+    : wizardStep.value;
+  const photo = useNewDetailFlow || freeformPhotoMode || (usePhotoBasedFlow && ((props.showClientStep && wizardStep.value === 2) || (!props.showClientStep && wizardStep.value === 1)));
+  const fullscreen = useNewDetailFlow && ['camera', 'marking', 'dimensions'].includes(detailSession.value.currentStep);
+  return [
+    `graphics-step-${stepNum}`,
+    {
+      'graphics-step-photo': photo,
+      'graphics-detail-fullscreen': fullscreen,
+    },
+  ];
+});
+
 const controlsAreaKeyboardStyle = computed(() => ({
   '--keyboard-offset': `${keyboardInset.value}px`
 }));
@@ -552,17 +684,12 @@ const sizeMenuPortalTarget = computed(() => {
   return typeof document !== 'undefined' ? document.body : null;
 });
 
-const detailTotalSteps = computed(() => {
-  if (!usePhotoBasedFlow) return props.showClientStep ? 5 : 4;
-  /** Photo flow: Client→Photo→Placement→Per-dent (combined)→Final = 5 steps with client, 4 without */
-  return props.showClientStep ? 5 : 4;
-});
 /** URL фото для отображения на финальном экране (photo-first flow) */
 const detailPhotoDisplayUrl = computed(() => freeformPhotoUrl.value || null);
-const detailLogicalStep = computed(() => {
-  if (!usePhotoBasedFlow) return props.showClientStep ? wizardStep.value : Math.max(1, wizardStep.value - 1);
-  return wizardStep.value;
-});
+
+const detailStepIndex = computed(() =>
+  Math.max(0, DETAIL_STEPS.indexOf(detailSession.value.currentStep))
+);
 const dentsForPricing = computed(() => {
   const ctx = {
     circleSizes: props.circleSizes,
@@ -604,6 +731,9 @@ const totalPriceRaw = computed(() => {
   return Math.max(0, aggregated + disCost + soundCost);
 });
 const totalPrice = computed(() => {
+  if (useNewDetailFlow && detailLineItemsForNewFlow.value?.length > 0) {
+    return detailLineItemsForNewFlow.value.reduce((s, d) => s + (d.rawDiscounted ?? d.appliedTotal ?? 0), 0);
+  }
   const hasPerDentDiscounts = props.estimateDraft?.dentDiscounts && Object.keys(props.estimateDraft.dentDiscounts).some((k) => props.estimateDraft.dentDiscounts[k] != null && props.estimateDraft.dentDiscounts[k] > 0);
   if (hasPerDentDiscounts && detailLineItems.value?.length > 0) {
     return detailLineItems.value.reduce((s, d) => s + (d.rawDiscounted ?? 0), 0);
@@ -852,15 +982,281 @@ function handleAutofillClient(fields) {
   applyClientFields(props.estimateDraft, fields);
 }
 
+/** New Detail flow handlers */
+function onDetailClientConfirmed(client) {
+  detailSetClient(client);
+  applyClientFields(props.estimateDraft, {
+    clientName: client.name,
+    clientPhone: client.phone,
+    carBrand: client.carBrand,
+    carModel: client.carModel,
+    carPlate: client.plateNumber,
+    clientCompany: client.company,
+  });
+  detailGoToStep('camera');
+}
+
+const MAX_PHOTO_PX = 1920;
+const JPEG_QUALITY = 0.88;
+
+function compressPhotoIfNeeded(dataUrl) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const w = img.width;
+      const h = img.height;
+      if (w <= MAX_PHOTO_PX && h <= MAX_PHOTO_PX) {
+        resolve(dataUrl);
+        return;
+      }
+      const scale = Math.min(1, MAX_PHOTO_PX / Math.max(w, h));
+      const cw = Math.round(w * scale);
+      const ch = Math.round(h * scale);
+      const canvas = document.createElement('canvas');
+      canvas.width = cw;
+      canvas.height = ch;
+      const ctx = canvas.getContext('2d');
+      if (ctx) ctx.drawImage(img, 0, 0, cw, ch);
+      resolve(canvas.toDataURL('image/jpeg', JPEG_QUALITY));
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+async function onDetailPhotoCaptured(dataUrl) {
+  const compressed = await compressPhotoIfNeeded(dataUrl);
+  let assetKey = null;
+  try {
+    const res = await fetch(compressed);
+    const blob = await res.blob();
+    assetKey = `dm_photo_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    await saveAttachment(assetKey, blob);
+  } catch (e) {
+    console.warn('[Detail] Photo save failed', e);
+  }
+  detailSetPhoto(compressed, assetKey);
+  detailGoToStep('marking');
+}
+
+function onDetailMarkingComplete() {
+  if (!detailAllDimensionsFilled.value) return;
+  detailSession.value.currentDentIndex = 0;
+  detailGoToStep('parameters');
+}
+
+watch(
+  () => [detailSession.value.currentStep, detailSession.value.currentDentIndex, detailSession.value.dents.length],
+  () => {
+    if (detailSession.value.currentStep !== 'parameters') return;
+    const len = detailSession.value.dents.length;
+    if (len === 0) {
+      detailGoToStep('dimensions');
+      return;
+    }
+    const idx = detailSession.value.currentDentIndex;
+    if (idx < 0 || idx >= len) {
+      detailSession.value.currentDentIndex = Math.max(0, len - 1);
+    }
+  }
+);
+
+function onDetailParameterNext() {
+  const idx = detailSession.value.currentDentIndex;
+  const len = detailSession.value.dents.length;
+  if (idx < len - 1) {
+    detailSession.value.currentDentIndex = idx + 1;
+  } else {
+    detailGoToStep('result');
+  }
+}
+
+function onDetailParameterPrev() {
+  if (detailSession.value.currentDentIndex > 0) {
+    detailSession.value.currentDentIndex--;
+  } else {
+    detailGoToStep('dimensions');
+  }
+}
+
+function onDetailParameterGoToIndex(index) {
+  const idx = Math.max(0, Math.min(index, detailSession.value.dents.length - 1));
+  detailSession.value.currentDentIndex = idx;
+}
+
+function onDetailResultBack() {
+  detailSession.value.currentDentIndex = Math.max(0, detailSession.value.dents.length - 1);
+  detailGoToStep('parameters');
+}
+
+function onDetailParamUpdateSize({ dentId, field, value }) {
+  const dent = detailSession.value.dents.find((d) => d.id === dentId);
+  if (!dent?.dimensions) return;
+  const dims = { ...dent.dimensions };
+  if (field === 'sizeLengthMm') dims.lengthMm = value;
+  else if (field === 'sizeWidthMm') dims.widthMm = value;
+  detailSetDentDimensions(dentId, dims);
+}
+
+function onDetailParamUpdateConditions({ dentId, field, value }) {
+  const dent = detailSession.value.dents.find((d) => d.id === dentId);
+  if (!dent) return;
+  if (!dent.conditions) dent.conditions = {};
+  dent.conditions[field] = value;
+}
+
+function onDetailParamPresetSelected({ dentId, preset }) {
+  if (dentId && preset?.widthMm && preset?.heightMm) {
+    detailSetDentDimensions(dentId, {
+      lengthMm: preset.widthMm,
+      widthMm: preset.heightMm,
+    });
+  }
+}
+
+function syncDetailSessionToEstimateDraft() {
+  if (detailSession.value.dents.length === 0 || !props.estimateDraft) return;
+  if (!props.estimateDraft.id) props.estimateDraft.id = generateRecordId();
+  applyClientFields(props.estimateDraft, {
+    clientName: detailSession.value.client?.name,
+    clientPhone: detailSession.value.client?.phone,
+    carBrand: detailSession.value.client?.carBrand,
+    carModel: detailSession.value.client?.carModel,
+    carPlate: detailSession.value.client?.plateNumber,
+    clientCompany: detailSession.value.client?.company,
+  });
+  const convertedDents = detailSession.value.dents.map((d) => ({
+    id: d.id,
+    type: d.shapeType || 'circle',
+    bboxMm: {
+      width: d.dimensions?.lengthMm ?? 0,
+      height: d.dimensions?.widthMm ?? 0,
+    },
+    conditions: d.conditions || {},
+    panelElement: d.conditions?.panelElement ?? null,
+    photoAssetKey: detailSession.value.photoAssetKey ?? null,
+  }));
+  emit('dents-change', convertedDents);
+  props.estimateDraft.detailDentConditions = {};
+  detailSession.value.dents.forEach((d) => {
+    props.estimateDraft.detailDentConditions[d.id] = d.conditions || {};
+  });
+  if (detailSession.value.photoAssetKey && !props.estimateDraft.photoAssetKey) {
+    props.estimateDraft.photoAssetKey = detailSession.value.photoAssetKey;
+  }
+  const attachments = props.estimateDraft.attachments || [];
+  if (detailSession.value.photoAssetKey) {
+    const hasDetailPhoto = attachments.some(
+      (a) => a?.idbKey === detailSession.value.photoAssetKey
+    );
+    if (!hasDetailPhoto) {
+      props.estimateDraft.attachments = [
+        ...attachments,
+        { dentIndex: 0, idbKey: detailSession.value.photoAssetKey }
+      ];
+    }
+  }
+}
+
+async function onDetailSave() {
+  syncDetailSessionToEstimateDraft();
+  const snapshot = JSON.parse(JSON.stringify(detailLineItemsForNewFlow.value || []));
+  emit('save-history', { lineItems: snapshot });
+}
+
+async function onDetailBook() {
+  syncDetailSessionToEstimateDraft();
+  const snapshot = JSON.parse(JSON.stringify(detailLineItemsForNewFlow.value || []));
+  emit('book-history', { lineItems: snapshot });
+}
+
+/** Line items for new Detail flow result screen */
+const detailLineItemsForNewFlow = computed(() => {
+  const dents = detailSession.value.dents;
+  if (!dents?.length) return [];
+  const ctx = {
+    sizesWithArea: props.circleSizes,
+    circleSizesWithArea: props.circleSizes,
+    stripSizesWithArea: props.stripSizes,
+    prices: props.userSettings?.prices ?? {},
+    initialData: props.initialData,
+    roundStep: props.userSettings?.priceRoundStep ?? 0,
+  };
+  const list = dents.map((dent) => {
+    const w = Number(dent.dimensions?.lengthMm) || 0;
+    const h = Number(dent.dimensions?.widthMm) || 0;
+    const cond = dent.conditions || {};
+    const resolved = w > 0 && h > 0 ? resolveDentShapeType(w, h) : null;
+    const shape = resolved === 'stripe' ? 'strip' : 'circle';
+    const conditions = props.userSettings?.showPaintMaterial !== false ? cond : { ...cond, paintMaterialCode: null };
+    if (!conditions.disassemblyCodes?.length) conditions.disassemblyCodes = ['Z0'];
+    const result = calcDentViaAdapter(
+      { shape, widthMm: w, heightMm: h, conditions, panelElement: cond.panelElement ?? props.selectedPart?.name },
+      ctx
+    );
+    const mult = getPriceMultiplier(shape, props.userSettings || {});
+    const dentDisplay = {
+      ...dent,
+      conditions,
+      panelElement: cond.panelElement ?? props.selectedPart?.name,
+      sizeLengthMm: w,
+      sizeWidthMm: h,
+    };
+    return { dent: dentDisplay, sizeCode: result.sizeCode, base: result.base * mult, total: result.total * mult, breakdown: result.breakdown };
+  });
+  const filtered = list.filter((d) => d.total > 0).sort((a, b) => b.total - a.total);
+  if (filtered.length === 0) return [];
+  const dentItems = filtered.map((d) => ({ total: d.total, panelElement: d.dent?.panelElement ?? props.selectedPart?.name ?? null, dent: d.dent }));
+  const { weightedTotals } = calculateSessionTotalWithMultiDentRule(dentItems, {
+    discountSamePartEnabled: props.userSettings?.discountSamePartEnabled,
+    discountSamePartValue: props.userSettings?.discountSamePartValue,
+    discountDiffPartEnabled: props.userSettings?.discountDiffPartEnabled,
+    discountDiffPartValue: props.userSettings?.discountDiffPartValue,
+    enableSecondDentDiscount: props.userSettings?.enableSecondDentDiscount,
+    secondDentDiscountPercent: props.userSettings?.secondDentDiscountPercent,
+  });
+  const roundStep = props.userSettings?.priceRoundStep ?? 0;
+  const dentInputs = filtered.map((item, idx) => {
+    const dentPct = clampDiscount(
+      props.estimateDraft?.dentDiscounts?.[item.dent?.id] ?? item.dent?.discountPercent ?? props.estimateDraft?.discountPercent ?? 0
+    );
+    return {
+      id: item.dent?.id ?? `d${idx}`,
+      basePrice: item.base ?? 0,
+      subtotal: weightedTotals[idx] ?? item.total,
+      discountPercent: dentPct,
+    };
+  });
+  const totals = calculateEstimateTotals(dentInputs, 0);
+  return filtered.map((item, idx) => {
+    const t = totals.dents[idx];
+    const applied = roundStep > 0 ? applyPriceRoundingCeil(t?.final ?? 0, roundStep) : Math.round(t?.final ?? 0);
+    const dentPct = clampDiscount(props.estimateDraft?.dentDiscounts?.[item.dent?.id] ?? item.dent?.discountPercent ?? props.estimateDraft?.discountPercent ?? 0);
+    return {
+      ...item,
+      appliedTotal: applied,
+      rawDiscounted: t?.final ?? 0,
+      preDiscountTotal: t?.subtotal ?? 0,
+      discount: idx > 0,
+      discountPercent: dentPct,
+      discountAmount: t?.discountAmount ?? 0,
+    };
+  });
+});
+
 async function onQuickStyleOpenField(field, label, inputType, placeholder) {
+  const mask = field === 'clientPhone' ? 'phone' : field === 'clientName' ? 'name' : null;
   const value = await openInputModal({
     title: 'Данные клиента',
     label,
     value: props.estimateDraft[field] ?? '',
     inputType,
-    placeholder: placeholder || label
+    placeholder: placeholder || label,
+    mask
   });
-  if (value !== undefined && value !== null) props.estimateDraft[field] = value;
+  if (value !== undefined && value !== null) {
+    props.estimateDraft[field] = typeof value === 'string' ? value : String(value);
+  }
 }
 
 async function onQuickStylePickParam(field, title, options) {
@@ -1076,6 +1472,15 @@ watch(wizardStep, (step, prev) => {
  * Step 4: → Step 3.
  */
 function goBack() {
+  if (useNewDetailFlow) {
+    const step = detailSession.value.currentStep;
+    if (step === 'client') emit('close');
+    else if (step === 'camera') detailGoToStep('client');
+    else if (step === 'marking' || step === 'dimensions') detailGoToStep('camera');
+    else if (step === 'parameters') detailGoToStep('dimensions');
+    else if (step === 'result') detailGoToStep('parameters');
+    return;
+  }
   const step = wizardStep.value;
   if (usePhotoBasedFlow) {
     switch (step) {
@@ -1167,7 +1572,8 @@ function onStep4Next() {
  */
 async function onSaveHistory() {
   const draft = props.estimateDraft;
-  if (draft && dents.value?.length > 0) {
+  const hasDents = (useNewDetailFlow && detailSession.value.dents?.length > 0) || (dents.value?.length > 0);
+  if (draft && hasDents) {
     const blob = await exportStageAsBlob();
     if (blob) {
       const recordId = draft.id || generateRecordId();
@@ -1219,6 +1625,12 @@ function syncFreeformPhotosToAttachments() {
  * Вызывается из App при нажатии «Сброс вмятин».
  */
 function resetDentsOnly() {
+  if (useNewDetailFlow) {
+    if (detailSessionRef.value.dents.length > 0 && !confirm('Сбросить вмятины и расчёт? Данные клиента сохранятся.')) return;
+    detailResetSession();
+    emit('dents-change', []);
+    return;
+  }
   if (dents.value.length > 0 && !confirm('Сбросить вмятины и расчёт? Данные клиента сохранятся.')) return;
   if (sizeApplyTimeout) {
     clearTimeout(sizeApplyTimeout);
@@ -1604,7 +2016,12 @@ onBeforeUnmount(() => {
   destroyKonva();
 });
 
-defineExpose({ resetDentsOnly, totalPrice, getPhotoAssetKey: () => photoAsset.value?.key ?? null });
+defineExpose({
+  resetDentsOnly,
+  totalPrice,
+  getPhotoAssetKey: () => photoAsset.value?.key ?? null,
+  getDetailSession: () => detailSessionRef.value,
+});
 </script>
 
 <style scoped>
@@ -1648,18 +2065,6 @@ defineExpose({ resetDentsOnly, totalPrice, getPhotoAssetKey: () => photoAsset.va
   max-height: 0;
   padding: 0;
   z-index: 20;
-}
-
-/* Индикаторы этапов: фиксированная зона между матрицей и управлением */
-.graphics-progress-area {
-  flex: 0 0 32px;
-  min-height: 32px;
-  max-height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding-left: max(0.5rem, env(safe-area-inset-left));
-  padding-right: max(0.5rem, env(safe-area-inset-right));
 }
 
 /* Матрица: фиксированная доля экрана, не меняется между этапами */
@@ -1793,8 +2198,22 @@ defineExpose({ resetDentsOnly, totalPrice, getPhotoAssetKey: () => photoAsset.va
 
 .graphics-step-1 .graphics-stage-area,
 .graphics-step-4 .graphics-stage-area,
+.graphics-step-5 .graphics-stage-area,
+.graphics-step-6 .graphics-stage-area,
 .graphics-step-2.graphics-step-photo .graphics-stage-area {
   display: none;
+}
+/* New Detail flow: camera/marking/dimensions take full screen */
+.graphics-detail-fullscreen .graphics-stage-area,
+.graphics-detail-fullscreen .graphics-hint-area {
+  display: none;
+}
+.graphics-detail-fullscreen .graphics-controls-area {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
 }
 
 .graphics-step-1 .graphics-controls-area,
@@ -1903,6 +2322,29 @@ defineExpose({ resetDentsOnly, totalPrice, getPhotoAssetKey: () => photoAsset.va
 }
 
 .graphics-step-5 :deep(.graphics-panel-content) {
+  padding-bottom: calc(var(--actionbar-height) + 8px);
+}
+
+/* Step 6 (new Detail flow result): controls fill space, stage hidden */
+.graphics-step-6 .graphics-controls-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  height: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.graphics-step-6 .graphics-hint-area {
+  flex: 0 0 0;
+  min-height: 0;
+  max-height: 0;
+  padding: 0;
+}
+.graphics-step-6 {
+  --actionbar-height: calc(160px + env(safe-area-inset-bottom, 0px) + var(--app-footer-height, 0px));
+}
+.graphics-step-6 :deep(.graphics-panel-content) {
   padding-bottom: calc(var(--actionbar-height) + 8px);
 }
 

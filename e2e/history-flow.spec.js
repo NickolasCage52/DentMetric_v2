@@ -35,7 +35,7 @@ async function ensureQuickStep2(page) {
     // likely on client step (Step 1)
   }
 
-  const nextBtn = page.getByTestId('btn-go-next').first();
+  const nextBtn = page.getByTestId('btn-next-step').first();
   await nextBtn.waitFor({ state: 'visible', timeout: 5000 });
 
   if (!(await nextBtn.isEnabled())) {
@@ -85,9 +85,9 @@ test.describe('History flow', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await page.getByTestId('btn-open-metric').click();
-    await page.getByTestId('metric-standard').click();
+    await page.getByTestId('btn-quick-mode').click();
 
-    const nextBtn = page.getByTestId('btn-go-next');
+    const nextBtn = page.getByTestId('btn-next-step');
     await nextBtn.waitFor({ state: 'visible', timeout: 5000 });
     if (await nextBtn.isEnabled()) await nextBtn.click({ force: true });
 

@@ -53,7 +53,7 @@
     </div>
 
     <!-- Scrollable list -->
-    <div ref="listWrapRef" class="hs-list-wrap">
+    <div ref="listWrapRef" class="hs-list-wrap" data-testid="history-list">
       <div v-if="filteredItems.length === 0" class="hs-empty">
         <div style="font-size:28px;margin-bottom:6px">🗂️</div>
         <div v-if="totalItemCount === 0">История пуста</div>

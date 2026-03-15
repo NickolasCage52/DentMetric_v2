@@ -37,9 +37,7 @@
         <option v-for="part in partsList" :key="part.id" :value="part.id">{{ part.name }}</option>
       </select>
     </div>
-    <div v-else class="flex-1 min-w-0 flex items-center justify-center px-2 text-xs text-gray-400 truncate">
-      Фото повреждения
-    </div>
+    <div v-else class="flex-1 min-w-0" />
     <button
       v-if="currentStep > 1"
       type="button"

@@ -60,11 +60,11 @@ test.describe('Standard flow', () => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
 
     await page.getByTestId('btn-open-metric').click();
-    await page.getByTestId('metric-standard').click();
+    await page.getByTestId('btn-quick-mode').click();
 
     await expect(page.getByTestId('step-dots')).toBeVisible();
 
-    const nextBtn = page.getByTestId('btn-go-next');
+    const nextBtn = page.getByTestId('btn-next-step');
     await nextBtn.waitFor({ state: 'visible', timeout: 5000 });
     if (await nextBtn.isEnabled()) {
       await nextBtn.click({ force: true });

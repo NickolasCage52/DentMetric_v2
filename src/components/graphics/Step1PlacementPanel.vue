@@ -44,7 +44,7 @@
         <p v-if="!canNext" class="text-[10px] text-gray-500 text-center step1-hint">Добавьте хотя бы одну вмятину</p>
       </div>
     </div>
-    <div class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
+    <div class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10 pl-4 pr-4" style="background: var(--dm-surface, #161616)">
       <div class="flex items-center gap-2 w-full">
         <button
           type="button"
@@ -79,11 +79,12 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
 <style scoped>
 .step1-scroll {
   padding: 0.375rem 0 0.5rem;
+  overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
 }
 .step1-card {
-  padding: 10px 12px;
+  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -202,7 +203,7 @@ defineEmits(['add-type', 'add-freeform', 'next', 'back']);
 
 @media (max-width: 480px) {
   .step1-card {
-    padding: 10px 12px;
+    padding: 12px 16px;
     gap: 8px;
   }
   .dent-type-grid {

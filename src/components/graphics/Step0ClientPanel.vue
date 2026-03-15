@@ -110,14 +110,18 @@ defineEmits(['back', 'next', 'open-history', 'autofill-client']);
 const openInputModal = inject('openInputModal');
 
 async function openField(field, label, inputType, placeholder) {
+  const mask = field === 'clientPhone' ? 'phone' : field === 'clientName' ? 'name' : null;
   const value = await openInputModal({
     title: 'Данные клиента',
     label,
     value: props.model[field] ?? '',
     inputType,
-    placeholder
+    placeholder,
+    mask
   });
-  if (value !== undefined && value !== null) props.model[field] = value;
+  if (value !== undefined && value !== null) {
+    props.model[field] = typeof value === 'string' ? value : String(value);
+  }
 }
 
 function resetClientFields() {
