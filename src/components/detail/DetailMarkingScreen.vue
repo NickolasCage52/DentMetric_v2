@@ -122,6 +122,25 @@
               <path d="M10 11v6M14 11v6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
             </svg>
           </button>
+
+          <button
+            v-if="dents.length > 0"
+            type="button"
+            class="marking-icon-btn marking-icon-btn--reset"
+            @click="showResetConfirm = true"
+            title="Сбросить всю разметку"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3 3v5h5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+        </div>
+
+        <div v-if="showResetConfirm" class="reset-confirm">
+          <span class="reset-confirm__text">Очистить всю разметку?</span>
+          <button type="button" class="reset-confirm__yes" @click="confirmReset">Да</button>
+          <button type="button" class="reset-confirm__no" @click="showResetConfirm = false">Нет</button>
         </div>
 
         <button
@@ -242,7 +261,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import Konva from 'konva';
 import { DENT_COLORS } from '../../types/detailSession';
 import DetailProgressDots from './DetailProgressDots.vue';
@@ -268,6 +287,7 @@ const emit = defineEmits([
   'go-to-dimensions',
   'proceed',
   'back',
+  'reset-drawing',
 ]);
 
 const canvasArea = ref(null);
@@ -281,6 +301,7 @@ let stageInitializedForPhoto = null;
 
 const activeMode = ref('idle');
 const currentEditingIndex = ref(0);
+const showResetConfirm = ref(false);
 const pulseAnimations = new Map();
 
 const dentsWithSecondary = computed(() =>
@@ -400,6 +421,27 @@ function handleDeleteSelected() {
   updateSelectionVisuals(null);
   emit('dent-deleted', dentId);
   nextTick(() => renumberCanvasBadges());
+}
+
+function handleResetDrawing() {
+  if (dentLayer) {
+    dentLayer.destroyChildren();
+    dentLayer.batchDraw();
+  }
+  if (drawingLayer) {
+    drawingLayer.destroyChildren();
+    drawingLayer.batchDraw();
+  }
+  pulseAnimations.forEach((a) => a.stop());
+  pulseAnimations.clear();
+  activeMode.value = 'idle';
+  emit('dent-selected', null);
+  emit('reset-drawing');
+}
+
+function confirmReset() {
+  showResetConfirm.value = false;
+  handleResetDrawing();
 }
 
 function updateSelectionVisuals(selectedId) {
@@ -632,6 +674,11 @@ function initCanvas() {
       width: w,
       height: h,
     });
+    const stageContainer = stage.container();
+    if (stageContainer) {
+      stageContainer.style.touchAction = 'none';
+      stageContainer.style.msTouchAction = 'none';
+    }
     dentLayer = new Konva.Layer();
     drawingLayer = new Konva.Layer();
     stage.add(dentLayer);
@@ -819,9 +866,39 @@ function highlightDentForEditing(activeDentId) {
   dentLayer.batchDraw();
 }
 
+onMounted(() => {
+  document.body.style.overflow = 'hidden';
+  document.body.style.overscrollBehavior = 'none';
+  document.documentElement.style.overflow = 'hidden';
+  document.documentElement.style.overscrollBehavior = 'none';
+  if (typeof window !== 'undefined' && window.Telegram?.WebApp?.expand) {
+    window.Telegram.WebApp.expand();
+  }
+  const preventScroll = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+  };
+  const area = canvasArea.value;
+  if (area) {
+    area._dmPreventScroll = preventScroll;
+    area.addEventListener('touchmove', preventScroll, { passive: false });
+    area.addEventListener('touchstart', preventScroll, { passive: false });
+  }
+});
+
 onUnmounted(() => {
   pulseAnimations.forEach((a) => a.stop());
   pulseAnimations.clear();
+  document.body.style.overflow = '';
+  document.body.style.overscrollBehavior = '';
+  document.documentElement.style.overflow = '';
+  document.documentElement.style.overscrollBehavior = '';
+  const area = canvasArea.value;
+  if (area?._dmPreventScroll) {
+    area.removeEventListener('touchmove', area._dmPreventScroll);
+    area.removeEventListener('touchstart', area._dmPreventScroll);
+    delete area._dmPreventScroll;
+  }
 });
 
 function updateDimension(dentId, field, e) {
@@ -857,6 +934,11 @@ function updateSecondaryDimension(dentId, field, e) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-overflow-scrolling: auto;
+  user-select: none;
+  -webkit-user-select: none;
   background: var(--dm-bg, #0f0f0f);
   z-index: 10;
 }
@@ -865,6 +947,7 @@ function updateSecondaryDimension(dentId, field, e) {
   min-height: 0;
   position: relative;
   overflow: hidden;
+  touch-action: none;
   background: var(--dm-surface, #161616);
 }
 .marking-photo {
@@ -893,6 +976,7 @@ function updateSecondaryDimension(dentId, field, e) {
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 .marking-controls__top-bar {
   display: flex;
@@ -1075,6 +1159,54 @@ function updateSecondaryDimension(dentId, field, e) {
 }
 .marking-icon-btn--inactive:active {
   transform: none;
+}
+.marking-icon-btn--reset {
+  border-color: var(--dm-text-secondary, #666);
+  color: var(--dm-text-secondary, #666);
+}
+.marking-icon-btn--reset:hover,
+.marking-icon-btn--reset:active {
+  border-color: var(--dm-danger, #e53935);
+  color: var(--dm-danger, #e53935);
+}
+.reset-confirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(229, 57, 53, 0.1);
+  border: 1px solid var(--dm-danger, #e53935);
+  animation: fadeIn 0.15s ease;
+}
+.reset-confirm__text {
+  flex: 1;
+  font-size: 13px;
+  color: var(--dm-danger, #e53935);
+  font-weight: 600;
+}
+.reset-confirm__yes,
+.reset-confirm__no {
+  min-height: 36px;
+  min-width: 52px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+.reset-confirm__yes {
+  background: var(--dm-danger, #e53935);
+  color: #fff;
+}
+.reset-confirm__no {
+  background: var(--dm-surface-2, #1e1e1e);
+  color: var(--dm-text-primary, #fff);
+  border: 1px solid var(--dm-border, #2a2a2a);
+}
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 .marking-proceed-btn {
   width: 100%;

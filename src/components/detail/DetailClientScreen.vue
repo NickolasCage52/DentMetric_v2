@@ -42,6 +42,8 @@ const props = defineProps({
   historyEnabled: { type: Boolean, default: false },
   foundClient: { type: Object, default: null },
   onConfirm: { type: Function, default: null },
+  searchByPhone: { type: Function, default: null },
+  searchByName: { type: Function, default: null },
 });
 
 const emit = defineEmits(['client-confirmed', 'back', 'open-history']);
@@ -86,6 +88,22 @@ watch(
       inspectTime: c.inspectTime ?? '',
     };
     ensureInspectDateTime();
+  },
+  { immediate: true }
+);
+
+watch(
+  () => localModel.value.clientPhone,
+  (phone) => {
+    props.searchByPhone?.(phone ?? '');
+  },
+  { immediate: true }
+);
+
+watch(
+  () => localModel.value.clientName,
+  (name) => {
+    if (!props.foundClient) props.searchByName?.(name ?? '');
   },
   { immediate: true }
 );

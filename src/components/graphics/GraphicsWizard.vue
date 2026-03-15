@@ -83,6 +83,8 @@
         :client-required="clientRequired"
         :history-enabled="props.historyEnabled"
         :found-client="detailFoundClient"
+        :search-by-phone="searchByPhone"
+        :search-by-name="searchByName"
         :on-confirm="onDetailClientConfirmed"
         @client-confirmed="onDetailClientConfirmed"
         @back="goBack"
@@ -113,6 +115,7 @@
         @dent-moved="(e) => detailSetDentOutline(e.dentId, e.newPoints)"
         @go-to-dimensions="detailGoToStep('dimensions')"
         @proceed="onDetailMarkingComplete"
+        @reset-drawing="handleDetailResetDrawing"
         @back="detailSession.currentStep === 'dimensions' ? detailGoToStep('marking') : detailGoToStep('camera')"
       />
       <DetailParameterScreen
@@ -505,6 +508,7 @@ const {
   setSecondaryDimensions: detailSetSecondaryDimensions,
   setDentOutline: detailSetDentOutline,
   deleteDent: detailDeleteDent,
+  clearDents: detailClearDents,
   applyParametersToAll: detailApplyParametersToAll,
   allDimensionsFilled: detailAllDimensionsFilled,
   currentDent: detailCurrentDent,
@@ -917,6 +921,13 @@ function resetClientFields() {
   props.estimateDraft.carBrand = '';
   props.estimateDraft.carModel = '';
   props.estimateDraft.carPlate = '';
+}
+
+function handleDetailResetDrawing() {
+  detailClearDents();
+  if (detailSession.currentStep === 'dimensions') {
+    detailGoToStep('marking');
+  }
 }
 
 /** Photo flow step 4: switch active dent by chip click. */

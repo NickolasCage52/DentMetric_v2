@@ -110,6 +110,12 @@ export function useDetailSession() {
     );
   }
 
+  function clearDents() {
+    session.value.dents = [];
+    session.value.selectedDentId = null;
+    session.value.currentDentIndex = 0;
+  }
+
   function applyParametersToAll(sourceDentId: string) {
     const source = session.value.dents.find((d) => d.id === sourceDentId);
     if (!source) return;
@@ -170,6 +176,7 @@ export function useDetailSession() {
     setSecondaryDimensions,
     setDentOutline,
     deleteDent,
+    clearDents,
     applyParametersToAll,
     allDimensionsFilled,
     currentDent,
