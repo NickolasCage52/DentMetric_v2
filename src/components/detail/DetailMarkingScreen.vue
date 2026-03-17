@@ -2,6 +2,14 @@
   <div class="marking-screen">
     <!-- Рабочая область: фиксированный размер, никогда не сдвигается при появлении UI -->
     <div class="marking-canvas-area" ref="canvasArea">
+      <img
+        v-if="photoDataUrl"
+        :src="photoDataUrl"
+        class="marking-photo"
+        ref="photoImg"
+        alt=""
+        @load="initCanvas"
+      />
       <div ref="konvaContainer" class="marking-konva-layer" />
     </div>
 
@@ -242,10 +250,10 @@ const emit = defineEmits([
 ]);
 
 const canvasArea = ref(null);
+const photoImg = ref(null);
 const konvaContainer = ref(null);
 
 let stage = null;
-let contentGroup = null;
 let dentLayer = null;
 let drawingLayer = null;
 let stageInitializedForPhoto = null;
@@ -636,126 +644,53 @@ watch(
 );
 
 function initCanvas() {
-  if (!konvaContainer.value || !props.photoDataUrl || !canvasArea.value) return;
+  if (!konvaContainer.value || !photoImg.value || !props.photoDataUrl || !canvasArea.value) return;
   if (stageInitializedForPhoto === props.photoDataUrl) return;
   stageInitializedForPhoto = props.photoDataUrl;
 
-  const loadImage = (src) =>
-    new Promise((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('Image load failed'));
-      img.src = src;
+  nextTick(() => {
+    const img = photoImg.value;
+    const container = konvaContainer.value;
+    const area = canvasArea.value;
+    if (!img || !container || !area) return;
+
+    const imgRect = img.getBoundingClientRect();
+    const areaRect = area.getBoundingClientRect();
+    const w = Math.round(imgRect.width) || 320;
+    const h = Math.round(imgRect.height) || 240;
+    const ox = imgRect.left - areaRect.left;
+    const oy = imgRect.top - areaRect.top;
+
+    if (stage) {
+      stage.destroy();
+      stage = null;
+      dentLayer = null;
+      drawingLayer = null;
+    }
+
+    Object.assign(container.style, {
+      position: 'absolute',
+      left: `${ox}px`,
+      top: `${oy}px`,
+      width: `${w}px`,
+      height: `${h}px`,
+      pointerEvents: 'all',
     });
 
-  loadImage(props.photoDataUrl)
-    .then((img) => {
-      const container = konvaContainer.value;
-      const area = canvasArea.value;
-      if (!container || !area) return;
+    stage = new Konva.Stage({ container, width: w, height: h });
+    const stageContainer = stage.container();
+    if (stageContainer) {
+      stageContainer.style.touchAction = 'none';
+      stageContainer.style.msTouchAction = 'none';
+    }
+    dentLayer = new Konva.Layer();
+    drawingLayer = new Konva.Layer();
+    stage.add(dentLayer);
+    stage.add(drawingLayer);
 
-      requestAnimationFrame(() => {
-        nextTick(() => {
-          const rect = area.getBoundingClientRect();
-          const w = Math.max(320, Math.round(rect.width));
-          const h = Math.max(240, Math.round(rect.height));
+    redrawDentLayer();
 
-          if (stage) {
-            stage.destroy();
-            stage = null;
-            contentGroup = null;
-            dentLayer = null;
-            drawingLayer = null;
-          }
-
-          Object.assign(container.style, {
-            position: 'absolute',
-            left: '0',
-            top: '0',
-            width: `${w}px`,
-            height: `${h}px`,
-            pointerEvents: 'all',
-          });
-
-          Konva.hitOnDragEnabled = true;
-          stage = new Konva.Stage({ container, width: w, height: h });
-          const stageContainer = stage.container();
-          if (stageContainer) {
-            stageContainer.style.touchAction = 'none';
-            stageContainer.style.msTouchAction = 'none';
-          }
-
-          const mainLayer = new Konva.Layer();
-          contentGroup = new Konva.Group({ x: 0, y: 0, scaleX: 1, scaleY: 1 });
-
-          const imgW = img.naturalWidth || img.width || 1;
-          const imgH = img.naturalHeight || img.height || 1;
-          const scaleFit = Math.min(w / imgW, h / imgH, 1);
-          const dw = imgW * scaleFit;
-          const dh = imgH * scaleFit;
-          const photoNode = new Konva.Image({
-            image: img,
-            x: (w - dw) / 2,
-            y: (h - dh) / 2,
-            width: dw,
-            height: dh,
-            listening: false,
-          });
-          contentGroup.add(photoNode);
-
-          dentLayer = new Konva.Group({ name: 'dents' });
-          drawingLayer = new Konva.Group({ name: 'drawing' });
-          contentGroup.add(dentLayer);
-          contentGroup.add(drawingLayer);
-          mainLayer.add(contentGroup);
-          stage.add(mainLayer);
-
-          redrawDentLayer();
-
-          let lastPinchCenter = null;
-          let lastPinchDist = 0;
-          const getDist = (p1, p2) => Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
-          const getCenter = (p1, p2) => ({ x: (p1.x + p2.x) / 2, y: (p1.y + p2.y) / 2 });
-
-          stage.on('touchmove', (e) => {
-            const t1 = e.evt.touches?.[0];
-            const t2 = e.evt.touches?.[1];
-            if (t1 && t2) {
-              e.evt.preventDefault();
-              const rect = stage.container().getBoundingClientRect();
-              const p1 = { x: t1.clientX - rect.left, y: t1.clientY - rect.top };
-              const p2 = { x: t2.clientX - rect.left, y: t2.clientY - rect.top };
-              const newCenter = getCenter(p1, p2);
-              const dist = getDist(p1, p2);
-              if (!lastPinchCenter) {
-                lastPinchCenter = newCenter;
-                lastPinchDist = dist;
-                return;
-              }
-              const pointTo = {
-                x: (newCenter.x - contentGroup.x()) / contentGroup.scaleX(),
-                y: (newCenter.y - contentGroup.y()) / contentGroup.scaleY(),
-              };
-              const scale = Math.max(0.5, Math.min(5, contentGroup.scaleX() * (dist / lastPinchDist)));
-              contentGroup.scaleX(scale);
-              contentGroup.scaleY(scale);
-              const dx = newCenter.x - lastPinchCenter.x;
-              const dy = newCenter.y - lastPinchCenter.y;
-              contentGroup.position({
-                x: newCenter.x - pointTo.x * scale + dx,
-                y: newCenter.y - pointTo.y * scale + dy,
-              });
-              lastPinchCenter = newCenter;
-              lastPinchDist = dist;
-              stage.batchDraw();
-            }
-          });
-          stage.on('touchend touchcancel', () => {
-            lastPinchCenter = null;
-            lastPinchDist = 0;
-          });
-
-          let isDrawing = false;
+    let isDrawing = false;
           let currentLine = null;
           let currentPoints = [];
 
@@ -836,27 +771,32 @@ function initCanvas() {
       drawingLayer.batchDraw();
     });
 
-    if (typeof ResizeObserver !== 'undefined' && canvasArea.value) {
+    if (typeof ResizeObserver !== 'undefined' && canvasArea.value && photoImg.value) {
       resizeObserver?.disconnect();
       resizeObserver = new ResizeObserver(() => {
-        if (!stage || !konvaContainer.value || !canvasArea.value) return;
-        const rect = canvasArea.value.getBoundingClientRect();
-        const w = Math.max(320, Math.round(rect.width));
-        const h = Math.max(240, Math.round(rect.height));
-        Object.assign(konvaContainer.value.style, { width: `${w}px`, height: `${h}px` });
+        if (!stage || !photoImg.value || !konvaContainer.value || !canvasArea.value) return;
+        const img = photoImg.value;
+        const area = canvasArea.value;
+        const imgRect = img.getBoundingClientRect();
+        const areaRect = area.getBoundingClientRect();
+        const w = Math.round(imgRect.width) || 320;
+        const h = Math.round(imgRect.height) || 240;
+        const ox = imgRect.left - areaRect.left;
+        const oy = imgRect.top - areaRect.top;
+        Object.assign(konvaContainer.value.style, {
+          position: 'absolute',
+          left: `${ox}px`,
+          top: `${oy}px`,
+          width: `${w}px`,
+          height: `${h}px`,
+        });
         stage.width(w);
         stage.height(h);
         stage.batchDraw();
       });
       resizeObserver.observe(canvasArea.value);
     }
-      });
-    });
-  })
-    .catch((err) => {
-      console.error('[DetailMarking] Image load failed:', err);
-      stageInitializedForPhoto = null;
-    });
+  });
 }
 
 watch(
@@ -874,7 +814,7 @@ watch(
       stageInitializedForPhoto = null;
       return;
     }
-    initCanvas();
+    if (photoImg.value?.complete) initCanvas();
   }
 );
 
@@ -1019,6 +959,12 @@ onUnmounted(() => {
   overflow: hidden;
   touch-action: none;
   background: var(--dm-surface, #161616);
+}
+.marking-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
 }
 .marking-konva-layer {
   position: absolute;
