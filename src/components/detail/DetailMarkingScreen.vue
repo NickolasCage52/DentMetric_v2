@@ -1,6 +1,6 @@
 <template>
   <div class="marking-screen">
-
+    <!-- Рабочая область: фиксированный размер, никогда не сдвигается при появлении UI -->
     <div class="marking-canvas-area" ref="canvasArea">
       <img
         v-if="photoDataUrl"
@@ -13,15 +13,17 @@
       <div ref="konvaContainer" class="marking-konva-layer" />
     </div>
 
-    <div class="marking-controls" :class="{ 'marking-controls--marking': currentStep === 'marking' }">
+    <!-- Верхняя плашка: назад, заголовок (overlay, не сдвигает фото) -->
+    <div class="marking-top-overlay">
+      <button type="button" class="dm-back-btn-sm" @click="$emit('back')">←</button>
+      <span class="marking-controls__step-label">
+        {{ currentStep === 'marking' ? 'Разметка' : 'Размеры' }}
+      </span>
+      <div class="marking-controls__top-spacer" />
+    </div>
 
-      <div class="marking-controls__top-bar">
-        <button type="button" class="dm-back-btn-sm" @click="$emit('back')">←</button>
-        <span class="marking-controls__step-label">
-          {{ currentStep === 'marking' ? 'Разметка' : 'Размеры' }}
-        </span>
-        <div class="marking-controls__top-spacer" />
-      </div>
+    <!-- Нижняя плашка: инструменты поверх фото -->
+    <div class="marking-controls-overlay" :class="{ 'marking-controls-overlay--marking': currentStep === 'marking' }">
 
       <DetailProgressDots
         v-if="detailSteps?.length && currentStep === 'marking'"
@@ -156,10 +158,10 @@
       </template>
 
       <template v-else-if="currentStep === 'dimensions'">
-        <div class="dimensions-top">
-          <span class="dimensions-top__count">{{ filledCount }}/{{ totalCount }}</span>
-          <div class="dimensions-top__progress">
-            <div class="dimensions-top__fill" :style="{ width: progressPercent + '%' }" />
+        <div class="dimensions-nav">
+          <span class="dimensions-nav__count">{{ filledCount }}/{{ totalCount }}</span>
+          <div class="dimensions-nav__progress">
+            <div class="dimensions-nav__fill" :style="{ width: progressPercent + '%' }" />
           </div>
           <DetailProgressDots
             v-if="detailSteps?.length"
@@ -167,86 +169,30 @@
             :current-index="detailStepIndex"
           />
         </div>
-
-        <div class="dimensions-scroll">
-        <div class="dimensions-list">
-          <div
-            v-for="dent in dents"
-            :key="dent.id"
-            class="dimensions-card"
-            :class="{
-              filled: isDentFilled(dent),
-              'dimensions-card--active': dent.index === currentEditingIndex + 1,
-            }"
-            @click="setActiveDent(dent.index - 1)"
+        <div class="dimensions-nav-row">
+          <button
+            type="button"
+            class="dimensions-nav-btn"
+            :disabled="currentDentIndex <= 0"
+            aria-label="Предыдущая вмятина"
+            @click="goToPrevDent"
           >
-            <div class="dimensions-card__header" :style="{ borderLeftColor: dent.color }">
-              <div class="dimensions-card__badge" :style="{ background: dent.color }">{{ dent.index }}</div>
-              <span class="dimensions-card__title">Вмятина {{ dent.index }}</span>
-              <span v-if="dent.index === currentEditingIndex + 1" class="dimensions-card__active-label">← редактируется</span>
-              <span v-else-if="dent.dimensions" class="dimensions-card__check">✓</span>
-              <span v-else class="dimensions-card__required">обязательно</span>
-            </div>
-            <div class="dimensions-card__fields">
-              <div class="dimensions-field">
-                <label>Длина (мм)</label>
-                <input
-                  type="number"
-                  inputmode="numeric"
-                  :value="dent.dimensions?.lengthMm > 0 ? dent.dimensions.lengthMm : ''"
-                  @input="updateDimension(dent.id, 'length', $event)"
-                  placeholder="0"
-                  min="1"
-                />
-              </div>
-              <div class="dimensions-field">
-                <label>Ширина (мм)</label>
-                <input
-                  type="number"
-                  inputmode="numeric"
-                  :value="dent.dimensions?.widthMm > 0 ? dent.dimensions.widthMm : ''"
-                  @input="updateDimension(dent.id, 'width', $event)"
-                  placeholder="0"
-                  min="1"
-                />
-              </div>
-            </div>
-
-            <div v-if="dent.secondaryDeformation" class="dimensions-card dimensions-card--secondary">
-              <div class="dimensions-card__header">
-                <span>Вторичная деформация</span>
-                <span v-if="dent.secondaryDeformation.dimensions" class="dimensions-card__check">✓</span>
-                <span v-else class="dimensions-card__required">обязательно</span>
-              </div>
-              <div class="dimensions-card__fields">
-                <div class="dimensions-field">
-                  <label>Длина (мм)</label>
-                  <input
-                    type="number"
-                    inputmode="numeric"
-                    :value="dent.secondaryDeformation.dimensions?.lengthMm > 0 ? dent.secondaryDeformation.dimensions.lengthMm : ''"
-                    @input="updateSecondaryDimension(dent.id, 'length', $event)"
-                    placeholder="0"
-                    min="1"
-                  />
-                </div>
-                <div class="dimensions-field">
-                  <label>Ширина (мм)</label>
-                  <input
-                    type="number"
-                    inputmode="numeric"
-                    :value="dent.secondaryDeformation.dimensions?.widthMm > 0 ? dent.secondaryDeformation.dimensions.widthMm : ''"
-                    @input="updateSecondaryDimension(dent.id, 'width', $event)"
-                    placeholder="0"
-                    min="1"
-                  />
-                </div>
-              </div>
-            </div>
+            ‹
+          </button>
+          <div class="dimensions-nav-current">
+            Вмятина {{ currentDentIndex + 1 }} из {{ dents.length }}
           </div>
+          <button
+            type="button"
+            class="dimensions-nav-btn"
+            :disabled="currentDentIndex >= dents.length - 1"
+            aria-label="Следующая вмятина"
+            @click="goToNextDent"
+          >
+            ›
+          </button>
         </div>
-        </div>
-
+        <p class="dimensions-tap-hint">Нажмите на вмятину на фото для ввода размеров</p>
         <button
           type="button"
           class="dm-btn dm-btn--primary dm-btn--full dimensions-proceed"
@@ -260,6 +206,13 @@
       </template>
 
     </div>
+
+    <DentDimensionsModal
+      v-model="dimModalOpen"
+      :dent="dimModalDent"
+      @save="handleDimModalSave"
+      @cancel="dimModalOpen = false"
+    />
   </div>
 </template>
 
@@ -268,6 +221,7 @@ import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import Konva from 'konva';
 import { DENT_COLORS } from '../../types/detailSession';
 import DetailProgressDots from './DetailProgressDots.vue';
+import DentDimensionsModal from './DentDimensionsModal.vue';
 
 const props = defineProps({
   detailSteps: { type: Array, default: () => [] },
@@ -276,6 +230,7 @@ const props = defineProps({
   dents: { type: Array, default: () => [] },
   currentStep: { type: String, default: 'marking' },
   selectedDentId: { type: String, default: null },
+  currentDentIndex: { type: Number, default: 0 },
   allDimensionsFilled: { type: Boolean, default: false },
 });
 
@@ -291,6 +246,7 @@ const emit = defineEmits([
   'proceed',
   'back',
   'reset-drawing',
+  'update:currentDentIndex',
 ]);
 
 const canvasArea = ref(null);
@@ -301,11 +257,13 @@ let stage = null;
 let dentLayer = null;
 let drawingLayer = null;
 let stageInitializedForPhoto = null;
+let resizeObserver = null;
 
 const activeMode = ref('idle');
-const currentEditingIndex = ref(0);
 const showResetConfirm = ref(false);
 const pulseAnimations = new Map();
+const dimModalOpen = ref(false);
+const dimModalDentId = ref(null);
 
 const dentsWithSecondary = computed(() =>
   props.dents.filter((d) => d.secondaryDeformation)
@@ -320,6 +278,10 @@ const selectedDentHasSecondary = computed(() => {
   const d = props.dents.find((d) => d.id === props.selectedDentId);
   return !!d?.secondaryDeformation;
 });
+
+const dimModalDent = computed(() =>
+  props.dents.find((d) => d.id === dimModalDentId.value) ?? null
+);
 
 function plural(n) {
   const mod10 = n % 10;
@@ -388,14 +350,53 @@ function toggleDrawSecondary() {
 }
 
 function goToDimensions() {
-  currentEditingIndex.value = 0;
+  emit('update:currentDentIndex', 0);
   emit('go-to-dimensions');
+  nextTick(() => {
+    if (props.dents.length > 0) {
+      dimModalDentId.value = props.dents[0].id;
+      dimModalOpen.value = true;
+    }
+  });
 }
 
-function setActiveDent(index) {
-  currentEditingIndex.value = Math.max(0, Math.min(index, props.dents.length - 1));
-  const activeId = props.dents[currentEditingIndex.value]?.id ?? null;
-  highlightDentForEditing(activeId);
+function goToPrevDent() {
+  const next = Math.max(0, props.currentDentIndex - 1);
+  emit('update:currentDentIndex', next);
+  dimModalDentId.value = props.dents[next]?.id ?? null;
+  dimModalOpen.value = true;
+}
+
+function goToNextDent() {
+  const next = Math.min(props.dents.length - 1, props.currentDentIndex + 1);
+  emit('update:currentDentIndex', next);
+  dimModalDentId.value = props.dents[next]?.id ?? null;
+  dimModalOpen.value = true;
+}
+
+function openDimModalForDent(dentId) {
+  const idx = props.dents.findIndex((d) => d.id === dentId);
+  if (idx >= 0) {
+    emit('update:currentDentIndex', idx);
+    dimModalDentId.value = dentId;
+    dimModalOpen.value = true;
+  }
+}
+
+function handleDimModalSave({ dentId, dims, secondaryDims }) {
+  emit('dimensions-set', { dentId, dims });
+  if (secondaryDims) {
+    emit('secondary-dimensions-set', { dentId, dims: secondaryDims });
+  }
+  const idx = props.dents.findIndex((d) => d.id === dentId);
+  if (idx >= 0 && idx < props.dents.length - 1) {
+    const nextDent = props.dents[idx + 1];
+    emit('update:currentDentIndex', idx + 1);
+    nextTick(() => {
+      dimModalDentId.value = nextDent?.id ?? null;
+      dimModalOpen.value = true;
+    });
+  }
 }
 
 function renumberCanvasBadges() {
@@ -535,6 +536,10 @@ function createDentGroup(points, color, dentId, index) {
 
   group.on('tap click', (e) => {
     e.cancelBubble = true;
+    if (props.currentStep === 'dimensions') {
+      openDimModalForDent(dentId);
+      return;
+    }
     if (activeMode.value !== 'idle') return;
     emit('dent-selected', dentId);
     updateSelectionVisuals(dentId);
@@ -614,7 +619,7 @@ function redrawDentLayer() {
   }
 
   if (props.currentStep === 'dimensions') {
-    const activeId = props.dents[currentEditingIndex.value]?.id ?? null;
+    const activeId = props.dents[props.currentDentIndex]?.id ?? null;
     highlightDentForEditing(activeId);
   } else {
     updateSelectionVisuals(props.selectedDentId);
@@ -623,11 +628,11 @@ function redrawDentLayer() {
 }
 
 watch(
-  () => [props.currentStep, currentEditingIndex.value, props.dents],
+  () => [props.currentStep, props.currentDentIndex, props.dents],
   () => {
     if (!dentLayer) return;
     if (props.currentStep === 'dimensions') {
-      const activeId = props.dents[currentEditingIndex.value]?.id ?? null;
+      const activeId = props.dents[props.currentDentIndex]?.id ?? null;
       highlightDentForEditing(activeId);
     } else {
       pulseAnimations.forEach((a) => a.stop());
@@ -672,11 +677,7 @@ function initCanvas() {
       pointerEvents: 'all',
     });
 
-    stage = new Konva.Stage({
-      container,
-      width: w,
-      height: h,
-    });
+    stage = new Konva.Stage({ container, width: w, height: h });
     const stageContainer = stage.container();
     if (stageContainer) {
       stageContainer.style.touchAction = 'none';
@@ -694,6 +695,7 @@ function initCanvas() {
     let currentPoints = [];
 
     stage.on('mousedown touchstart', (e) => {
+      if (e.evt.touches?.length >= 2) return;
       if (activeMode.value === 'idle') {
         let node = e.target;
         let hitDent = false;
@@ -733,7 +735,8 @@ function initCanvas() {
       drawingLayer.add(currentLine);
     });
 
-    stage.on('mousemove touchmove', () => {
+    stage.on('mousemove touchmove', (e) => {
+      if (e.evt.touches?.length >= 2) return;
       if (!isDrawing || !currentLine) return;
       const pos = stage.getPointerPosition();
       if (!pos) return;
@@ -767,6 +770,32 @@ function initCanvas() {
       drawingLayer.destroyChildren();
       drawingLayer.batchDraw();
     });
+
+    if (typeof ResizeObserver !== 'undefined' && canvasArea.value && photoImg.value) {
+      resizeObserver?.disconnect();
+      resizeObserver = new ResizeObserver(() => {
+        if (!stage || !photoImg.value || !konvaContainer.value || !canvasArea.value) return;
+        const img = photoImg.value;
+        const area = canvasArea.value;
+        const imgRect = img.getBoundingClientRect();
+        const areaRect = area.getBoundingClientRect();
+        const w = Math.round(imgRect.width) || 320;
+        const h = Math.round(imgRect.height) || 240;
+        const ox = imgRect.left - areaRect.left;
+        const oy = imgRect.top - areaRect.top;
+        Object.assign(konvaContainer.value.style, {
+          position: 'absolute',
+          left: `${ox}px`,
+          top: `${oy}px`,
+          width: `${w}px`,
+          height: `${h}px`,
+        });
+        stage.width(w);
+        stage.height(h);
+        stage.batchDraw();
+      });
+      resizeObserver.observe(canvasArea.value);
+    }
   });
 }
 
@@ -890,6 +919,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
   pulseAnimations.forEach((a) => a.stop());
   pulseAnimations.clear();
   document.body.style.overflow = '';
@@ -904,27 +935,6 @@ onUnmounted(() => {
   }
 });
 
-function updateDimension(dentId, field, e) {
-  const val = Number(e.target.value);
-  const dent = props.dents.find((d) => d.id === dentId);
-  if (!dent) return;
-  const dims = dent.dimensions ?? { lengthMm: 0, widthMm: 0 };
-  const next = { ...dims };
-  if (field === 'length') next.lengthMm = val;
-  else next.widthMm = val;
-  emit('dimensions-set', { dentId, dims: next });
-}
-
-function updateSecondaryDimension(dentId, field, e) {
-  const val = Number(e.target.value);
-  const dent = props.dents.find((d) => d.id === dentId);
-  if (!dent?.secondaryDeformation) return;
-  const dims = dent.secondaryDeformation.dimensions ?? { lengthMm: 0, widthMm: 0 };
-  const next = { ...dims };
-  if (field === 'length') next.lengthMm = val;
-  else next.widthMm = val;
-  emit('secondary-dimensions-set', { dentId, dims: next });
-}
 </script>
 
 <style scoped>
@@ -934,21 +944,18 @@ function updateSecondaryDimension(dentId, field, e) {
   left: 0;
   right: 0;
   bottom: var(--tab-bar-height, var(--app-footer-height, var(--bottom-nav-h, 64px)));
-  display: flex;
-  flex-direction: column;
   overflow: hidden;
   overscroll-behavior: none;
   touch-action: none;
-  -webkit-overflow-scrolling: auto;
   user-select: none;
   -webkit-user-select: none;
   background: var(--dm-bg, #0f0f0f);
   z-index: 10;
 }
+/* Рабочая область: фиксирована, не сдвигается при появлении UI */
 .marking-canvas-area {
-  flex: 1 1 0;
-  min-height: 0;
-  position: relative;
+  position: absolute;
+  inset: 0;
   overflow: hidden;
   touch-action: none;
   background: var(--dm-surface, #161616);
@@ -967,22 +974,57 @@ function updateSecondaryDimension(dentId, field, e) {
   height: 100%;
   pointer-events: all;
 }
-.marking-controls {
+/* Верхняя плашка: назад, заголовок (overlay) */
+.marking-top-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: linear-gradient(to bottom, rgba(15, 15, 15, 0.92) 0%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 6;
+  pointer-events: auto;
+}
+.marking-top-overlay .dm-back-btn-sm {
   flex-shrink: 0;
-  background: var(--dm-surface, #161616);
-  border-top: 1px solid var(--dm-border, #2a2a2a);
+}
+.marking-top-overlay .marking-controls__step-label {
+  flex: 1;
+  text-align: center;
+}
+.marking-top-overlay .marking-controls__top-spacer {
+  width: 36px;
+  flex-shrink: 0;
+}
+/* Нижняя плашка поверх фото — не сдвигает рабочую область */
+.marking-controls-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to top, rgba(15, 15, 15, 0.98) 0%, rgba(15, 15, 15, 0.95) 60%, transparent);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 0px));
   display: flex;
   flex-direction: column;
   gap: 7px;
-  max-height: 38vh;
+  max-height: 42vh;
   overflow-y: auto;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  pointer-events: auto;
+  z-index: 5;
+  transition: opacity 0.2s ease, transform 0.2s ease;
 }
 @media (max-width: 600px) {
-  .marking-controls {
+  .marking-controls-overlay {
     padding: 4px 10px calc(10px + env(safe-area-inset-bottom, 0px));
   }
 }
@@ -1016,31 +1058,19 @@ function updateSecondaryDimension(dentId, field, e) {
   align-items: center;
   justify-content: center;
 }
-.marking-controls--marking {
-  max-height: 38vh;
+.marking-controls-overlay--marking {
+  max-height: 42vh;
 }
-.marking-controls:not(.marking-controls--marking) {
+.marking-controls-overlay:not(.marking-controls-overlay--marking) {
   display: flex;
   flex-direction: column;
-  height: 38vh;
-  max-height: 38vh;
-  min-height: 200px;
-}
-.dimensions-scroll {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  width: 100%;
-  box-sizing: border-box;
+  height: 42vh;
+  max-height: 42vh;
+  min-height: 180px;
 }
 .dimensions-proceed {
   flex-shrink: 0;
-  margin-top: 10px;
+  margin-top: 12px;
   min-height: 48px;
 }
 .marking-hint-bar {
@@ -1243,19 +1273,19 @@ function updateSecondaryDimension(dentId, field, e) {
 .marking-proceed-btn:active {
   transform: scale(0.98);
 }
-.dimensions-top {
+.dimensions-nav {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
   padding: 2px 0 6px;
 }
-.dimensions-top__count {
+.dimensions-nav__count {
   font-size: 11px;
   color: var(--dm-text-secondary, #888);
   flex-shrink: 0;
 }
-.dimensions-top__progress {
+.dimensions-nav__progress {
   flex: 1;
   min-width: 0;
   height: 3px;
@@ -1263,140 +1293,56 @@ function updateSecondaryDimension(dentId, field, e) {
   background: var(--dm-border, #2a2a2a);
   overflow: hidden;
 }
-.dimensions-top__fill {
+.dimensions-nav__fill {
   height: 100%;
   background: var(--dm-accent, #a0e040);
   transition: width 0.3s ease;
 }
-.dimensions-top :deep(.detail-progress-dots) {
+.dimensions-nav :deep(.detail-progress-dots) {
   flex-shrink: 0;
   height: 14px;
   padding: 0;
 }
-.dimensions-list {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-.dimensions-card {
-  background: var(--dm-surface-2, #1e1e1e);
-  border-radius: 10px;
-  padding: 12px;
-  border-left: 3px solid var(--dm-border);
-  cursor: pointer;
-  box-sizing: border-box;
-  width: 100%;
-  overflow: hidden;
-}
-.dimensions-card--secondary {
-  border-left-color: var(--dm-danger, #e53935);
-  margin-top: 8px;
-}
-.dimensions-card.filled {
-  border-left-color: var(--dm-accent, #a0e040);
-}
-.dimensions-card--active {
-  border-left-width: 4px;
-  border-left-color: var(--dm-accent, #a0e040) !important;
-  background: rgba(160, 224, 64, 0.06);
-  box-shadow: 0 0 0 1px rgba(160, 224, 64, 0.2);
-}
-.dimensions-card__header {
+.dimensions-nav-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--dm-text-primary);
-  margin-bottom: 10px;
-  border-left: 3px solid transparent;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 4px 0;
 }
-.dimensions-card__badge {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
+.dimensions-nav-btn {
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 10px;
+  border: 1.5px solid var(--dm-border, #2a2a2a);
+  background: var(--dm-surface-2, #1e1e1e);
+  color: var(--dm-text-primary, #fff);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
-  font-weight: 700;
-  color: #000;
-  flex-shrink: 0;
+  transition: all 0.15s;
 }
-.dimensions-card__title {
-  flex: 1;
-  min-width: 0;
+.dimensions-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
-.dimensions-card__active-label {
-  font-size: 11px;
-  color: var(--dm-accent, #a0e040);
+.dimensions-nav-btn:not(:disabled):active {
+  background: var(--dm-accent, #a0e040);
+  color: var(--dm-bg, #000);
+}
+.dimensions-nav-current {
+  font-size: 13px;
   font-weight: 600;
-  font-style: italic;
-}
-.dimensions-card__check {
-  color: var(--dm-accent, #a0e040);
-}
-.dimensions-card__required {
-  color: var(--dm-text-secondary, #888);
-  font-weight: 400;
-  font-size: 11px;
-}
-.dimensions-card__fields {
-  display: flex;
-  flex-direction: row;
-  gap: 8px;
-  width: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-}
-@media (max-width: 380px) {
-  .dimensions-card__fields {
-    flex-direction: column;
-    gap: 8px;
-  }
-}
-.dimensions-field {
-  flex: 1 1 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  overflow: hidden;
-}
-.dimensions-field label {
-  font-size: 11px;
-  color: var(--dm-text-secondary, #888);
-  display: block;
-  margin-bottom: 4px;
-}
-.dimensions-field input {
-  width: 100%;
-  box-sizing: border-box;
-  min-width: 0;
-  min-height: 48px;
-  border-radius: 8px;
-  border: 1.5px solid var(--dm-border, #2a2a2a);
-  background: var(--dm-surface, #161616);
   color: var(--dm-text-primary, #fff);
-  font-size: 17px;
-  font-weight: 600;
-  text-align: center;
-  padding: 0 8px;
-  -webkit-appearance: none;
-  appearance: none;
 }
-.dimensions-field input[type='number'] {
-  -moz-appearance: textfield;
-}
-.dimensions-field input::-webkit-outer-spin-button,
-.dimensions-field input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
+.dimensions-tap-hint {
+  font-size: 11px;
+  color: var(--dm-text-secondary, #888);
   margin: 0;
-}
-.dimensions-field input:focus {
-  border-color: var(--dm-accent, #a0e040);
-  outline: none;
+  text-align: center;
 }
 .dm-btn {
   min-height: 44px;
