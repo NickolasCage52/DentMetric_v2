@@ -2237,6 +2237,11 @@ defineExpose({
   max-height: none;
   height: auto;
   border-top: none;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
 }
 
 /* Этап 4 (условия и коэффициенты): контент по высоте без пустого чёрного полотна, кнопки вплотную к контенту и к меню */
