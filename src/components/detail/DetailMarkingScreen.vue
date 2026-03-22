@@ -2,15 +2,27 @@
   <div class="marking-screen">
     <!-- Рабочая область: фиксированный размер, никогда не сдвигается при появлении UI -->
     <div class="marking-canvas-area" ref="canvasArea">
-      <img
-        v-if="photoDataUrl"
-        :src="photoDataUrl"
-        class="marking-photo"
-        ref="photoImg"
-        alt=""
-        @load="initCanvas"
-      />
-      <div ref="konvaContainer" class="marking-konva-layer" />
+      <div class="marking-zoom-wrapper" :style="zoomTransformStyle">
+        <img
+          v-if="photoDataUrl"
+          :src="photoDataUrl"
+          class="marking-photo"
+          ref="photoImg"
+          alt=""
+          @load="initCanvas"
+        />
+        <div ref="konvaContainer" class="marking-konva-layer" />
+      </div>
+      <transition name="zoom-fade">
+        <button
+          v-if="zoomScale > 1.05"
+          type="button"
+          class="marking-zoom-reset"
+          @click.stop="resetZoom"
+        >
+          {{ Math.round(zoomScale * 100) }}%&nbsp;✕
+        </button>
+      </transition>
     </div>
 
     <!-- Верхняя плашка: назад, заголовок (overlay, не сдвигает фото) -->
@@ -264,6 +276,31 @@ const showResetConfirm = ref(false);
 const pulseAnimations = new Map();
 const dimModalOpen = ref(false);
 const dimModalDentId = ref(null);
+
+const zoomScale = ref(1);
+const panX = ref(0);
+const panY = ref(0);
+
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 5;
+
+let isPinching = false;
+let pinchStartDist = 0;
+let pinchStartScale = 1;
+let pinchStartCenter = { x: 0, y: 0 };
+let pinchStartPanX = 0;
+let pinchStartPanY = 0;
+let lastTapTime = 0;
+let wasPinching = false;
+let wasPinchingTimer = null;
+
+const zoomTransformStyle = computed(() => {
+  if (zoomScale.value <= 1 && panX.value === 0 && panY.value === 0) return {};
+  return {
+    transform: `translate(${panX.value}px, ${panY.value}px) scale(${zoomScale.value})`,
+    transformOrigin: '0 0',
+  };
+});
 
 const dentsWithSecondary = computed(() =>
   props.dents.filter((d) => d.secondaryDeformation)
@@ -643,10 +680,118 @@ watch(
   { immediate: true, deep: true }
 );
 
+function getTouchDistance(t1, t2) {
+  return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+}
+
+function getTouchCenter(t1, t2) {
+  return {
+    x: (t1.clientX + t2.clientX) / 2,
+    y: (t1.clientY + t2.clientY) / 2,
+  };
+}
+
+function clampPan() {
+  if (zoomScale.value <= 1) {
+    panX.value = 0;
+    panY.value = 0;
+    return;
+  }
+  const area = canvasArea.value;
+  if (!area) return;
+  const w = area.clientWidth;
+  const h = area.clientHeight;
+  const maxPanX = w * (zoomScale.value - 1);
+  const maxPanY = h * (zoomScale.value - 1);
+  panX.value = Math.max(-maxPanX, Math.min(0, panX.value));
+  panY.value = Math.max(-maxPanY, Math.min(0, panY.value));
+}
+
+function resetZoom() {
+  zoomScale.value = 1;
+  panX.value = 0;
+  panY.value = 0;
+}
+
+function handlePinchTouchStart(e) {
+  if (e.touches.length >= 2) {
+    isPinching = true;
+    wasPinching = true;
+    clearTimeout(wasPinchingTimer);
+    pinchStartDist = getTouchDistance(e.touches[0], e.touches[1]);
+    pinchStartScale = zoomScale.value;
+    pinchStartCenter = getTouchCenter(e.touches[0], e.touches[1]);
+    pinchStartPanX = panX.value;
+    pinchStartPanY = panY.value;
+  } else if (e.touches.length === 1 && !wasPinching) {
+    const now = Date.now();
+    if (now - lastTapTime < 300 && zoomScale.value > 1.05) {
+      resetZoom();
+    }
+    lastTapTime = now;
+  }
+}
+
+function handlePinchTouchMove(e) {
+  if (e.touches.length >= 2 && isPinching) {
+    const dist = getTouchDistance(e.touches[0], e.touches[1]);
+    const center = getTouchCenter(e.touches[0], e.touches[1]);
+
+    let newScale = pinchStartScale * (dist / pinchStartDist);
+    newScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newScale));
+
+    const areaRect = canvasArea.value?.getBoundingClientRect();
+    if (areaRect) {
+      const cx = pinchStartCenter.x - areaRect.left;
+      const cy = pinchStartCenter.y - areaRect.top;
+      panX.value = pinchStartPanX
+        + (center.x - pinchStartCenter.x)
+        - cx * (newScale / pinchStartScale - 1);
+      panY.value = pinchStartPanY
+        + (center.y - pinchStartCenter.y)
+        - cy * (newScale / pinchStartScale - 1);
+    }
+
+    zoomScale.value = newScale;
+    clampPan();
+  }
+}
+
+function handlePinchTouchEnd(e) {
+  if (e.touches.length < 2) {
+    isPinching = false;
+    clearTimeout(wasPinchingTimer);
+    wasPinchingTimer = setTimeout(() => { wasPinching = false; }, 300);
+  }
+  if (zoomScale.value < 1.05) {
+    resetZoom();
+  }
+}
+
+function handleWheelZoom(e) {
+  e.preventDefault();
+  const scaleFactor = 1 - e.deltaY * 0.002;
+  let newScale = zoomScale.value * scaleFactor;
+  newScale = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, newScale));
+
+  const areaRect = canvasArea.value?.getBoundingClientRect();
+  if (areaRect) {
+    const cx = e.clientX - areaRect.left;
+    const cy = e.clientY - areaRect.top;
+    panX.value -= cx * (newScale / zoomScale.value - 1);
+    panY.value -= cy * (newScale / zoomScale.value - 1);
+  }
+
+  zoomScale.value = newScale;
+  clampPan();
+  if (newScale < 1.05) resetZoom();
+}
+
 function initCanvas() {
   if (!konvaContainer.value || !photoImg.value || !props.photoDataUrl || !canvasArea.value) return;
   if (stageInitializedForPhoto === props.photoDataUrl) return;
   stageInitializedForPhoto = props.photoDataUrl;
+  resetZoom();
 
   nextTick(() => {
     const img = photoImg.value;
@@ -775,6 +920,7 @@ function initCanvas() {
       resizeObserver?.disconnect();
       resizeObserver = new ResizeObserver(() => {
         if (!stage || !photoImg.value || !konvaContainer.value || !canvasArea.value) return;
+        resetZoom();
         const img = photoImg.value;
         const area = canvasArea.value;
         const imgRect = img.getBoundingClientRect();
@@ -906,15 +1052,17 @@ onMounted(() => {
   if (typeof window !== 'undefined' && window.Telegram?.WebApp?.expand) {
     window.Telegram.WebApp.expand();
   }
-  const preventScroll = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
   const area = canvasArea.value;
   if (area) {
-    area._dmPreventScroll = preventScroll;
-    area.addEventListener('touchmove', preventScroll, { passive: false });
-    area.addEventListener('touchstart', preventScroll, { passive: false });
+    const onTouchStart = (e) => { e.preventDefault(); handlePinchTouchStart(e); };
+    const onTouchMove = (e) => { e.preventDefault(); handlePinchTouchMove(e); };
+    const onTouchEnd = (e) => { handlePinchTouchEnd(e); };
+    const onWheel = (e) => { handleWheelZoom(e); };
+    area._dmHandlers = { onTouchStart, onTouchMove, onTouchEnd, onWheel };
+    area.addEventListener('touchstart', onTouchStart, { passive: false });
+    area.addEventListener('touchmove', onTouchMove, { passive: false });
+    area.addEventListener('touchend', onTouchEnd, { passive: false });
+    area.addEventListener('wheel', onWheel, { passive: false });
   }
 });
 
@@ -927,11 +1075,14 @@ onUnmounted(() => {
   document.body.style.overscrollBehavior = '';
   document.documentElement.style.overflow = '';
   document.documentElement.style.overscrollBehavior = '';
+  clearTimeout(wasPinchingTimer);
   const area = canvasArea.value;
-  if (area?._dmPreventScroll) {
-    area.removeEventListener('touchmove', area._dmPreventScroll);
-    area.removeEventListener('touchstart', area._dmPreventScroll);
-    delete area._dmPreventScroll;
+  if (area?._dmHandlers) {
+    area.removeEventListener('touchstart', area._dmHandlers.onTouchStart);
+    area.removeEventListener('touchmove', area._dmHandlers.onTouchMove);
+    area.removeEventListener('touchend', area._dmHandlers.onTouchEnd);
+    area.removeEventListener('wheel', area._dmHandlers.onWheel);
+    delete area._dmHandlers;
   }
 });
 
@@ -973,6 +1124,37 @@ onUnmounted(() => {
   width: 100%;
   height: 100%;
   pointer-events: all;
+}
+.marking-zoom-wrapper {
+  position: absolute;
+  inset: 0;
+  will-change: transform;
+}
+.marking-zoom-reset {
+  position: absolute;
+  top: 48px;
+  right: 8px;
+  z-index: 7;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 4px 10px;
+  cursor: pointer;
+  pointer-events: auto;
+  line-height: 1.4;
+}
+.zoom-fade-enter-active,
+.zoom-fade-leave-active {
+  transition: opacity 0.2s ease;
+}
+.zoom-fade-enter-from,
+.zoom-fade-leave-to {
+  opacity: 0;
 }
 /* Верхняя плашка: назад, заголовок (overlay) */
 .marking-top-overlay {

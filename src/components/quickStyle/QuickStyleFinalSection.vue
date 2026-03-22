@@ -12,6 +12,10 @@
       </div>
       <!-- Данные клиента — первым блоком (PDF стр. 5-6) -->
       <ClientInfoBlock :client="clientForDisplay" />
+      <div class="price-grand-total card-metallic rounded-xl flex justify-between items-center px-5 py-4 mb-2">
+        <span class="pgt-label text-[14px] text-gray-500">Итого по всем повреждениям</span>
+        <span class="pgt-amount text-[24px] font-bold text-metric-green tabular-nums" data-testid="grand-total-price">{{ formatPrice(grandTotal) }} ₽</span>
+      </div>
       <template v-for="(dentItem, idx) in lineItems" :key="dentItem.dent?.id ?? idx">
         <div class="px-1">
           <div class="flex items-baseline gap-2 mb-0.5">
@@ -122,6 +126,10 @@ const clientForDisplay = computed(() => ({
   model: props.client?.model ?? props.client?.carModel ?? '',
   company: props.client?.company ?? props.client?.clientCompany ?? ''
 }));
+
+const grandTotal = computed(() =>
+  (props.lineItems || []).reduce((sum, item) => sum + (item.appliedTotal ?? 0), 0)
+);
 
 const canSave = () => (props.lineItems?.length ?? 0) > 0;
 

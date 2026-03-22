@@ -1,7 +1,7 @@
 <template>
   <div class="profile-root">
+    <!-- ═══ HERO: Avatar + Name + Plan Badge ═══ -->
     <div class="profile-hero">
-      <div class="profile-hero__bg"></div>
       <div class="profile-hero__content">
         <div class="profile-avatar" :class="`avatar--ring-${currentPlan}`">
           <span class="avatar-initials">{{ avatarInitials }}</span>
@@ -9,35 +9,81 @@
         <div class="profile-identity">
           <div class="profile-name">{{ profile?.name || 'Гость' }}</div>
           <div class="profile-tg" v-if="profile?.telegramUsername">@{{ profile.telegramUsername }}</div>
+          <div class="profile-phone" v-else-if="profile?.phone">{{ profile.phone }}</div>
         </div>
-        <button type="button" class="profile-edit-fab" @click="onEdit" aria-label="Редактировать">✏️</button>
+        <button type="button" class="profile-edit-fab" @click="onEdit" aria-label="Редактировать">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </button>
       </div>
     </div>
 
+    <!-- ═══ SUBSCRIPTION CARD ═══ -->
     <div class="subscription-hero" :class="`sub-hero--${currentPlan}`">
-      <div class="sub-hero__plan-name">{{ planName }}</div>
-      <div class="sub-hero__status-row">
-        <span class="sub-hero__status-dot" :class="`dot--${subscriptionStatus}`"></span>
-        <span class="sub-hero__status-label">{{ statusLabel }}</span>
+      <div class="sub-hero__row">
+        <div>
+          <div class="sub-hero__plan-name">{{ planName }}</div>
+          <div class="sub-hero__status-row">
+            <span class="sub-hero__status-dot" :class="`dot--${subscriptionStatus}`"></span>
+            <span class="sub-hero__status-label">{{ statusLabel }}</span>
+          </div>
+        </div>
+        <div class="sub-hero__price" v-if="planPrice > 0">
+          <span class="sub-hero__price-amount">{{ planPrice }}</span>
+          <span class="sub-hero__price-unit"> ₽/мес</span>
+        </div>
+        <div class="sub-hero__price sub-hero__price--free" v-else>Бесплатно</div>
       </div>
+
       <div class="sub-hero__meta" v-if="isTrialActive">
-        <span>Пробный период: {{ trialDaysLeft }} дн.</span>
+        Пробный период: {{ trialDaysLeft }} дн.
       </div>
       <div class="sub-hero__meta" v-else-if="subscription?.periodEnd">
-        <span>До {{ formatDate(subscription.periodEnd) }}</span>
+        До {{ formatDate(subscription.periodEnd) }}
       </div>
+
       <div class="sub-hero__progress" v-if="subscriptionProgress !== null">
         <div
           class="sub-hero__progress-bar"
           :style="{ width: subscriptionProgress + '%' }"
-          :class="{ 'progress--warning': subscriptionProgress < 20 }"
+          :class="{ 'progress--warning': subscriptionProgress > 80 }"
         ></div>
       </div>
+
       <button class="sub-hero__upgrade-btn" v-if="canUpgrade" @click="onPlans">
-        Улучшить тариф ↗
+        Улучшить тариф
       </button>
     </div>
 
+    <!-- ═══ EXPIRY WARNINGS ═══ -->
+    <div v-if="isExpiringSoon" class="profile-warning profile-warning--expiring">
+      <span class="profile-warning__icon">⚠️</span>
+      <span>Подписка истекает через {{ daysUntilExpiry }} дн. Продлите, чтобы не потерять доступ.</span>
+    </div>
+    <div v-if="subscription?.status === 'expired'" class="profile-warning profile-warning--expired">
+      <span class="profile-warning__icon">❌</span>
+      <span>Подписка истекла. Часть функций недоступна.</span>
+    </div>
+
+    <!-- ═══ STATS ═══ -->
+    <div class="profile-stats">
+      <div class="profile-stat-card">
+        <span class="profile-stat-card__value">{{ statsCalcs }}</span>
+        <span class="profile-stat-card__label">Расчётов</span>
+      </div>
+      <div class="profile-stat-card">
+        <span class="profile-stat-card__value">{{ statsClients }}</span>
+        <span class="profile-stat-card__label">Клиентов</span>
+      </div>
+      <div class="profile-stat-card">
+        <span class="profile-stat-card__value">{{ statsMonth }}</span>
+        <span class="profile-stat-card__label">За месяц</span>
+      </div>
+    </div>
+
+    <!-- ═══ QUICK ACTIONS ═══ -->
     <div class="profile-quick-actions">
       <button type="button" class="quick-action-tile" @click="onPlans">
         <div class="qat-icon">💎</div>
@@ -58,6 +104,7 @@
       </button>
     </div>
 
+    <!-- ═══ PROFILE DATA ═══ -->
     <div class="profile-section-card card-metallic">
       <div class="psc-title">ДАННЫЕ ПРОФИЛЯ</div>
       <div class="psc-row" @click="onEdit">
@@ -76,6 +123,7 @@
       </div>
     </div>
 
+    <!-- ═══ TRIAL PROMO ═══ -->
     <div class="trial-promo card-metallic" v-if="showTrialPromo" @click="onStartTrial">
       <div class="trial-promo__icon">🚀</div>
       <div class="trial-promo__text">
@@ -85,9 +133,28 @@
       <button type="button" class="trial-promo__btn">Активировать</button>
     </div>
 
-    <button type="button" class="btn-logout" @click="onLogout">
-      Выйти из аккаунта
-    </button>
+    <!-- ═══ ACTIONS LIST ═══ -->
+    <div class="profile-actions-card">
+      <button class="profile-action-row" @click="onEdit">
+        <span class="profile-action-row__icon">👤</span>
+        <span class="profile-action-row__label">Редактировать профиль</span>
+        <span class="profile-action-row__chevron">›</span>
+      </button>
+      <button class="profile-action-row" @click="onPlans">
+        <span class="profile-action-row__icon">⚡</span>
+        <span class="profile-action-row__label">Тарифы и подписка</span>
+        <span class="profile-action-row__chevron">›</span>
+      </button>
+      <button class="profile-action-row" @click="onSupport">
+        <span class="profile-action-row__icon">💬</span>
+        <span class="profile-action-row__label">Поддержка</span>
+        <span class="profile-action-row__chevron">›</span>
+      </button>
+      <button class="profile-action-row profile-action-row--danger" @click="onLogout">
+        <span class="profile-action-row__icon">🚪</span>
+        <span class="profile-action-row__label">Выйти из аккаунта</span>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -103,7 +170,10 @@ const account = useAccount()
 const { profile, subscription, currentPlan, isTrialActive, trialDaysLeft, startTrial, logout, can } = account
 
 const referralCount = ref(0)
+
 onMounted(async () => {
+  loadStatsFromHistory()
+
   const token = account.token?.value
   const baseUrl = import.meta.env.VITE_API_BASE_URL
   if (!token || !baseUrl) return
@@ -121,6 +191,7 @@ const avatarInitials = computed(() => {
 })
 
 const planName = computed(() => PLAN_INFO[currentPlan.value]?.name ?? currentPlan.value)
+const planPrice = computed(() => PLAN_INFO[currentPlan.value]?.price ?? 0)
 
 const subscriptionStatus = computed(() => {
   const s = subscription.value?.status ?? 'inactive'
@@ -144,14 +215,60 @@ const subscriptionProgress = computed(() => {
   return Math.min(100, Math.max(0, Math.round((passed / total) * 100)))
 })
 
+const daysUntilExpiry = computed(() => {
+  const end = subscription.value?.periodEnd ?? subscription.value?.trialEndsAt
+  if (!end) return null
+  const ms = new Date(end).getTime() - Date.now()
+  return Math.max(0, Math.ceil(ms / 86400000))
+})
+
+const isExpiringSoon = computed(() => {
+  const days = daysUntilExpiry.value
+  if (days === null) return false
+  const s = subscription.value?.status
+  return (s === 'active' || s === 'trial') && days <= 7 && days > 0
+})
+
 const canUpgrade = computed(() => {
   const p = currentPlan.value
-  return p === 'free' || p === 'demo' || (p === 'master' && can('analyticsAdvanced') === false)
+  return p === 'free' || p === 'demo' || subscription.value?.status === 'expired'
 })
 
 const showTrialPromo = computed(
   () => currentPlan.value === 'free' && !subscription.value?.trialStartedAt
 )
+
+// Stats from localStorage history
+const statsCalcs = ref('—')
+const statsClients = ref('—')
+const statsMonth = ref('—')
+
+function loadStatsFromHistory() {
+  try {
+    const raw = localStorage.getItem('dm_history')
+    if (!raw) return
+    const records = JSON.parse(raw)
+    if (!Array.isArray(records)) return
+
+    statsCalcs.value = String(records.length)
+
+    const phoneSet = new Set()
+    for (const r of records) {
+      if (r.clientPhone) phoneSet.add(r.clientPhone)
+    }
+    statsClients.value = String(phoneSet.size)
+
+    const now = Date.now()
+    const monthAgo = now - 30 * 86400000
+    const monthRecords = records.filter((r) => {
+      const ts = r.createdAt ? new Date(r.createdAt).getTime() : 0
+      return ts >= monthAgo
+    })
+    statsMonth.value = String(monthRecords.length)
+  } catch {
+    /* ignore */
+  }
+}
 
 function formatDate(iso) {
   return new Date(iso).toLocaleDateString('ru-RU')
@@ -182,6 +299,12 @@ function onPayments() {
   emit('payments')
 }
 
+function onSupport() {
+  hapticLight()
+  const botLink = `https://t.me/${import.meta.env.VITE_SUPPORT_USERNAME ?? 'DentMetricSupport'}`
+  window.Telegram?.WebApp?.openLink?.(botLink) ?? window.open(botLink, '_blank')
+}
+
 async function onStartTrial() {
   try {
     await startTrial()
@@ -201,15 +324,16 @@ function onLogout() {
 .profile-root {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   padding: 0 0 24px;
   overflow-x: hidden;
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
+/* ─── Hero ─── */
 .profile-hero {
   position: relative;
-  padding: 20px 16px 24px;
+  padding: 20px 16px 16px;
   background: linear-gradient(160deg, #0f0f0f 0%, #1a1a2e 100%);
 }
 
@@ -223,31 +347,31 @@ function onLogout() {
 
 .profile-avatar {
   position: relative;
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   flex-shrink: 0;
 }
 
 .avatar-initials {
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border-radius: 50%;
   background: var(--metric-green);
   color: #000;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 700;
 }
 
 .avatar--ring-pro,
 .avatar--ring-corporate {
-  box-shadow: 0 0 0 2px var(--metric-green);
+  box-shadow: 0 0 0 2.5px var(--metric-green), 0 0 12px rgba(136, 229, 35, 0.3);
 }
 
 .avatar--ring-master {
-  box-shadow: 0 0 0 2px #64b5f6;
+  box-shadow: 0 0 0 2.5px #64b5f6;
 }
 
 .avatar--ring-demo,
@@ -264,6 +388,9 @@ function onLogout() {
   font-size: 18px;
   font-weight: 700;
   color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .profile-tg {
@@ -272,24 +399,41 @@ function onLogout() {
   margin-top: 2px;
 }
 
+.profile-phone {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+
 .profile-edit-fab {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
-  font-size: 18px;
+  border-radius: 10px;
+  background: var(--dm-surface, #161616);
+  border: 1.5px solid var(--dm-border, #2a2a2a);
+  color: var(--dm-text-secondary, #888);
   cursor: pointer;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
+/* ─── Subscription Hero ─── */
 .subscription-hero {
   margin: 0 16px;
   padding: 16px;
   border-radius: 14px;
   position: relative;
   overflow: hidden;
+}
+
+.sub-hero__row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 6px;
 }
 
 .sub-hero--free {
@@ -313,17 +457,16 @@ function onLogout() {
 }
 
 .sub-hero__plan-name {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
-  margin-bottom: 6px;
   color: #fff;
+  margin-bottom: 4px;
 }
 
 .sub-hero__status-row {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 8px;
 }
 
 .sub-hero__status-dot {
@@ -347,9 +490,37 @@ function onLogout() {
   background: #555;
 }
 
+.sub-hero__status-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.sub-hero__price {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.sub-hero__price-amount {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--metric-green);
+}
+
+.sub-hero__price-unit {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.sub-hero__price--free {
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.5);
+}
+
 .sub-hero__meta {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.8);
+  color: rgba(255, 255, 255, 0.7);
+  margin-top: 4px;
 }
 
 .sub-hero__progress {
@@ -375,12 +546,75 @@ function onLogout() {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.15);
   color: #fff;
-  padding: 6px 14px;
-  border-radius: 8px;
-  font-size: 12px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
   cursor: pointer;
+  width: 100%;
 }
 
+/* ─── Warnings ─── */
+.profile-warning {
+  margin: 0 16px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.profile-warning__icon {
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.profile-warning--expiring {
+  background: rgba(255, 160, 0, 0.1);
+  color: #ffa000;
+  border: 1px solid rgba(255, 160, 0, 0.2);
+}
+
+.profile-warning--expired {
+  background: rgba(229, 57, 53, 0.1);
+  color: var(--dm-danger, #e53935);
+  border: 1px solid rgba(229, 57, 53, 0.2);
+}
+
+/* ─── Stats ─── */
+.profile-stats {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px;
+}
+
+.profile-stat-card {
+  flex: 1;
+  background: var(--dm-surface-2, #1e1e1e);
+  border-radius: 12px;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--dm-border, #2a2a2a);
+}
+
+.profile-stat-card__value {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--dm-text-primary, #fff);
+}
+
+.profile-stat-card__label {
+  font-size: 11px;
+  color: var(--dm-text-secondary, #888);
+  text-align: center;
+}
+
+/* ─── Quick Actions ─── */
 .profile-quick-actions {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -395,11 +629,16 @@ function onLogout() {
   gap: 4px;
   padding: 12px 4px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: var(--dm-surface-2, #1e1e1e);
+  border: 1px solid var(--dm-border, #2a2a2a);
   position: relative;
   cursor: pointer;
   color: #fff;
+  min-height: 64px;
+}
+
+.quick-action-tile:active {
+  background: var(--dm-surface, #161616);
 }
 
 .qat-icon {
@@ -424,6 +663,7 @@ function onLogout() {
   border-radius: 10px;
 }
 
+/* ─── Profile Data Card ─── */
 .profile-section-card {
   margin: 0 16px;
   border-radius: 12px;
@@ -443,6 +683,11 @@ function onLogout() {
   padding: 14px 16px;
   gap: 8px;
   cursor: pointer;
+  min-height: 48px;
+}
+
+.psc-row:active {
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .psc-label {
@@ -478,6 +723,7 @@ function onLogout() {
   margin-left: 6px;
 }
 
+/* ─── Trial Promo ─── */
 .trial-promo {
   margin: 0 16px;
   padding: 14px 16px;
@@ -492,6 +738,10 @@ function onLogout() {
 .trial-promo__icon {
   font-size: 28px;
   flex-shrink: 0;
+}
+
+.trial-promo__text {
+  flex: 1;
 }
 
 .trial-promo__title {
@@ -519,18 +769,56 @@ function onLogout() {
   cursor: pointer;
 }
 
-.btn-logout {
-  margin: 4px 16px 0;
+/* ─── Actions List ─── */
+.profile-actions-card {
+  background: var(--dm-surface-2, #1e1e1e);
+  border-radius: 12px;
+  overflow: hidden;
+  margin: 0 16px;
+}
+
+.profile-action-row {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 13px;
-  border-radius: 10px;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
   background: transparent;
-  border: 1px solid rgba(248, 113, 113, 0.3);
-  color: #f87171;
-  font-size: 14px;
+  border: none;
   cursor: pointer;
+  border-bottom: 1px solid var(--dm-border, #2a2a2a);
+  text-align: left;
+  min-height: 48px;
+}
+
+.profile-action-row:last-child {
+  border-bottom: none;
+}
+
+.profile-action-row:active {
+  background: var(--dm-surface, #161616);
+}
+
+.profile-action-row__icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.profile-action-row__label {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dm-text-primary, #fff);
+}
+
+.profile-action-row__chevron {
+  font-size: 20px;
+  color: var(--dm-text-secondary, #888);
+}
+
+.profile-action-row--danger .profile-action-row__label {
+  color: var(--dm-danger, #e53935);
 }
 </style>

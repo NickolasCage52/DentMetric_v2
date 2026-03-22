@@ -1,115 +1,157 @@
 <template>
   <div class="plans-root">
-    <div class="plans-header">
-      <div class="plans-title">Выберите тариф</div>
-      <div class="plans-subtitle">Все тарифы включают базовый расчёт PDR</div>
+
+    <!-- ═══ PAYMENT FLOW STATES ═══ -->
+    <div v-if="paymentFlowStatus !== 'idle'" class="payment-state-container">
+
+      <div v-if="paymentFlowStatus === 'creating'" class="payment-state">
+        <div class="payment-state__spinner"></div>
+        <p class="payment-state__title">Создаём платёж...</p>
+        <p class="payment-state__sub">Подождите, это займёт несколько секунд</p>
+      </div>
+
+      <div v-else-if="paymentFlowStatus === 'pending'" class="payment-state">
+        <span class="payment-state__icon">⏳</span>
+        <p class="payment-state__title">Ожидаем подтверждения оплаты</p>
+        <p class="payment-state__sub">Завершите оплату в открывшемся окне</p>
+        <button class="ps-btn ps-btn--primary" @click="onCheckPayment">Проверить статус</button>
+        <button class="ps-btn ps-btn--secondary" @click="onResetPayment">Отмена</button>
+      </div>
+
+      <div v-else-if="paymentFlowStatus === 'success'" class="payment-state payment-state--success">
+        <span class="payment-state__icon">✅</span>
+        <p class="payment-state__title payment-state__title--success">Оплата прошла!</p>
+        <p class="payment-state__sub">Тариф активирован. Спасибо!</p>
+        <button class="ps-btn ps-btn--primary" @click="onResetPayment">Отлично</button>
+      </div>
+
+      <div v-else-if="paymentFlowStatus === 'error'" class="payment-state payment-state--error">
+        <span class="payment-state__icon">❌</span>
+        <p class="payment-state__title payment-state__title--error">Ошибка оплаты</p>
+        <p class="payment-state__sub">{{ paymentError || 'Попробуйте ещё раз' }}</p>
+        <button class="ps-btn ps-btn--primary" @click="onResetPayment">Попробовать снова</button>
+      </div>
+
+      <div v-else-if="paymentFlowStatus === 'cancelled'" class="payment-state">
+        <span class="payment-state__icon">↩️</span>
+        <p class="payment-state__title">Оплата отменена</p>
+        <button class="ps-btn ps-btn--secondary" @click="onResetPayment">Выбрать тариф</button>
+      </div>
     </div>
 
-    <div class="plans-period-toggle">
-      <button
-        v-for="p in periods"
-        :key="p.value"
-        type="button"
-        class="period-btn"
-        :class="{ 'period-btn--active': selectedPeriod === p.value }"
-        @click="selectedPeriod = p.value"
-      >
-        {{ p.label }}
-        <span v-if="p.discount" class="period-discount">-{{ p.discount }}%</span>
-      </button>
-    </div>
+    <!-- ═══ PLANS LIST (only when idle) ═══ -->
+    <template v-else>
+      <div class="plans-header">
+        <div class="plans-title">Выберите тариф</div>
+        <div class="plans-subtitle">Все тарифы включают базовый расчёт PDR</div>
+      </div>
 
-    <div class="plans-scroll">
-      <div class="plans-track">
-        <div
-          v-for="plan in plans"
-          :key="plan.id"
-          class="plan-card"
-          :class="{
-            'plan-card--current': plan.id === currentPlan,
-            'plan-card--highlighted': plan.highlighted,
-            'plan-card--free': plan.id === 'free',
-          }"
+      <div class="plans-period-toggle">
+        <button
+          v-for="p in periods"
+          :key="p.value"
+          type="button"
+          class="period-btn"
+          :class="{ 'period-btn--active': selectedPeriod === p.value }"
+          @click="selectedPeriod = p.value"
         >
-          <div class="plan-card__badge" v-if="plan.highlighted">⭐ Популярный</div>
+          {{ p.label }}
+          <span v-if="p.discount" class="period-discount">-{{ p.discount }}%</span>
+        </button>
+      </div>
 
-          <div class="plan-card__name">{{ plan.name }}</div>
-          <div class="plan-card__price">
-            <template v-if="plan.price === 0">
-              <span class="price-free">Бесплатно</span>
-            </template>
-            <template v-else>
-              <span class="price-amount">{{ displayPrice(plan) }}</span>
-              <span class="price-period">₽/мес</span>
-            </template>
-          </div>
-          <div class="plan-card__desc">{{ plan.description }}</div>
+      <div class="plans-scroll">
+        <div class="plans-track">
+          <div
+            v-for="plan in plans"
+            :key="plan.id"
+            class="plan-card"
+            :class="{
+              'plan-card--current': plan.id === currentPlan,
+              'plan-card--highlighted': plan.highlighted,
+              'plan-card--free': plan.id === 'free',
+            }"
+          >
+            <div class="plan-card__badge" v-if="plan.highlighted">⭐ Популярный</div>
 
-          <div class="plan-card__divider"></div>
+            <div class="plan-card__name">{{ plan.name }}</div>
+            <div class="plan-card__price">
+              <template v-if="plan.price === 0">
+                <span class="price-free">Бесплатно</span>
+              </template>
+              <template v-else>
+                <span class="price-amount">{{ displayPrice(plan) }}</span>
+                <span class="price-period">₽/мес</span>
+              </template>
+            </div>
+            <div class="plan-card__desc">{{ plan.description }}</div>
 
-          <div class="plan-card__features">
-            <div
-              v-for="feat in keyFeatures"
-              :key="feat.key"
-              class="plan-feat-row"
-              :class="{ 'plan-feat-row--disabled': !plan.features[feat.key] }"
-            >
-              <span class="plan-feat-icon">{{ plan.features[feat.key] ? '✓' : '✗' }}</span>
-              <span class="plan-feat-label">{{ feat.label }}</span>
+            <div class="plan-card__divider"></div>
+
+            <div class="plan-card__features">
+              <div
+                v-for="feat in keyFeatures"
+                :key="feat.key"
+                class="plan-feat-row"
+                :class="{ 'plan-feat-row--disabled': !plan.features[feat.key] }"
+              >
+                <span class="plan-feat-icon">{{ plan.features[feat.key] ? '✓' : '✗' }}</span>
+                <span class="plan-feat-label">{{ feat.label }}</span>
+              </div>
+            </div>
+
+            <div class="plan-card__cta">
+              <div v-if="plan.id === currentPlan" class="plan-cta-current">Текущий тариф</div>
+              <button
+                v-else-if="plan.id === 'demo' && canActivateTrial"
+                type="button"
+                class="plan-cta-btn plan-cta-btn--trial"
+                @click="onStartTrial"
+                :disabled="isActivating"
+              >
+                Попробовать {{ TRIAL_DAYS }} дн.
+              </button>
+              <button
+                v-else-if="plan.price > 0"
+                type="button"
+                class="plan-cta-btn"
+                :class="{ 'plan-cta-btn--highlight': plan.highlighted }"
+                @click="onActivate(plan.id)"
+                :disabled="isActivating"
+              >
+                {{ isActivating ? '...' : 'Выбрать' }}
+              </button>
             </div>
           </div>
+        </div>
+      </div>
 
-          <div class="plan-card__cta">
-            <div v-if="plan.id === currentPlan" class="plan-cta-current">Текущий тариф</div>
-            <button
-              v-else-if="plan.id === 'demo' && canActivateTrial"
-              type="button"
-              class="plan-cta-btn plan-cta-btn--trial"
-              @click="onStartTrial"
-              :disabled="isActivating"
-            >
-              Попробовать {{ TRIAL_DAYS }} дн.
-            </button>
-            <button
-              v-else-if="plan.price > 0"
-              type="button"
-              class="plan-cta-btn"
-              :class="{ 'plan-cta-btn--highlight': plan.highlighted }"
-              @click="onActivate(plan.id)"
-              :disabled="isActivating"
-            >
-              {{ isActivating ? '...' : 'Выбрать' }}
-            </button>
+      <div class="plans-compare">
+        <button type="button" class="plans-compare-toggle" @click="showCompare = !showCompare">
+          {{ showCompare ? 'Скрыть' : 'Показать' }} сравнение тарифов
+          <span class="plans-compare-chevron">{{ showCompare ? '▲' : '▼' }}</span>
+        </button>
+        <div v-if="showCompare" class="compare-table">
+          <div class="compare-row compare-row--header">
+            <div class="compare-cell compare-cell--feature">Функция</div>
+            <div v-for="p in plans" :key="p.id" class="compare-cell compare-cell--plan">{{ p.name }}</div>
+          </div>
+          <div v-for="feat in allFeatures" :key="feat.key" class="compare-row">
+            <div class="compare-cell compare-cell--feature">{{ feat.label }}</div>
+            <div v-for="p in plans" :key="p.id" class="compare-cell">
+              <template v-if="typeof p.features[feat.key] === 'number' && p.features[feat.key] > 0">
+                {{ p.features[feat.key] === 999 ? '∞' : p.features[feat.key] }}
+              </template>
+              <template v-else>
+                <span :class="p.features[feat.key] ? 'cell-yes' : 'cell-no'">
+                  {{ p.features[feat.key] ? '✓' : '—' }}
+                </span>
+              </template>
+            </div>
           </div>
         </div>
       </div>
-    </div>
-
-    <div class="plans-compare">
-      <button type="button" class="plans-compare-toggle" @click="showCompare = !showCompare">
-        {{ showCompare ? 'Скрыть' : 'Показать' }} сравнение тарифов
-        <span class="plans-compare-chevron">{{ showCompare ? '▲' : '▼' }}</span>
-      </button>
-      <div v-if="showCompare" class="compare-table">
-        <div class="compare-row compare-row--header">
-          <div class="compare-cell compare-cell--feature">Функция</div>
-          <div v-for="p in plans" :key="p.id" class="compare-cell compare-cell--plan">{{ p.name }}</div>
-        </div>
-        <div v-for="feat in allFeatures" :key="feat.key" class="compare-row">
-          <div class="compare-cell compare-cell--feature">{{ feat.label }}</div>
-          <div v-for="p in plans" :key="p.id" class="compare-cell">
-            <template v-if="typeof p.features[feat.key] === 'number' && p.features[feat.key] > 0">
-              {{ p.features[feat.key] === 999 ? '∞' : p.features[feat.key] }}
-            </template>
-            <template v-else>
-              <span :class="p.features[feat.key] ? 'cell-yes' : 'cell-no'">
-                {{ p.features[feat.key] ? '✓' : '—' }}
-              </span>
-            </template>
-          </div>
-        </div>
-      </div>
-    </div>
+    </template>
   </div>
 </template>
 
@@ -121,7 +163,11 @@ import { hapticMedium, hapticSuccess } from '../utils/animations'
 import { useNotifications } from '../useNotifications'
 
 const account = useAccount()
-const { currentPlan, subscription, startTrial, activatePlan } = account
+const {
+  currentPlan, subscription, startTrial,
+  paymentFlowStatus, paymentError,
+  startPaymentFlow, checkPaymentStatus, resetPaymentFlow,
+} = account
 const { success } = useNotifications()
 const isActivating = ref(false)
 const showCompare = ref(false)
@@ -168,7 +214,7 @@ const allFeatures = [
 function displayPrice(plan) {
   if (plan.price === 0) return '0'
   if (selectedPeriod.value === 'year') {
-    const yearPrice = Math.round(plan.price * 10) // условно -17%
+    const yearPrice = Math.round(plan.price * 10)
     return yearPrice.toLocaleString('ru-RU')
   }
   return plan.price.toLocaleString('ru-RU')
@@ -190,17 +236,26 @@ async function onActivate(planId) {
   hapticMedium()
   isActivating.value = true
   try {
-    const result = await activatePlan(planId)
-    if (result.invoiceLink) {
-      window.Telegram?.WebApp?.openInvoice?.(result.invoiceLink)
+    await startPaymentFlow(planId)
+    if (paymentFlowStatus.value === 'success') {
       hapticSuccess()
-    } else if (result.redirectUrl) {
-      window.Telegram?.WebApp?.openLink?.(result.redirectUrl)
-      hapticSuccess()
+      success('Тариф активирован')
     }
   } finally {
     isActivating.value = false
   }
+}
+
+async function onCheckPayment() {
+  await checkPaymentStatus()
+  if (paymentFlowStatus.value === 'success') {
+    hapticSuccess()
+    success('Тариф активирован')
+  }
+}
+
+function onResetPayment() {
+  resetPaymentFlow()
 }
 </script>
 
@@ -210,6 +265,86 @@ async function onActivate(planId) {
   padding-bottom: calc(80px + env(safe-area-inset-bottom));
 }
 
+/* ─── Payment States ─── */
+.payment-state-container {
+  padding: 2rem 1rem;
+}
+
+.payment-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 32px 16px;
+  text-align: center;
+  background: var(--dm-surface-2, #1e1e1e);
+  border-radius: 16px;
+  margin: 0 16px;
+}
+
+.payment-state__icon {
+  font-size: 48px;
+  line-height: 1;
+}
+
+.payment-state__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--dm-border, #2a2a2a);
+  border-top-color: var(--metric-green);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.payment-state__title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--dm-text-primary, #fff);
+  margin: 0;
+}
+
+.payment-state__title--success {
+  color: var(--metric-green);
+}
+
+.payment-state__title--error {
+  color: var(--dm-danger, #e53935);
+}
+
+.payment-state__sub {
+  font-size: 13px;
+  color: var(--dm-text-secondary, #888);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.ps-btn {
+  width: 100%;
+  max-width: 280px;
+  height: 48px;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+
+.ps-btn--primary {
+  background: var(--metric-green);
+  color: #000;
+}
+
+.ps-btn--secondary {
+  background: transparent;
+  color: var(--dm-text-secondary, #888);
+  border: 1.5px solid var(--dm-border, #2a2a2a);
+}
+
+/* ─── Plans Header ─── */
 .plans-header {
   padding: 0 16px 12px;
 }
@@ -226,6 +361,7 @@ async function onActivate(planId) {
   margin-top: 4px;
 }
 
+/* ─── Period Toggle ─── */
 .plans-period-toggle {
   display: flex;
   gap: 4px;
@@ -257,6 +393,7 @@ async function onActivate(planId) {
   font-weight: 700;
 }
 
+/* ─── Plan Cards ─── */
 .plans-scroll {
   overflow-x: auto;
   padding: 0 16px;
@@ -386,6 +523,7 @@ async function onActivate(planId) {
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
+  min-height: 44px;
 }
 
 .plan-cta-btn--highlight {
@@ -406,6 +544,7 @@ async function onActivate(planId) {
   padding: 10px 0;
 }
 
+/* ─── Compare Table ─── */
 .plans-compare {
   padding: 16px 16px 0;
 }

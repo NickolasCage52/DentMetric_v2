@@ -63,19 +63,27 @@
         <p v-if="clientRequired && !canNext" class="text-[10px] text-gray-500 text-center">Заполните обязательные поля</p>
       </div>
     </div>
-    <div class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10 relative z-[1] pointer-events-auto">
-      <div class="flex items-center gap-2 w-full">
-        <button type="button" @click="$emit('back')" class="step-nav-back-btn shrink-0 py-2.5 px-3 rounded-xl text-xs font-medium text-gray-400 hover:text-white border border-white/15 hover:border-white/25 transition-all touch-manipulation min-h-[44px]">Назад</button>
+    <div class="quick-nav-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10 relative z-[1] pointer-events-auto">
+      <div class="quick-nav-buttons grid gap-1" style="grid-template-columns: auto 1fr auto; align-items: center;">
+        <button
+          type="button"
+          @click="$emit('back')"
+          class="quick-nav-btn quick-nav-btn-back shrink-0 py-2.5 px-3 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[40px] rounded-xl"
+        >
+          <span class="inline-flex items-center gap-1"><span aria-hidden="true">&lsaquo;</span> Назад</span>
+        </button>
+        <div class="quick-nav-price">
+          <span v-if="price != null" class="quick-nav-price-value">{{ price.toLocaleString('ru-RU') }} ₽</span>
+        </div>
         <button
           type="button"
           data-testid="btn-continue-placement"
           :disabled="!canNext"
           :aria-disabled="!canNext"
-          :class="canNext ? 'bg-metric-green text-black shadow-[0_0_15px_rgba(136,229,35,0.4)] hover:opacity-95 active:opacity-90' : 'bg-white/10 text-gray-500 cursor-not-allowed'"
-          class="flex-1 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 min-h-[44px] touch-manipulation cursor-pointer select-none relative z-[2]"
+          class="quick-nav-btn quick-nav-btn-next shrink-0 py-2.5 px-3 text-[11px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 transition-all hover:bg-metric-green/10 min-h-[40px] rounded-xl disabled:opacity-50 disabled:cursor-not-allowed"
           @click="handleNext"
         >
-          <span>Продолжить → Размещение</span>
+          <span class="inline-flex items-center gap-1">Вперёд <span aria-hidden="true">&rsaquo;</span></span>
         </button>
       </div>
     </div>
@@ -94,6 +102,7 @@ const props = defineProps({
   historyEnabled: { type: Boolean, default: false },
   foundClient: { type: Object, default: null },
   onNext: { type: Function, default: null },
+  price: { type: Number, default: null },
 });
 
 const emit = defineEmits(['back', 'next', 'open-field', 'reset-client', 'open-history', 'autofill-client']);
@@ -111,7 +120,22 @@ function handleNext(e) {
 </script>
 
 <style scoped>
-/* Эталон: второстепенная кнопка; СБРОС — ghost, серый (деструктивное действие) */
+.quick-style-client {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1 1 0;
+  overflow: hidden;
+}
+.quick-style-client > div:first-child {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+}
 .client-reset-btn {
   font-size: 10px;
   font-weight: 700;
@@ -131,5 +155,23 @@ function handleNext(e) {
 }
 .client-input-row {
   min-height: 36px;
+}
+.quick-nav-price {
+  text-align: center;
+  overflow: hidden;
+  padding: 0 4px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.quick-nav-price-value {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--metric-green, #8aff2a);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 </style>

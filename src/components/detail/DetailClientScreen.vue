@@ -1,41 +1,41 @@
 <template>
-  <div class="dm-detail-screen detail-screen">
-    <div class="detail-screen__content">
-
-      <DetailProgressDots
-        v-if="detailSteps?.length"
-        :steps="detailSteps"
-        :current-index="detailStepIndex"
-      />
-
-      <QuickStyleClientSection
-        :model="localModel"
-        :client-required="clientRequired"
-        :can-next="isClientValid"
-        :show-info-tooltips="showInfoTooltips"
-        :history-enabled="historyEnabled"
-        :found-client="foundClient"
-        :on-next="handleConfirm"
-        @next="handleConfirm"
-        @back="$emit('back')"
-        @open-field="onOpenField"
-        @reset-client="resetClient"
-        @open-history="$emit('open-history')"
-        @autofill-client="onAutofillClient"
-      />
+  <div class="detail-client-screen">
+    <div class="detail-client-header">
+      <div class="app-header-logo-bar">
+        <div class="app-header-logo-bar__left"></div>
+        <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" onerror="this.style.display='none'" />
+        <div class="app-header-logo-bar__right"></div>
+      </div>
     </div>
+    <div class="detail-client-dots">
+      <StepDots :current-step="1" :total-steps="6" />
+    </div>
+    <QuickStyleClientSection
+      :model="localModel"
+      :client-required="clientRequired"
+      :can-next="isClientValid"
+      :show-info-tooltips="showInfoTooltips"
+      :history-enabled="historyEnabled"
+      :found-client="foundClient"
+      :on-next="handleConfirm"
+      :price="0"
+      @next="handleConfirm"
+      @back="$emit('back')"
+      @open-field="onOpenField"
+      @reset-client="resetClient"
+      @open-history="$emit('open-history')"
+      @autofill-client="onAutofillClient"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, watch, computed, inject, onMounted } from 'vue';
 import QuickStyleClientSection from '../quickStyle/QuickStyleClientSection.vue';
-import DetailProgressDots from './DetailProgressDots.vue';
+import StepDots from '../graphics/StepDots.vue';
 import { normalizePhoneForInput } from '../../utils/phoneFormat';
 
 const props = defineProps({
-  detailSteps: { type: Array, default: () => [] },
-  detailStepIndex: { type: Number, default: 0 },
   client: { type: Object, default: null },
   clientRequired: { type: Boolean, default: false },
   showInfoTooltips: { type: Boolean, default: true },
@@ -209,25 +209,24 @@ function handleConfirm() {
 </script>
 
 <style scoped>
-.dm-detail-screen,
-.detail-screen {
+.detail-client-screen {
   display: flex;
   flex-direction: column;
-  flex: 1 1 0;
-  height: 100%;
   min-height: 0;
+  flex: 1 1 0;
   overflow: hidden;
-  pointer-events: auto;
+  background: #000;
 }
-.detail-screen__content {
-  flex: 1 1 0;
-  min-height: 0;
-  overflow-x: hidden;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior-y: contain;
-  touch-action: pan-y;
-  padding: 16px;
-  padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+.detail-client-header {
+  flex-shrink: 0;
+  padding: 16px 0 8px;
+}
+.detail-client-dots {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-bottom: 8px;
 }
 </style>
+

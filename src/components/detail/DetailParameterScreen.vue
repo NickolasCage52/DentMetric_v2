@@ -189,12 +189,16 @@ function handleSaveAndNext() {
 
 <style scoped>
 .detail-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: var(--tab-bar-height, var(--app-footer-height, var(--bottom-nav-h, 64px)));
   display: flex;
   flex-direction: column;
-  flex: 1 1 0;
-  height: 100%;
-  min-height: 0;
   overflow: hidden;
+  background: var(--dm-bg, #0f0f0f);
+  z-index: 10;
 }
 .detail-screen__content {
   flex: 1 1 0;

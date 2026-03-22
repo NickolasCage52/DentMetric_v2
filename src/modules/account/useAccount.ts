@@ -4,7 +4,7 @@
  */
 
 import { ref, computed, readonly } from 'vue'
-import type { UserProfile, Subscription, PlanId, FeatureGates } from './types'
+import type { UserProfile, Subscription, PlanId, FeatureGates, PaymentFlowStatus } from './types'
 import { canUse, getLimit, TRIAL_DAYS, TARIFF_BYPASS_ENABLED } from './planFeatures'
 import type { FeatureKey } from './planFeatures'
 import { getEffectiveTelegramUser } from './utils/telegram'
@@ -15,6 +15,11 @@ const sessionToken = ref<string | null>(null)
 const isLoading = ref(false)
 const initError = ref<string | null>(null)
 const isInitialized = ref(false)
+
+const paymentFlowStatus = ref<PaymentFlowStatus>('idle')
+const paymentError = ref<string | null>(null)
+const currentPaymentSessionId = ref<string | null>(null)
+const pendingPlanId = ref<PlanId | null>(null)
 
 const STORAGE_TOKEN_KEY = 'dm_account_token'
 const STORAGE_PROFILE_KEY = 'dm_account_profile_cache'
@@ -230,6 +235,73 @@ async function activatePlan(
   return accountApi.createPaymentSession(sessionToken.value, planId)
 }
 
+async function startPaymentFlow(planId: PlanId): Promise<void> {
+  paymentFlowStatus.value = 'creating'
+  paymentError.value = null
+  pendingPlanId.value = planId
+
+  try {
+    const result = await activatePlan(planId)
+    const tgWebApp = typeof window !== 'undefined' ? window.Telegram?.WebApp : null
+
+    if (result.invoiceLink) {
+      paymentFlowStatus.value = 'pending'
+      currentPaymentSessionId.value = result.invoiceLink
+      tgWebApp?.openInvoice?.(result.invoiceLink)
+    } else if (result.redirectUrl) {
+      paymentFlowStatus.value = 'pending'
+      currentPaymentSessionId.value = result.redirectUrl
+      if (tgWebApp?.openLink) {
+        tgWebApp.openLink(result.redirectUrl)
+      } else {
+        window.open(result.redirectUrl, '_blank')
+      }
+    } else {
+      paymentFlowStatus.value = 'success'
+    }
+  } catch (e: any) {
+    paymentFlowStatus.value = 'error'
+    paymentError.value = e?.message ?? 'Произошла ошибка при создании платежа'
+  }
+}
+
+async function checkPaymentStatus(): Promise<void> {
+  if (!currentPaymentSessionId.value || !sessionToken.value) return
+  const apiBase = (import.meta.env.VITE_API_BASE_URL as string) ?? ''
+  if (!apiBase) {
+    paymentFlowStatus.value = 'success'
+    return
+  }
+  try {
+    const { accountApi } = await import('./api/accountApi')
+    const result = await accountApi.checkPaymentStatus(
+      sessionToken.value,
+      currentPaymentSessionId.value
+    )
+    if (result.status === 'succeeded') {
+      paymentFlowStatus.value = 'success'
+      if (result.subscription) subscription.value = result.subscription
+      currentPaymentSessionId.value = null
+    } else if (result.status === 'cancelled') {
+      paymentFlowStatus.value = 'cancelled'
+      currentPaymentSessionId.value = null
+    } else if (result.status === 'error') {
+      paymentFlowStatus.value = 'error'
+      paymentError.value = 'Платёж не прошёл'
+    }
+  } catch (e: any) {
+    paymentFlowStatus.value = 'error'
+    paymentError.value = e?.message ?? 'Не удалось проверить статус платежа'
+  }
+}
+
+function resetPaymentFlow(): void {
+  paymentFlowStatus.value = 'idle'
+  paymentError.value = null
+  currentPaymentSessionId.value = null
+  pendingPlanId.value = null
+}
+
 function logout(): void {
   profile.value = null
   subscription.value = null
@@ -261,6 +333,12 @@ export function useAccount() {
     updateProfile,
     startTrial,
     activatePlan,
+    paymentFlowStatus: readonly(paymentFlowStatus),
+    paymentError: readonly(paymentError),
+    pendingPlanId: readonly(pendingPlanId),
+    startPaymentFlow,
+    checkPaymentStatus,
+    resetPaymentFlow,
     logout,
   }
 }

@@ -6,6 +6,7 @@
     :style="matrixSafeTopStyle"
   >
     <StepHeader
+      v-if="!(useNewDetailFlow && detailSession.currentStep === 'client')"
       :selected-class-id="selectedClassId"
       :selected-part-id="selectedPartId"
       :car-classes="carClasses"
@@ -77,8 +78,6 @@
       <!-- NEW Detail flow: client → camera → marking → dimensions → parameters → result -->
       <DetailClientScreen
         v-if="useNewDetailFlow && detailSession.currentStep === 'client'"
-        :detail-steps="DETAIL_STEPS"
-        :detail-step-index="detailStepIndex"
         :client="detailSession.client"
         :client-required="clientRequired"
         :history-enabled="props.historyEnabled"
@@ -671,7 +670,7 @@ const graphicsRootClass = computed(() => {
     ? Math.min(6, Math.max(1, detailSteps.indexOf(detailSession.value.currentStep) + 1))
     : wizardStep.value;
   const photo = useNewDetailFlow || freeformPhotoMode || (usePhotoBasedFlow && ((props.showClientStep && wizardStep.value === 2) || (!props.showClientStep && wizardStep.value === 1)));
-  const fullscreen = useNewDetailFlow && ['camera', 'marking', 'dimensions'].includes(detailSession.value.currentStep);
+  const fullscreen = useNewDetailFlow && detailSession.value.currentStep !== 'client';
   return [
     `graphics-step-${stepNum}`,
     {

@@ -1205,126 +1205,7 @@
 
     <!-- Section: Info -->
     <div ref="infoScrollRef" v-if="currentSection === 'info'" class="content-padding-bottom p-4 space-y-3 overflow-y-auto">
-      <div class="app-header-logo-bar">
-        <div class="app-header-logo-bar__left">
-          <button
-            type="button"
-            @click="goHome"
-            class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
-          >
-            <span>←</span>
-            <span>Домой</span>
-          </button>
-        </div>
-        <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" onerror="this.style.display='none'">
-        <div class="app-header-logo-bar__right"></div>
-      </div>
-      <div class="flex items-center justify-center pb-4">
-        <div class="px-5 py-1.5 rounded-full border border-white/10 bg-[#1a1a1a] shadow-lg">
-          <span class="text-[10px] font-bold uppercase text-metric-green tracking-widest">Инструкция & FAQ</span>
-        </div>
-      </div>
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
-          <div class="flex items-center space-x-3">
-            <span class="text-lg opacity-80">ℹ️</span>
-            <span class="font-bold text-sm text-white">О приложении</span>
-          </div>
-          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="px-5 pb-5 pt-0 text-sm text-gray-400 leading-relaxed border-t border-white/5 mt-2 pt-4">
-          <ul class="space-y-2 list-disc pl-4 marker:text-metric-green">
-            <li>Калькулятор считает стоимость ремонта одной вмятины.</li>
-            <li>Поддерживает режимы: <span class="text-white font-bold">Быстрый расчёт</span> и <span class="text-white font-bold">Детализация</span>.</li>
-            <li>Одна строка расчёта = одно повреждение. Пакетные скидки не учитываются.</li>
-          </ul>
-        </div>
-      </details>
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
-          <div class="flex items-center space-x-3">
-            <span class="text-lg opacity-80">🛠️</span>
-            <span class="font-bold text-sm text-white">Как пользоваться</span>
-          </div>
-          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="px-5 pb-5 pt-0 text-sm text-gray-400 leading-relaxed border-t border-white/5 mt-2 pt-4">
-          <ol class="space-y-3 list-decimal pl-4 marker:text-metric-green marker:font-bold">
-            <li>Выберите режим расчета в меню «Метрика».</li>
-            <li>Укажите тип повреждения (Круг/Овал или Полоса).</li>
-            <li>Выберите размер или укажите длину/ширину в мм.</li>
-            <li>Настройте коэффициенты (Сложность, Материал, Класс, Разборка).</li>
-            <li>Итоговая цена обновится автоматически.</li>
-          </ol>
-        </div>
-      </details>
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
-          <div class="flex items-center space-x-3">
-            <span class="text-lg opacity-80">📖</span>
-            <span class="font-bold text-sm text-white">Расшифровка параметров</span>
-          </div>
-          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="px-5 pb-5 pt-0 text-sm text-gray-400 leading-relaxed border-t border-white/5 mt-2 pt-4 space-y-5">
-          <div>
-            <div class="font-bold text-metric-green text-[10px] uppercase mb-1 tracking-widest">РАЗМЕР</div>
-            <div class="text-gray-400 leading-snug">S (Круг) и LS (Полоса). Является основой базовой цены.</div>
-          </div>
-          <div>
-            <div class="font-bold text-metric-green text-[10px] uppercase mb-2 tracking-widest">СЛОЖНОСТЬ ВЫПОЛНЕНИЯ (K)</div>
-            <div class="space-y-1.5">
-              <div class="flex space-x-2"><span class="text-white font-bold w-6">K1:</span><span>Лёгкая</span></div>
-              <div class="flex space-x-2"><span class="text-white font-bold w-6">K2:</span><span>Средняя</span></div>
-              <div class="flex space-x-2"><span class="text-white font-bold w-6">K3:</span><span>Сложная — заломы, плохой доступ.</span></div>
-              <div class="flex space-x-2"><span class="text-white font-bold w-6">K4:</span><span>Экстра — острые складки, ребра.</span></div>
-            </div>
-          </div>
-          <div>
-            <div class="font-bold text-metric-green text-[10px] uppercase mb-1 tracking-widest">КЛАСС АВТО</div>
-            <div class="text-gray-400 leading-snug">Стандарт (x1.0), Премиум/Новый (x1.2).</div>
-          </div>
-        </div>
-      </details>
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
-          <div class="flex items-center space-x-3">
-            <span class="text-lg opacity-80">⏱️</span>
-            <span class="font-bold text-sm text-white">Режим «Град»</span>
-          </div>
-          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="px-5 pb-5 pt-0 text-sm text-gray-400 leading-relaxed border-t border-white/5 mt-2 pt-4">
-          <p class="leading-snug">Раздел в разработке 🔒</p>
-        </div>
-      </details>
-      <details class="group card-metallic rounded-2xl overflow-hidden transition-all">
-        <summary class="flex items-center justify-between p-4 cursor-pointer select-none">
-          <div class="flex items-center space-x-3">
-            <span class="text-lg opacity-80">🎨</span>
-            <span class="font-bold text-sm text-white">Детализация (Графика)</span>
-          </div>
-          <svg class="w-5 h-5 text-gray-500 transition-transform duration-200 group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
-        </summary>
-        <div class="px-5 pb-5 pt-0 text-sm text-gray-400 leading-relaxed border-t border-white/5 mt-2 pt-4">
-          <p class="mb-2">Расчет на основе площади и расположения повреждения.</p>
-          <ol class="space-y-2 list-decimal pl-4 marker:text-metric-green marker:font-bold">
-            <li>Выберите класс авто и деталь.</li>
-            <li>Добавьте вмятину (Круг) или полосу.</li>
-            <li>Перетаскивайте и меняйте размер фигуры.</li>
-            <li><b class="text-white">Сложные зоны:</b> Если фигура пересекает красную зону (ребро), цена автоматически увеличивается.</li>
-          </ol>
-        </div>
-      </details>
-      <div class="border border-red-500/30 bg-red-900/10 rounded-2xl p-4 flex gap-4 items-start mt-4">
-        <div class="text-2xl pt-1">⚠️</div>
-        <div>
-          <div class="text-red-400 font-bold uppercase tracking-widest text-xs mb-1">Важно</div>
-          <div class="text-sm text-gray-300 leading-relaxed">
-            Цена является ориентировочной. Окончательная стоимость может меняться после живого осмотра и дефектовки мастером.
-          </div>
-        </div>
-      </div>
+      <InfoScreen @home="goHome" />
     </div>
 
     <!-- Section: Account / Plans / Onboarding / Referral / Payments / Stats -->
@@ -1524,6 +1405,7 @@ import SegmentedControl from './components/ui/SegmentedControl.vue';
 import SelectRow from './components/ui/SelectRow.vue';
 import { hideTelegramButtons } from './utils/telegramButtons';
 import HistoryScreen from './components/HistoryScreen.vue';
+import InfoScreen from './components/info/InfoScreen.vue';
 import AttachmentPicker from './components/AttachmentPicker.vue';
 import HistoryAttachmentsView from './components/HistoryAttachmentsView.vue';
 import ClientInfoBlock from './components/ClientInfoBlock.vue';

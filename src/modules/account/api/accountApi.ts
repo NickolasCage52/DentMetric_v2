@@ -3,7 +3,7 @@
  * BASE_URL — Supabase Edge Functions или mock backend.
  */
 
-import type { UserProfile, Subscription, PlanId, PaymentRecord } from '../types'
+import type { UserProfile, Subscription, PlanId, PaymentRecord, PaymentStatusResult } from '../types'
 
 const BASE_URL = (import.meta.env.VITE_API_BASE_URL as string) ?? ''
 
@@ -69,4 +69,34 @@ export const accountApi = {
 
   getReferral: (token: string) =>
     req<{ code: string; activatedCount: number; bonusDays: number }>('/referral-get', { token }),
+
+  /**
+   * Check payment status after user returns from payment gateway.
+   * Backend queries YooKassa (or other provider) using its own credentials.
+   */
+  checkPaymentStatus: (token: string, sessionId: string) =>
+    req<PaymentStatusResult>(`/payment-status/${sessionId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }),
 }
+
+/**
+ * BACKEND CONTRACT (for YooKassa integration):
+ *
+ * POST /create-payment-session
+ *   Auth: Bearer token
+ *   Body: { planId }
+ *   Backend: creates YooKassa payment using shop credentials (NEVER on frontend)
+ *   Response: { sessionId, redirectUrl?, invoiceLink?, confirmationUrl? }
+ *
+ * GET /payment-status/:sessionId
+ *   Auth: Bearer token
+ *   Response: { status: 'pending' | 'succeeded' | 'cancelled' | 'error', subscription? }
+ *
+ * POST /yookassa-webhook (called by YooKassa, not by frontend)
+ *   Validates YooKassa IP + HMAC signature
+ *   Updates subscription in DB
+ *
+ * IMPORTANT: YooKassa shopId and secretKey must NEVER appear in frontend code.
+ * They belong exclusively to the backend .env / secrets manager.
+ */

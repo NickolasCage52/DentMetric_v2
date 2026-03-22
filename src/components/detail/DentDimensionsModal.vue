@@ -7,7 +7,8 @@
         @click.self="handleCancel"
       >
         <div
-          class="dent-dim-modal-box w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-[#0b0f14] border border-white/10 shadow-2xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]"
+          class="dent-dim-modal-box w-full max-w-md rounded-t-2xl sm:rounded-2xl border border-white/10 shadow-2xl p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]"
+          style="background: var(--dm-bg, #0b0f14)"
           role="dialog"
           aria-modal="true"
           aria-label="Размеры вмятины"

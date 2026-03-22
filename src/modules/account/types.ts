@@ -90,3 +90,24 @@ export interface PlanInfo {
   highlighted: boolean
   features: FeatureGates
 }
+
+export type PaymentFlowStatus =
+  | 'idle'
+  | 'creating'
+  | 'pending'
+  | 'success'
+  | 'error'
+  | 'cancelled'
+
+export interface PaymentSessionResult {
+  sessionId: string
+  redirectUrl?: string
+  invoiceLink?: string
+  confirmationUrl?: string
+  amount?: number
+}
+
+export interface PaymentStatusResult {
+  status: 'pending' | 'succeeded' | 'cancelled' | 'error'
+  subscription?: Subscription
+}
