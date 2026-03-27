@@ -1,31 +1,33 @@
 <template>
-  <div class="detail-client-screen">
-    <div class="detail-client-header">
+  <div class="detail-client-screen dm-detail-screen">
+    <div class="detail-client-header dm-detail-screen__header">
       <div class="app-header-logo-bar">
         <div class="app-header-logo-bar__left"></div>
         <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" onerror="this.style.display='none'" />
         <div class="app-header-logo-bar__right"></div>
       </div>
     </div>
-    <div class="detail-client-dots">
+    <div class="detail-client-dots dm-detail-screen__dots">
       <StepDots :current-step="1" :total-steps="6" />
     </div>
-    <QuickStyleClientSection
-      :model="localModel"
-      :client-required="clientRequired"
-      :can-next="isClientValid"
-      :show-info-tooltips="showInfoTooltips"
-      :history-enabled="historyEnabled"
-      :found-client="foundClient"
-      :on-next="handleConfirm"
-      :price="0"
-      @next="handleConfirm"
-      @back="$emit('back')"
-      @open-field="onOpenField"
-      @reset-client="resetClient"
-      @open-history="$emit('open-history')"
-      @autofill-client="onAutofillClient"
-    />
+    <div class="dm-detail-screen__body">
+      <QuickStyleClientSection
+        :model="localModel"
+        :client-required="clientRequired"
+        :can-next="isClientValid"
+        :show-info-tooltips="showInfoTooltips"
+        :history-enabled="historyEnabled"
+        :found-client="foundClient"
+        :on-next="handleConfirm"
+        :price="0"
+        @next="handleConfirm"
+        @back="$emit('back')"
+        @open-field="onOpenField"
+        @reset-client="resetClient"
+        @open-history="emitOpenHistory"
+        @autofill-client="onAutofillClient"
+      />
+    </div>
   </div>
 </template>
 
@@ -43,7 +45,6 @@ const props = defineProps({
   foundClient: { type: Object, default: null },
   onConfirm: { type: Function, default: null },
   searchByPhone: { type: Function, default: null },
-  searchByName: { type: Function, default: null },
 });
 
 const emit = defineEmits(['client-confirmed', 'back', 'open-history']);
@@ -96,14 +97,6 @@ watch(
   () => localModel.value.clientPhone,
   (phone) => {
     props.searchByPhone?.(phone ?? '');
-  },
-  { immediate: true }
-);
-
-watch(
-  () => localModel.value.clientName,
-  (name) => {
-    if (!props.foundClient) props.searchByName?.(name ?? '');
   },
   { immediate: true }
 );
@@ -189,6 +182,11 @@ function onAutofillClient(fields) {
   });
 }
 
+/** История по телефону: до «Далее» данные только в localModel, не в estimateDraft */
+function emitOpenHistory() {
+  emit('open-history', { phone: localModel.value.clientPhone ?? '' });
+}
+
 function handleConfirm() {
   const m = localModel.value;
   const client = {
@@ -209,24 +207,40 @@ function handleConfirm() {
 </script>
 
 <style scoped>
-.detail-client-screen {
+/* Полноэкранный слой над вьюпортом: низ = высота таб-бара (как в E2E / аудит) */
+.dm-detail-screen {
+  position: fixed;
+  top: env(safe-area-inset-top, 0px);
+  left: 0;
+  right: 0;
+  bottom: var(--tab-bar-height, var(--app-footer-height, var(--bottom-nav-h, 64px)));
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  flex: 1 1 0;
   overflow: hidden;
   background: #000;
+  z-index: 120;
+  min-height: 0;
 }
-.detail-client-header {
+.dm-detail-screen__header {
   flex-shrink: 0;
   padding: 16px 0 8px;
 }
-.detail-client-dots {
+.dm-detail-screen__dots {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   padding-bottom: 8px;
+}
+/* Тело: форма + скролл (QuickStyleClientSection сам даёт overflow-y: auto внутри) */
+.dm-detail-screen__body {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 0 16px;
+  box-sizing: border-box;
 }
 </style>
 

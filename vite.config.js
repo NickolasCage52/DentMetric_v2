@@ -4,6 +4,12 @@ import { writeFileSync } from 'fs'
 import { join } from 'path'
 
 export default defineConfig({
+  server: {
+    /** Явный порт; host: true — слушать все интерфейсы (иногда снимает отказ localhost на Windows). */
+    port: 5173,
+    strictPort: false,
+    host: true,
+  },
   plugins: [
     vue(),
     {

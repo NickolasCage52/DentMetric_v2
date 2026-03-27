@@ -27,7 +27,8 @@
         <button
           class="client-found-card__btn client-found-card__btn--history"
           type="button"
-          @click="$emit('open-history')"
+          data-testid="btn-client-open-history"
+          @click="emitOpenHistory"
         >
           Открыть историю &rsaquo;
         </button>
@@ -41,7 +42,10 @@ import { computed } from 'vue';
 import { formatVisitDate, formatPrice, extractClientFields, type ClientAggregation, type ClientFields } from '../utils/clientSearch';
 
 const props = defineProps<{ client: ClientAggregation | null }>();
-const emit = defineEmits<{ 'open-history': []; 'autofill-client': [fields: ClientFields] }>();
+const emit = defineEmits<{
+  'open-history': [payload?: { phone?: string }];
+  'autofill-client': [fields: ClientFields];
+}>();
 
 const autofillFields = computed(() => {
   if (!props.client?.allRecords) return null;
@@ -54,6 +58,18 @@ function handleAutofill() {
   if (autofillFields.value) {
     emit('autofill-client', autofillFields.value);
   }
+}
+
+/** Телефон для перехода в историю — как в агрегации поиска, без зависимости от черновика формы */
+function phoneForHistoryOpen(): string {
+  const fromAutofill = autofillFields.value?.clientPhone?.trim();
+  if (fromAutofill) return fromAutofill;
+  const r = props.client?.allRecords?.[0];
+  return String(r?.client?.phone ?? r?.clientPhone ?? '').trim();
+}
+
+function emitOpenHistory() {
+  emit('open-history', { phone: phoneForHistoryOpen() });
 }
 
 const visitLabel = computed(() => {
@@ -118,13 +134,16 @@ const avgPrice = computed(() =>
 }
 .client-found-card__btn {
   font-size: 12px;
-  padding: 5px 10px;
-  border-radius: 6px;
+  font-weight: 600;
+  padding: 10px 14px;
+  min-height: 44px;
+  border-radius: 8px;
   background: transparent;
   border: 1px solid #444;
   color: #e0e0e0;
   cursor: pointer;
   white-space: nowrap;
+  touch-action: manipulation;
   transition: color 0.2s, border-color 0.2s;
 }
 .client-found-card__btn--history {

@@ -2,7 +2,7 @@
   <header class="top-brand-bar">
     <div class="top-brand-bar__logo-wrap">
       <img
-        src="/logo.png"
+        :src="brandLogoSrc"
         alt="DentMetric"
         class="top-brand-bar__logo"
         onerror="this.style.display='none'"
@@ -30,6 +30,9 @@
 
 <script setup>
 defineOptions({ name: 'TopBrandBar' });
+
+/** public/new_logo.jpg — учитывает vite base (/DentMetric/ в проде) */
+const brandLogoSrc = `${import.meta.env.BASE_URL}new_logo.jpg`;
 
 const props = defineProps({
   showProfileButton: { type: Boolean, default: true },

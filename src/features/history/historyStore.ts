@@ -192,6 +192,14 @@ export function normalizeHistoryRecord(raw: any): any | null {
       };
     }
 
+    if (!Array.isArray((normalized as any).additionalWorks)) {
+      (normalized as any).additionalWorks = [];
+    }
+    if ((normalized as any).masterName == null) (normalized as any).masterName = '';
+    if ((normalized as any).recordRepairTimeHours === undefined) {
+      (normalized as any).recordRepairTimeHours = raw.recordRepairTimeHours ?? null;
+    }
+
     return normalized as any;
   } catch (_e) {
     if (import.meta.env?.DEV) console.warn('[DentMetric] normalizeHistoryRecord threw', _e);

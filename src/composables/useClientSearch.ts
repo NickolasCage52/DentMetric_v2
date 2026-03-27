@@ -1,7 +1,6 @@
 import { ref, watch } from 'vue';
 import {
   searchClientByPhone,
-  searchClientByName,
   aggregateClientData,
   isPhoneSearchable,
   type HistoryRecord,
@@ -30,22 +29,9 @@ export function useClientSearch(getHistory: () => HistoryRecord[]) {
     }
   }
 
-  function searchByName(name: string) {
-    if (!name || String(name).trim().length < 2) return;
-    try {
-      const allRecords = getHistory();
-      const matches = searchClientByName(name, allRecords);
-      if (matches.length > 0 && !foundClient.value) {
-        foundClient.value = aggregateClientData(matches);
-      }
-    } catch {
-      /* тихо */
-    }
-  }
-
   function clearSearch() {
     foundClient.value = null;
   }
 
-  return { foundClient, isSearching, searchByPhone, searchByName, clearSearch };
+  return { foundClient, isSearching, searchByPhone, clearSearch };
 }

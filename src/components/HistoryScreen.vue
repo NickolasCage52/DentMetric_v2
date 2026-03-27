@@ -1,8 +1,16 @@
 <template>
   <div class="hs-root">
+    <div v-if="normalizedPhoneFilter" class="hs-client-filter">
+      <div class="hs-client-filter__text-block">
+        <span class="hs-client-filter__text">История по этому клиенту</span>
+        <span class="hs-client-filter__hint">Все записи, как в поиске. Вкладки сужают период.</span>
+      </div>
+      <button type="button" class="hs-client-filter__clear" @click="$emit('clear-client-filter')">Сбросить</button>
+    </div>
     <!-- Date range tabs (header with logo is in App.vue for identical position with Settings/Info) -->
+    <div ref="swipeAreaRef" class="hs-swipe-area">
     <div class="hs-range-row">
-      <div class="hs-range-tabs">
+      <div class="hs-range-tabs hs-range-tabs--dense">
         <button
           v-for="t in rangeTabs"
           :key="t.key"
@@ -51,6 +59,7 @@
         <span class="hs-sum-nums hs-sum-nums--green"><b>{{ summary.all.count }}</b> {{ fmtK(summary.all.sum) }} ₽</span>
       </div>
     </div>
+    </div>
 
     <!-- Scrollable list -->
     <div ref="listWrapRef" class="hs-list-wrap" data-testid="history-list">
@@ -58,9 +67,20 @@
         <div style="font-size:28px;margin-bottom:6px">🗂️</div>
         <div v-if="totalItemCount === 0">История пуста</div>
         <div v-else>
-          <div>Нет записей за выбранный период</div>
+          <div>{{ normalizedPhoneFilter ? 'Нет записей этого клиента за выбранный период' : 'Нет записей за выбранный период' }}</div>
           <div style="margin-top:6px;font-size:11px;color:#6b7280">Всего записей: {{ totalItemCount }}</div>
-          <button type="button" class="hs-show-all-btn" @click="setRange('month')">Показать за месяц</button>
+          <button
+            v-if="activeRange !== 'all'"
+            type="button"
+            class="hs-show-all-btn"
+            @click="setRange('all')"
+          >Показать всё время</button>
+          <button
+            v-else-if="!normalizedPhoneFilter"
+            type="button"
+            class="hs-show-all-btn"
+            @click="setRange('month')"
+          >Показать за месяц</button>
         </div>
       </div>
       <template v-for="(item, idx) in displayItems" :key="(item?.id || idx) + '-' + idx">
@@ -170,23 +190,21 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
+import { normalizePhone } from '../utils/clientSearch';
+import { useSwipeNavigation } from '../composables/useSwipeNavigation';
 
 const props = defineProps({
   historyItems: { type: Array, default: () => [] },
-  footerHeight: { type: String, default: '64px' }
+  footerHeight: { type: String, default: '64px' },
+  /** Нормализованный телефон (только цифры, 7…) — фильтр списка */
+  clientPhoneFilter: { type: String, default: '' }
 });
 
 /** Активный фильтр по статусу: null = все, 'estimate' | 'scheduled' | 'done' */
 const activeStatusFilter = ref(null);
 
-const emit = defineEmits(['back', 'select', 'update-status']);
+const emit = defineEmits(['back', 'select', 'update-status', 'clear-client-filter']);
 
-const rangeTabs = [
-  { key: 'today', label: 'Сегодня' },
-  { key: 'yesterday', label: 'Вчера' },
-  { key: 'week', label: 'Неделя' },
-  { key: 'month', label: 'Месяц' }
-];
 const activeRange = ref('today');
 const customRange = ref(null);
 const dateModalOpen = ref(false);
@@ -196,6 +214,57 @@ const searchOpen = ref(false);
 const searchQuery = ref('');
 const searchInputRef = ref(null);
 const listWrapRef = ref(null);
+const swipeAreaRef = ref(null);
+
+const normalizedPhoneFilter = computed(() => {
+  const n = normalizePhone(String(props.clientPhoneFilter || ''));
+  return n.length >= 5 ? n : '';
+});
+
+const HISTORY_PERIOD_KEYS = ['today', 'yesterday', 'week', 'month', 'all'];
+
+const rangeTabs = computed(() => [
+  { key: 'today', label: 'Сегодня' },
+  { key: 'yesterday', label: 'Вчера' },
+  { key: 'week', label: 'Неделя' },
+  { key: 'month', label: 'Месяц' },
+  { key: 'all', label: 'Всё время' }
+]);
+
+useSwipeNavigation(swipeAreaRef, {
+  onSwipeLeft: () => {
+    const i = HISTORY_PERIOD_KEYS.indexOf(activeRange.value);
+    if (i >= 0 && i < HISTORY_PERIOD_KEYS.length - 1) {
+      activeRange.value = HISTORY_PERIOD_KEYS[i + 1];
+      customRange.value = null;
+    }
+  },
+  onSwipeRight: () => {
+    const i = HISTORY_PERIOD_KEYS.indexOf(activeRange.value);
+    if (i > 0) {
+      activeRange.value = HISTORY_PERIOD_KEYS[i - 1];
+      customRange.value = null;
+    }
+  }
+});
+
+watch(
+  normalizedPhoneFilter,
+  (pf, prevPf) => {
+    const has = !!(pf && pf.length >= 5);
+    const had = !!(prevPf && prevPf.length >= 5);
+    if (has && !had) {
+      activeRange.value = 'all';
+      customRange.value = null;
+      activeStatusFilter.value = null;
+    } else if (!has && had) {
+      if (activeRange.value === 'all') activeRange.value = 'today';
+      customRange.value = null;
+    }
+  },
+  /** Сразу при открытии истории с фильтром клиента (кнопка «Открыть историю») — иначе остаётся «Сегодня» */
+  { immediate: true }
+);
 
 watch(searchOpen, (v) => { if (v) nextTick(() => searchInputRef.value?.focus()); });
 
@@ -247,6 +316,9 @@ const dateFilter = computed(() => {
   if (customRange.value) return customRange.value;
   const now = new Date();
   const today = dayStart(now);
+  if (activeRange.value === 'all') {
+    return { from: new Date(0), to: dayEnd(now) };
+  }
   if (activeRange.value === 'today') return { from: today, to: dayEnd(now) };
   if (activeRange.value === 'yesterday') {
     const y = new Date(today); y.setDate(y.getDate() - 1);
@@ -271,8 +343,25 @@ const recordsInPeriod = computed(() => {
   });
 });
 
+function recordPhoneMatches(item, filterNorm) {
+  const recNorm = normalizePhone(String(item.client?.phone || ''));
+  if (!recNorm) return false;
+  return (
+    recNorm === filterNorm ||
+    (recNorm.length >= filterNorm.length && recNorm.slice(0, filterNorm.length) === filterNorm) ||
+    (filterNorm.length >= recNorm.length && filterNorm.slice(0, recNorm.length) === recNorm)
+  );
+}
+
+const recordsAfterPhone = computed(() => {
+  const list = recordsInPeriod.value;
+  const pf = normalizedPhoneFilter.value;
+  if (!pf) return list;
+  return list.filter((r) => recordPhoneMatches(r, pf));
+});
+
 const filteredItems = computed(() => {
-  let list = recordsInPeriod.value;
+  let list = recordsAfterPhone.value;
   const filter = activeStatusFilter.value;
   if (!filter) return list;
   return list.filter((r) => {
@@ -299,7 +388,7 @@ function itemStatus(item) {
 
 const summary = computed(() => {
   const s = { noBooking: { count: 0, sum: 0 }, booked: { count: 0, sum: 0 }, done: { count: 0, sum: 0 }, all: { count: 0, sum: 0 } };
-  for (const item of recordsInPeriod.value) {
+  for (const item of recordsAfterPhone.value) {
     const st = itemStatus(item);
     const t = Number(item?.total) || 0;
     if (!Number.isFinite(t)) continue;
@@ -452,6 +541,54 @@ function fmtK(v) {
   color: #e5e7eb;
 }
 
+.hs-client-filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 16px 6px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(136, 229, 35, 0.08);
+  border: 1px solid rgba(136, 229, 35, 0.22);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.hs-client-filter__text-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.hs-client-filter__text {
+  color: #d1d5db;
+  font-weight: 600;
+  line-height: 1.25;
+}
+.hs-client-filter__hint {
+  font-size: 10px;
+  color: #9ca3af;
+  line-height: 1.3;
+  font-weight: 500;
+}
+.hs-client-filter__clear {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  min-height: 44px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: transparent;
+  color: #88e523;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+.hs-swipe-area {
+  flex-shrink: 0;
+  touch-action: pan-y;
+}
+
 .hs-range-row {
   display: flex; align-items: center; gap: 6px;
   padding: 6px 16px 8px; flex-shrink: 0;
@@ -460,11 +597,23 @@ function fmtK(v) {
   display: flex; flex: 1; gap: 0;
   border-radius: 10px; overflow: hidden;
   border: 1px solid rgba(255,255,255,0.08);
+  min-width: 0;
+}
+.hs-range-tabs--dense .hs-range-tab {
+  padding: 10px 1px;
+  min-height: 40px;
+  font-size: 10px;
+  letter-spacing: -0.02em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .hs-range-tab {
-  flex: 1; padding: 7px 2px; font-size: 11px; font-weight: 700;
+  flex: 1; min-width: 0; padding: 7px 2px; font-size: 11px; font-weight: 700;
   text-transform: none; background: rgba(0,0,0,0.4); color: #9ca3af;
   border: none; transition: all 0.15s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .hs-range-tab--active {
   background: #88e523; color: #000;

@@ -226,11 +226,19 @@ function handleCancel() {
 }
 .dim-fields-row {
   display: flex;
-  gap: 12px;
+  flex-direction: row;
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 .dim-field {
   flex: 1 1 0;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
 }
 .dim-field__label {
   display: block;
@@ -240,15 +248,17 @@ function handleCancel() {
 }
 .dim-field__input {
   width: 100%;
-  min-height: 48px;
-  border-radius: 10px;
+  min-width: 0;
+  height: 44px;
+  min-height: 44px;
+  border-radius: 8px;
   border: 1.5px solid var(--dm-border, #2a2a2a);
   background: var(--dm-surface, #161616);
   color: var(--dm-text-primary, #fff);
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
   text-align: center;
-  padding: 0 12px;
+  padding: 0 8px;
   box-sizing: border-box;
   -webkit-appearance: none;
   appearance: none;

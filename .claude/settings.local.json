@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -la playwright.*)",
+      "Bash(find src/components -name \"*.vue\" -type f -exec wc -l {} +)"
+    ]
+  }
+}

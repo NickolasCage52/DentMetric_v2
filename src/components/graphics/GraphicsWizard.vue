@@ -83,11 +83,10 @@
         :history-enabled="props.historyEnabled"
         :found-client="detailFoundClient"
         :search-by-phone="searchByPhone"
-        :search-by-name="searchByName"
         :on-confirm="onDetailClientConfirmed"
         @client-confirmed="onDetailClientConfirmed"
         @back="goBack"
-        @open-history="openClientHistorySheet"
+        @open-history="(p) => openClientHistorySheet(p)"
       />
       <DetailCameraScreen
         v-else-if="useNewDetailFlow && detailSession.currentStep === 'camera'"
@@ -177,7 +176,7 @@
         @back="goBack"
         @open-field="onQuickStyleOpenField"
         @reset-client="resetClientFields"
-        @open-history="openClientHistorySheet"
+        @open-history="(p) => openClientHistorySheet(p)"
         @autofill-client="handleAutofillClient"
       />
       <StepPhotoSelect
@@ -393,20 +392,13 @@
       @confirm="onFreeformConfirm"
       @cancel="closeFreeformModal"
     />
-    <ClientHistorySheet
-      v-if="props.historyEnabled"
-      :is-open="isDetailHistorySheetOpen"
-      :records="detailFoundClient?.allRecords ?? []"
-      @close="isDetailHistorySheetOpen = false"
-      @open-record="openRecordFromSheet"
-    />
   </div>
 </template>
 
 <script setup>
 import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount, inject } from 'vue';
 
-const emit = defineEmits(['update:selectedClassId', 'update:selectedPartId', 'close', 'dents-change', 'home', 'save-history', 'book-history', 'open-record']);
+const emit = defineEmits(['update:selectedClassId', 'update:selectedPartId', 'close', 'dents-change', 'home', 'save-history', 'book-history', 'open-record', 'open-client-history']);
 import {
   initKonva,
   destroyKonva,
@@ -455,7 +447,6 @@ import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from '../../utils/arm
 import { generateRecordId, loadHistory } from '../../features/history/historyStore';
 import { applyClientFields } from '../../utils/clientSearch';
 import { useClientSearch } from '../../composables/useClientSearch';
-import ClientHistorySheet from '../ClientHistorySheet.vue';
 import { getAttachment, saveAttachment, generateMatrixAttachmentKey } from '../../utils/attachmentStorage';
 import { useDetailSession } from '../../composables/useDetailSession';
 import DetailClientScreen from '../detail/DetailClientScreen.vue';
@@ -493,8 +484,7 @@ const props = defineProps({
 const openInputModal = inject('openInputModal');
 const openSelectModal = inject('openSelectModal');
 
-const { foundClient: detailFoundClient, searchByPhone, searchByName } = useClientSearch(() => loadHistory());
-const isDetailHistorySheetOpen = ref(false);
+const { foundClient: detailFoundClient, searchByPhone } = useClientSearch(() => loadHistory());
 
 const detailSessionApi = useDetailSession();
 const {
@@ -521,17 +511,17 @@ watch(() => props.estimateDraft?.clientPhone, (phone) => {
   searchByPhone(phone ?? '');
 }, { immediate: true });
 
-watch(() => props.estimateDraft?.clientName, (name) => {
-  if (!detailFoundClient.value) searchByName(name ?? '');
-});
-
-function openClientHistorySheet() {
-  if (detailFoundClient.value) isDetailHistorySheetOpen.value = true;
-}
-
-function openRecordFromSheet(record) {
-  isDetailHistorySheetOpen.value = false;
-  if (record?.id) emit('open-record', record);
+function openClientHistorySheet(payload) {
+  const fromPayload =
+    payload && typeof payload === 'object' && payload.phone != null
+      ? String(payload.phone)
+      : '';
+  let phone = fromPayload.trim() || String(props.estimateDraft?.clientPhone || '').trim();
+  if (!phone && detailFoundClient.value?.allRecords?.length) {
+    const r = detailFoundClient.value.allRecords[0];
+    phone = String(r?.client?.phone ?? r?.clientPhone ?? '').trim();
+  }
+  emit('open-client-history', { phone });
 }
 
 async function openClientField(field, label, inputType) {

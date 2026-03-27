@@ -28,7 +28,7 @@
           <ClientFoundCard
             v-if="historyEnabled && foundClient"
             :client="foundClient"
-            @open-history="$emit('open-history')"
+            @open-history="$emit('open-history', $event)"
             @autofill-client="$emit('autofill-client', $event)"
           />
           <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="$emit('open-field', 'clientCompany', 'Компания (необязательно)', 'text', 'Компания')">
