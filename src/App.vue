@@ -659,7 +659,7 @@
         </div>
       </div>
       <ResultFourTabs v-if="!isEditingHistory" v-model="historyFinalTab" class="history-final-tabs min-h-0">
-        <div class="hist-final-panels space-y-3 pb-2">
+        <div class="hist-final-panels flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pb-2">
           <section v-show="historyFinalTab === 'calculation'" class="hist-final-page space-y-3" aria-label="Расчёт">
             <div class="card-metallic rounded-2xl p-4 space-y-3">
               <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Статус</div>
@@ -1316,7 +1316,12 @@
 import { ref, reactive, computed, watch, onMounted, nextTick, onBeforeUnmount, provide, defineAsyncComponent } from 'vue';
 import { deleteSelected } from './graphics/konvaEditor';
 import { initialData } from './data/initialData';
-import { getArmaturnayaWorksForElement, getArmaturnayaTotalPrice, getAllSystemArmatureWorks } from './data/armaturnayaWorks';
+import {
+  formatArmaturnayaSummary,
+  getArmaturnayaWorksForElement,
+  getArmaturnayaTotalPrice,
+  getAllSystemArmatureWorks,
+} from './data/armaturnayaWorks';
 import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from './utils/armatureSelection';
 import { CAR_PARTS } from './data/carParts';
 import { getPartsByClass } from './data/partsCatalog';
@@ -1328,6 +1333,7 @@ import { applyPriceRoundingCeil, PRICE_ROUND_OPTIONS } from './utils/priceRoundi
 import { applyDiscount, clampDiscount } from './utils/discount';
 import { calculateEstimateTotals } from './utils/calculateEstimateTotals';
 import { calculateSessionTotalWithMultiDentRule } from './utils/multiDentAggregation';
+import { buildQuickFinalBreakdown } from './utils/buildQuickFinalBreakdown';
 import { migrateSettings, validateSettings, getPriceMultiplier, SETTINGS_KEY } from './utils/settingsUtils';
 import GraphicsWizard from './components/graphics/GraphicsWizard.vue';
 import StepDots from './components/graphics/StepDots.vue';
@@ -2568,51 +2574,7 @@ const getPaintMaterialLabel = (code) => initialData.paintMaterials?.find((p) => 
 const getSoundInsulationLabel = (code) => initialData.soundInsulation?.find((s) => s.code === code)?.name || '';
 
 function buildDetailedBreakdown(dentItem) {
-  const dent = dentItem.dent;
-  const c = dent.conditions || {};
-  const base = dentItem.base || 0;
-  const pipeBreakdown = dentItem.breakdown || [];
-  const rows = [];
-
-  const categoryMap = [
-    { key: 'repairCode', label: 'Технология ремонта:', lookup: initialData.repairTypes },
-    { key: 'materialCode', label: 'Материал панели:', lookup: initialData.materials },
-    { key: 'riskCode', label: 'Сложность выполнения:', lookup: initialData.risks },
-    { key: 'carClassCode', label: 'Класс автомобиля:', lookup: initialData.carClasses },
-  ];
-
-  for (const cat of categoryMap) {
-    const code = c[cat.key];
-    const obj = code ? cat.lookup?.find((o) => o.code === code) : null;
-    const valueName = obj?.name || '—';
-    const pipeLine = pipeBreakdown.find((l) => l.name === valueName);
-    let delta = 0;
-    if (pipeLine) {
-      const v = pipeLine.value || '';
-      if (v.startsWith('×')) {
-        const mult = parseFloat(v.replace('×', ''));
-        delta = Math.round(base * ((mult || 1) - 1));
-      }
-    }
-    rows.push({ label: cat.label, value: valueName, delta });
-  }
-
-  const disCodes = Array.isArray(c.disassemblyCodes) ? c.disassemblyCodes : [];
-  const disLine = pipeBreakdown.find((l) => l.value?.includes('₽') && !l.name.toLowerCase().includes('баз') && !l.name.toLowerCase().includes('шумо'));
-  const disCost = disLine ? parseInt(disLine.value.replace(/[^\d-]/g, ''), 10) || 0 : 0;
-  const disLabel = disCodes.length > 0
-    ? formatArmaturnayaSummary(disCodes, dent.panelElement) || 'Без арматурных работ'
-    : 'Без арматурных работ';
-  rows.push({ label: 'Арматурные работы:', value: disLabel, delta: disCost });
-
-  const soundObj = c.soundInsulationCode
-    ? initialData.soundInsulation?.find((s) => s.code === c.soundInsulationCode)
-    : null;
-  const soundLine = pipeBreakdown.find((l) => l.name?.toLowerCase().includes('шумо'));
-  const soundCost = soundLine ? parseInt(soundLine.value.replace(/[^\d-]/g, ''), 10) || 0 : (soundObj?.price ?? 0);
-  rows.push({ label: 'Дополнительная шумоизоляция:', value: soundObj?.name || '—', delta: soundCost });
-
-  return rows;
+  return buildQuickFinalBreakdown(dentItem, initialData, formatArmaturnayaSummary);
 }
 
 function formatDelta(delta) {
@@ -2747,15 +2709,6 @@ async function openQuickSoundPicker(dent) {
   if (selected === undefined) return;
   dent.conditions.soundInsulationCode = selected || null;
   haptic('selection');
-}
-
-function formatArmaturnayaSummary(codes, panelElement) {
-  const arr = Array.isArray(codes) ? codes : [];
-  const works = getArmaturnayaWorksForElement(panelElement);
-  const byCode = new Map(works.map((w) => [w.code, w]));
-  const normalized = arr.length ? arr : ['Z0'];
-  if (normalized.length === 1) return byCode.get(normalized[0])?.name || '—';
-  return `${normalized.length} выбрано`;
 }
 
 async function openQuickArmaturnayaPicker(dent) {

@@ -1,5 +1,5 @@
 <template>
-  <div class="hs-root">
+  <div ref="historySwipeRootRef" class="hs-root">
     <div v-if="normalizedPhoneFilter" class="hs-client-filter">
       <div class="hs-client-filter__text-block">
         <span class="hs-client-filter__text">История по этому клиенту</span>
@@ -8,7 +8,7 @@
       <button type="button" class="hs-client-filter__clear" @click="$emit('clear-client-filter')">Сбросить</button>
     </div>
     <!-- Date range tabs (header with logo is in App.vue for identical position with Settings/Info) -->
-    <div ref="swipeAreaRef" class="hs-swipe-area">
+    <div class="hs-swipe-area">
     <div class="hs-range-row">
       <div class="hs-range-tabs hs-range-tabs--dense">
         <button
@@ -214,7 +214,8 @@ const searchOpen = ref(false);
 const searchQuery = ref('');
 const searchInputRef = ref(null);
 const listWrapRef = ref(null);
-const swipeAreaRef = ref(null);
+/** Весь экран истории: свайп по списку, а не только по блоку вкладок */
+const historySwipeRootRef = ref(null);
 
 const normalizedPhoneFilter = computed(() => {
   const n = normalizePhone(String(props.clientPhoneFilter || ''));
@@ -231,7 +232,10 @@ const rangeTabs = computed(() => [
   { key: 'all', label: 'Всё время' }
 ]);
 
-useSwipeNavigation(swipeAreaRef, {
+useSwipeNavigation(historySwipeRootRef, {
+  /* чуть строже, чем у вкладок записи: меньше ложных срабатываний при скролле списка */
+  minSwipeDistance: 40,
+  maxVerticalRatio: 0.82,
   onSwipeLeft: () => {
     const i = HISTORY_PERIOD_KEYS.indexOf(activeRange.value);
     if (i >= 0 && i < HISTORY_PERIOD_KEYS.length - 1) {

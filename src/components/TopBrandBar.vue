@@ -2,10 +2,11 @@
   <header class="top-brand-bar">
     <div class="top-brand-bar__logo-wrap">
       <img
+        v-show="!logoFailed"
         :src="brandLogoSrc"
         alt="DentMetric"
         class="top-brand-bar__logo"
-        onerror="this.style.display='none'"
+        @error="onBrandLogoError"
       >
       <div class="top-brand-bar__subtitle">
         <slot name="subtitle" />
@@ -29,10 +30,26 @@
 </template>
 
 <script setup>
+import { ref, computed } from 'vue';
+
 defineOptions({ name: 'TopBrandBar' });
 
-/** public/new_logo.jpg — учитывает vite base (/DentMetric/ в проде) */
-const brandLogoSrc = `${import.meta.env.BASE_URL}new_logo.jpg`;
+const base = import.meta.env.BASE_URL;
+/** Порядок: новый файл → старый png → svg из репозитория (всегда есть в public) */
+const LOGO_CANDIDATES = [`${base}new_logo.jpg`, `${base}logo.png`, `${base}dm-logo.svg`];
+
+const logoIndex = ref(0);
+const logoFailed = ref(false);
+
+const brandLogoSrc = computed(() => LOGO_CANDIDATES[logoIndex.value] ?? LOGO_CANDIDATES[LOGO_CANDIDATES.length - 1]);
+
+function onBrandLogoError() {
+  if (logoIndex.value < LOGO_CANDIDATES.length - 1) {
+    logoIndex.value += 1;
+  } else {
+    logoFailed.value = true;
+  }
+}
 
 const props = defineProps({
   showProfileButton: { type: Boolean, default: true },

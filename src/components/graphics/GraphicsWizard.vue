@@ -142,26 +142,21 @@
       />
       <DetailResultScreen
         v-else-if="useNewDetailFlow && detailSession.currentStep === 'result'"
-        :detail-steps="DETAIL_STEPS"
-        :detail-step-index="detailStepIndex"
         :session="detailSession"
         :line-items="detailLineItemsForNewFlow"
+        :estimate-draft="estimateDraft"
+        :user-settings="userSettings"
         :initial-data="initialData"
-        :format-armaturnaya-summary="formatArmaturnayaSummary"
-        :comment="estimateDraft.comment"
-        :record-id="estimateDraft.id || ''"
-        :attachments="estimateDraft.attachments || []"
-        :client-mood="estimateDraft.clientMood ?? null"
-        :prepayment="estimateDraft.prepayment ?? { amount: 0, method: null }"
+        :engine-dents-total="detailEngineDentsSubtotal"
         :history-saving="historySaving"
+        :final-actions-disabled="detailFinalActionsDisabled"
         @back="onDetailResultBack"
         @save="onDetailSave"
         @record="onDetailBook"
+        @edit-client="onDetailResultEditClient"
+        @edit-client-field="onDetailResultEditClientField"
         @open-discount="(d) => openDetailDiscountModal(d)"
         @open-comment="openDetailCommentModal"
-        @update:attachments="(v) => (estimateDraft.attachments = v)"
-        @update:client-mood="(v) => (estimateDraft.clientMood = v)"
-        @update:prepayment="(v) => (estimateDraft.prepayment = v)"
       />
       <!-- LEGACY / non-new flow: original photo-based Detail -->
       <QuickStyleClientSection
@@ -725,9 +720,26 @@ const totalPriceRaw = computed(() => {
   });
   return Math.max(0, aggregated + disCost + soundCost);
 });
+function detailEffectiveDentLineTotal(item) {
+  const dent = item?.dent;
+  const step = props.userSettings?.priceRoundStep ?? 0;
+  const rawM = dent?.manualLineTotal;
+  if (rawM != null && rawM !== '' && Number.isFinite(Number(rawM))) {
+    return applyPriceRoundingCeil(Number(rawM), step);
+  }
+  return item?.appliedTotal ?? item?.total ?? 0;
+}
+
 const totalPrice = computed(() => {
   if (useNewDetailFlow && detailLineItemsForNewFlow.value?.length > 0) {
-    return detailLineItemsForNewFlow.value.reduce((s, d) => s + (d.rawDiscounted ?? d.appliedTotal ?? 0), 0);
+    let s = 0;
+    for (const item of detailLineItemsForNewFlow.value) {
+      s += detailEffectiveDentLineTotal(item);
+    }
+    for (const w of props.estimateDraft.additionalWorks || []) {
+      s += Number(w.price) || 0;
+    }
+    return s;
   }
   const hasPerDentDiscounts = props.estimateDraft?.dentDiscounts && Object.keys(props.estimateDraft.dentDiscounts).some((k) => props.estimateDraft.dentDiscounts[k] != null && props.estimateDraft.dentDiscounts[k] > 0);
   if (hasPerDentDiscounts && detailLineItems.value?.length > 0) {
@@ -1091,6 +1103,83 @@ function onDetailResultBack() {
   detailGoToStep('parameters');
 }
 
+function onDetailResultEditClient() {
+  detailGoToStep('client');
+}
+
+async function onDetailResultEditClientField(key) {
+  const c = detailSession.value.client;
+  const base = {
+    name: c?.name ?? props.estimateDraft.clientName ?? '',
+    phone: c?.phone ?? props.estimateDraft.clientPhone ?? '',
+    carBrand: c?.carBrand ?? props.estimateDraft.carBrand ?? '',
+    carModel: c?.carModel ?? props.estimateDraft.carModel ?? '',
+    plateNumber: c?.plateNumber ?? props.estimateDraft.carPlate ?? '',
+    company: c?.company ?? props.estimateDraft.clientCompany ?? '',
+  };
+  if (key === 'name') {
+    const value = await openInputModal({
+      title: 'Данные клиента',
+      label: 'Имя клиента',
+      value: base.name,
+      inputType: 'text',
+      placeholder: 'Имя клиента',
+      mask: 'name',
+    });
+    if (value !== undefined && value !== null) {
+      const name = typeof value === 'string' ? value : String(value);
+      detailSetClient({ ...base, name });
+      props.estimateDraft.clientName = name;
+    }
+    return;
+  }
+  if (key === 'phone') {
+    const value = await openInputModal({
+      title: 'Данные клиента',
+      label: 'Телефон',
+      value: base.phone,
+      inputType: 'tel',
+      placeholder: 'Телефон',
+      mask: 'phone',
+    });
+    if (value !== undefined && value !== null) {
+      const phone = typeof value === 'string' ? value : String(value);
+      detailSetClient({ ...base, phone });
+      props.estimateDraft.clientPhone = phone;
+    }
+    return;
+  }
+  if (key === 'company') {
+    const value = await openInputModal({
+      title: 'Данные клиента',
+      label: 'Компания (необязательно)',
+      value: base.company,
+      inputType: 'text',
+      placeholder: 'Компания',
+    });
+    if (value !== undefined && value !== null) {
+      const company = typeof value === 'string' ? value : String(value);
+      detailSetClient({ ...base, company });
+      props.estimateDraft.clientCompany = company;
+    }
+    return;
+  }
+  if (key === 'car') {
+    const value = await openInputModal({
+      title: 'Данные клиента',
+      label: 'Марка автомобиля',
+      value: base.carBrand,
+      inputType: 'text',
+      placeholder: 'Марка',
+    });
+    if (value !== undefined && value !== null) {
+      const carBrand = typeof value === 'string' ? value : String(value);
+      detailSetClient({ ...base, carBrand });
+      props.estimateDraft.carBrand = carBrand;
+    }
+  }
+}
+
 function onDetailParamUpdateSize({ dentId, field, value }) {
   const dent = detailSession.value.dents.find((d) => d.id === dentId);
   if (!dent?.dimensions) return;
@@ -1127,17 +1216,30 @@ function syncDetailSessionToEstimateDraft() {
     carPlate: detailSession.value.client?.plateNumber,
     clientCompany: detailSession.value.client?.company,
   });
-  const convertedDents = detailSession.value.dents.map((d) => ({
-    id: d.id,
-    type: d.shapeType || 'circle',
-    bboxMm: {
-      width: d.dimensions?.lengthMm ?? 0,
-      height: d.dimensions?.widthMm ?? 0,
-    },
-    conditions: d.conditions || {},
-    panelElement: d.conditions?.panelElement ?? null,
-    photoAssetKey: detailSession.value.photoAssetKey ?? null,
-  }));
+  const convertedDents = detailSession.value.dents.map((d) => {
+    const row = {
+      id: d.id,
+      type: d.shapeType || 'circle',
+      bboxMm: {
+        width: d.dimensions?.lengthMm ?? 0,
+        height: d.dimensions?.widthMm ?? 0,
+      },
+      conditions: d.conditions || {},
+      panelElement: d.conditions?.panelElement ?? null,
+      photoAssetKey: detailSession.value.photoAssetKey ?? null,
+    };
+    if (d.manualLineTotal != null && d.manualLineTotal !== '' && Number.isFinite(Number(d.manualLineTotal))) {
+      row.manualLineTotal = Number(d.manualLineTotal);
+    }
+    if (
+      d.manualRepairTimeHours != null &&
+      d.manualRepairTimeHours !== '' &&
+      Number.isFinite(Number(d.manualRepairTimeHours))
+    ) {
+      row.manualRepairTimeHours = Number(d.manualRepairTimeHours);
+    }
+    return row;
+  });
   emit('dents-change', convertedDents);
   props.estimateDraft.detailDentConditions = {};
   detailSession.value.dents.forEach((d) => {
@@ -1162,13 +1264,23 @@ function syncDetailSessionToEstimateDraft() {
 
 async function onDetailSave() {
   syncDetailSessionToEstimateDraft();
-  const snapshot = JSON.parse(JSON.stringify(detailLineItemsForNewFlow.value || []));
+  const snapshot = (detailLineItemsForNewFlow.value || []).map((item) => {
+    const clone = JSON.parse(JSON.stringify(item));
+    clone.dmCalculatedLineTotal = item.appliedTotal;
+    clone.appliedTotal = detailEffectiveDentLineTotal(item);
+    return clone;
+  });
   emit('save-history', { lineItems: snapshot });
 }
 
 async function onDetailBook() {
   syncDetailSessionToEstimateDraft();
-  const snapshot = JSON.parse(JSON.stringify(detailLineItemsForNewFlow.value || []));
+  const snapshot = (detailLineItemsForNewFlow.value || []).map((item) => {
+    const clone = JSON.parse(JSON.stringify(item));
+    clone.dmCalculatedLineTotal = item.appliedTotal;
+    clone.appliedTotal = detailEffectiveDentLineTotal(item);
+    return clone;
+  });
   emit('book-history', { lineItems: snapshot });
 }
 
@@ -1190,25 +1302,23 @@ const detailLineItemsForNewFlow = computed(() => {
     const cond = dent.conditions || {};
     const resolved = w > 0 && h > 0 ? resolveDentShapeType(w, h) : null;
     const shape = resolved === 'stripe' ? 'strip' : 'circle';
-    const conditions = props.userSettings?.showPaintMaterial !== false ? cond : { ...cond, paintMaterialCode: null };
+    const conditions = props.userSettings?.showPaintMaterial !== false ? { ...cond } : { ...cond, paintMaterialCode: null };
     if (!conditions.disassemblyCodes?.length) conditions.disassemblyCodes = ['Z0'];
+    const panelEl = cond.panelElement ?? props.selectedPart?.name ?? null;
     const result = calcDentViaAdapter(
-      { shape, widthMm: w, heightMm: h, conditions, panelElement: cond.panelElement ?? props.selectedPart?.name },
+      { shape, widthMm: w, heightMm: h, conditions, panelElement: panelEl },
       ctx
     );
     const mult = getPriceMultiplier(shape, props.userSettings || {});
-    const dentDisplay = {
-      ...dent,
-      conditions,
-      panelElement: cond.panelElement ?? props.selectedPart?.name,
-      sizeLengthMm: w,
-      sizeWidthMm: h,
-    };
-    return { dent: dentDisplay, sizeCode: result.sizeCode, base: result.base * mult, total: result.total * mult, breakdown: result.breakdown };
+    return { dent, sizeCode: result.sizeCode, base: result.base * mult, total: result.total * mult, breakdown: result.breakdown };
   });
   const filtered = list.filter((d) => d.total > 0).sort((a, b) => b.total - a.total);
   if (filtered.length === 0) return [];
-  const dentItems = filtered.map((d) => ({ total: d.total, panelElement: d.dent?.panelElement ?? props.selectedPart?.name ?? null, dent: d.dent }));
+  const dentItems = filtered.map((d) => ({
+    total: d.total,
+    panelElement: d.dent?.conditions?.panelElement ?? props.selectedPart?.name ?? null,
+    dent: d.dent,
+  }));
   const { weightedTotals } = calculateSessionTotalWithMultiDentRule(dentItems, {
     discountSamePartEnabled: props.userSettings?.discountSamePartEnabled,
     discountSamePartValue: props.userSettings?.discountSamePartValue,
@@ -1245,6 +1355,28 @@ const detailLineItemsForNewFlow = computed(() => {
     };
   });
 });
+
+const detailWorksheetGrandTotal = computed(() => {
+  let s = 0;
+  for (const item of detailLineItemsForNewFlow.value || []) {
+    s += detailEffectiveDentLineTotal(item);
+  }
+  for (const w of props.estimateDraft.additionalWorks || []) {
+    s += Number(w.price) || 0;
+  }
+  return s;
+});
+
+const detailEngineDentsSubtotal = computed(() =>
+  (detailLineItemsForNewFlow.value || []).reduce((sum, d) => sum + (d.appliedTotal ?? d.total ?? 0), 0)
+);
+
+const detailFinalActionsDisabled = computed(
+  () =>
+    props.historySaving ||
+    !(detailLineItemsForNewFlow.value?.length > 0) ||
+    detailWorksheetGrandTotal.value <= 0
+);
 
 async function onQuickStyleOpenField(field, label, inputType, placeholder) {
   const mask = field === 'clientPhone' ? 'phone' : field === 'clientName' ? 'name' : null;

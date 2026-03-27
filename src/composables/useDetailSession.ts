@@ -51,6 +51,8 @@ export function useDetailSession() {
       extraWork: {},
       totals: null,
       secondaryDeformation: null,
+      manualLineTotal: null,
+      manualRepairTimeHours: null,
     };
     session.value.dents.push(dent);
     session.value.selectedDentId = dent.id;
@@ -72,7 +74,11 @@ export function useDetailSession() {
 
   function setDentDimensions(dentId: string, dims: DentDimensions) {
     const dent = session.value.dents.find((d) => d.id === dentId);
-    if (dent) dent.dimensions = dims;
+    if (dent) {
+      dent.dimensions = dims;
+      dent.sizeLengthMm = dims.lengthMm;
+      dent.sizeWidthMm = dims.widthMm;
+    }
   }
 
   function setDentOutline(dentId: string, points: number[]) {

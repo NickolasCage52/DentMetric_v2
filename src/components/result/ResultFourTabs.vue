@@ -1,5 +1,5 @@
 <template>
-  <div class="rf-tabs">
+  <div ref="rootRef" class="rf-tabs">
     <!-- Как hs-range-tabs в истории: единая рамка, сегменты без зазоров -->
     <div class="rf-tabs__bar-row">
       <div
@@ -22,9 +22,8 @@
         </button>
       </div>
     </div>
-    <!-- Свайп влево/вправо по области контента (не по полосе вкладок), чтобы не конфликтовать со скроллом -->
+    <!-- Контент; свайп вешаем на корень .rf-tabs (включая скролл родителя — capture в composable) -->
     <div
-      ref="panelsRef"
       class="rf-tabs__panels"
       data-testid="record-detail-panels"
     >
@@ -52,11 +51,11 @@ const tabs = [
   { id: 'demo', label: 'Демонстрация' }
 ];
 
-const panelsRef = ref(null);
+const rootRef = ref(null);
 
-useSwipeNavigation(panelsRef, {
-  minSwipeDistance: 40,
-  maxVerticalRatio: 0.72,
+useSwipeNavigation(rootRef, {
+  minSwipeDistance: 36,
+  maxVerticalRatio: 0.92,
   onSwipeLeft: () => {
     const i = TAB_IDS.indexOf(props.modelValue);
     if (i >= 0 && i < TAB_IDS.length - 1) emit('update:modelValue', TAB_IDS[i + 1]);
@@ -73,6 +72,7 @@ useSwipeNavigation(panelsRef, {
   display: flex;
   flex-direction: column;
   gap: 0;
+  flex: 1 1 0;
   min-height: 0;
   width: 100%;
 }
@@ -118,8 +118,10 @@ useSwipeNavigation(panelsRef, {
   z-index: 1;
 }
 .rf-tabs__panels {
-  flex: 1 1 auto;
+  flex: 1 1 0;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
   touch-action: pan-y;
 }
 </style>

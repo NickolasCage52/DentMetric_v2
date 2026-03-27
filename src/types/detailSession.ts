@@ -58,6 +58,13 @@ export interface DetailDent {
   } | null;
 
   secondaryDeformation: SecondaryDeformation | null;
+
+  /** Синхронизируются из размеров; для UI итогового экрана */
+  sizeLengthMm?: number;
+  sizeWidthMm?: number;
+  /** Итоговый экран: ручная корректировка строки (как в быстром расчёте) */
+  manualLineTotal?: number | null;
+  manualRepairTimeHours?: number | null;
 }
 
 export type DetailStep =

@@ -4,6 +4,20 @@
       <div class="sqf-scroll">
         <!-- Расчёт -->
         <div v-show="activeTab === 'calculation'" class="sqf-panel space-y-2">
+          <div
+            v-if="detailPhotoDataUrl"
+            class="card-metallic rounded-xl overflow-hidden sqf-detail-photo"
+          >
+            <p class="sqf-detail-photo__label">Фото повреждения</p>
+            <button
+              type="button"
+              class="sqf-detail-photo__btn"
+              @click="detailPhotoOpen = true"
+            >
+              <img :src="detailPhotoDataUrl" class="sqf-detail-photo__img" alt="" />
+            </button>
+            <p class="sqf-detail-photo__hint">Нажмите, чтобы увеличить</p>
+          </div>
           <div class="card-metallic rounded-xl sqf-section">
             <div class="sqf-row">
               <span class="sqf-row__label">Дата:</span>
@@ -86,7 +100,7 @@
           <template v-for="(row, idx) in uiRows" :key="row.dent?.id ?? idx">
             <div class="sqf-dent-head">
               <span class="sqf-dent-title">Вмятина ‑{{ idx + 1 }}</span>
-              <span class="sqf-dent-el">{{ row.dent?.panelElement || '—' }}</span>
+              <span class="sqf-dent-el">{{ row.dent?.panelElement || row.dent?.conditions?.panelElement || '—' }}</span>
             </div>
             <div class="card-metallic rounded-xl sqf-section sqf-dent-card">
               <div class="sqf-row">
@@ -246,6 +260,17 @@
         </div>
       </div>
     </ResultFourTabs>
+
+    <Teleport to="body">
+      <div
+        v-if="detailPhotoOpen && detailPhotoDataUrl"
+        class="sqf-photo-modal"
+        @click="detailPhotoOpen = false"
+      >
+        <img :src="detailPhotoDataUrl" class="sqf-photo-modal__img" alt="" />
+        <button type="button" class="sqf-photo-modal__close" @click.stop="detailPhotoOpen = false">✕</button>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -265,12 +290,15 @@ const props = defineProps({
   userSettings: { type: Object, required: true },
   buildDetailedBreakdown: { type: Function, required: true },
   /** Сумма расчёта вмятин (движок), без доп. работ — для времени ремонта */
-  engineDentsTotal: { type: Number, default: 0 }
+  engineDentsTotal: { type: Number, default: 0 },
+  /** Режим детализации: превью снимка внутри вкладки «Расчёт» */
+  detailPhotoDataUrl: { type: String, default: null }
 });
 
 const emit = defineEmits(['open-discount', 'open-comment']);
 
 const activeTab = ref('calculation');
+const detailPhotoOpen = ref(false);
 
 const roundStep = computed(() => props.userSettings.priceRoundStep ?? 0);
 
@@ -501,14 +529,78 @@ function onAttachments(v) {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  flex: 1;
+  flex: 1 1 0;
 }
 .sqf-scroll {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
+  width: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
-  padding-bottom: 8px;
+  overscroll-behavior-y: contain;
+  padding-bottom: 12px;
+}
+.sqf-detail-photo {
+  background: rgba(0, 0, 0, 0.35);
+}
+.sqf-detail-photo__label {
+  margin: 0;
+  padding: 10px 14px 6px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9ca3af;
+}
+.sqf-detail-photo__btn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: #0a0a0a;
+  cursor: pointer;
+  line-height: 0;
+}
+.sqf-detail-photo__img {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+.sqf-detail-photo__hint {
+  margin: 0;
+  padding: 6px 14px 10px;
+  font-size: 11px;
+  color: #6b7280;
+  text-align: right;
+}
+.sqf-photo-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sqf-photo-modal__img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+.sqf-photo-modal__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: none;
+  background: #1e1e1e;
+  color: #fff;
+  font-size: 20px;
+  cursor: pointer;
 }
 .sqf-panel {
   min-height: 120px;
