@@ -658,8 +658,8 @@
           <button type="button" @click="saveHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[40px] disabled:opacity-50" :disabled="isUpdatingHistory">{{ isUpdatingHistory ? '...' : 'Сохранить' }}</button>
         </div>
       </div>
-      <ResultFourTabs v-if="!isEditingHistory" v-model="historyFinalTab" class="history-final-tabs min-h-0">
-        <div class="hist-final-panels flex-1 min-h-0 overflow-y-auto overscroll-contain space-y-3 pb-2">
+      <ResultFourTabs v-if="!isEditingHistory" v-model="historyFinalTab" class="history-final-tabs">
+        <div class="hist-final-panels space-y-3 pb-2">
           <section v-show="historyFinalTab === 'calculation'" class="hist-final-page space-y-3" aria-label="Расчёт">
             <div class="card-metallic rounded-2xl p-4 space-y-3">
               <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Статус</div>
@@ -674,9 +674,9 @@
                 >{{ st.label }}</button>
               </div>
             </div>
-            <div class="price-grand-total card-metallic rounded-xl flex justify-between items-center px-5 py-4 mb-2">
-              <span class="pgt-label text-[14px] text-gray-500">Итого по всем повреждениям</span>
-              <span class="pgt-amount text-[24px] font-bold text-metric-green tabular-nums">{{ formatCurrency(historyDisplayTotal) }} ₽</span>
+            <div class="price-grand-total card-metallic rounded-xl flex justify-between items-center gap-3 px-5 py-4 mb-2 min-w-0">
+              <span class="pgt-label text-[14px] text-gray-500 min-w-0">Итого по всем повреждениям</span>
+              <span class="pgt-amount text-[24px] font-bold text-metric-green tabular-nums shrink-0 whitespace-nowrap">{{ formatCurrency(historyDisplayTotal) }} ₽</span>
             </div>
             <template v-for="(dentItem, idx) in historyLineItems" :key="dentItem.dent?.id || idx">
               <div class="space-y-1">
@@ -718,24 +718,26 @@
             />
           </section>
           <section v-show="historyFinalTab === 'client'" class="hist-final-page space-y-3" aria-label="Клиент">
-            <div class="card-metallic rounded-2xl p-4 space-y-2">
-              <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest mb-2">Клиент</div>
-              <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-400">
-                <div>Имя: <span class="text-white">{{ selectedHistory.client?.name || '—' }}</span></div>
-                <div class="col-span-2 flex items-center justify-between gap-2">
-                  <span>Тел: <span class="text-white">{{ selectedHistory.client?.phone || '—' }}</span></span>
-                  <a
-                    v-if="(selectedHistory.client?.phone || '').trim()"
-                    :href="`tel:${historyDetailTelHref}`"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-metric-green text-black border border-metric-green/40"
-                  >Позвонить</a>
-                </div>
-                <div>Марка: <span class="text-white">{{ selectedHistory.client?.brand || '—' }}</span></div>
-                <div>Модель: <span class="text-white">{{ selectedHistory.client?.model || '—' }}</span></div>
-              </div>
+            <ClientInfoBlock
+              :client="historyClientForDisplay"
+              :editable="true"
+              @edit="startHistoryEdit"
+              @edit-field="onHistoryClientInfoEditField"
+            />
+            <div
+              v-if="(historyClientForDisplay.phone || '').trim()"
+              class="flex justify-end card-metallic rounded-xl px-4 py-3"
+            >
+              <a
+                :href="`tel:${historyDetailTelHref}`"
+                class="px-4 py-2.5 rounded-lg text-xs font-bold bg-metric-green text-black border border-metric-green/40 touch-manipulation"
+              >Позвонить</a>
             </div>
             <div class="card-metallic rounded-2xl p-4">
-              <ClientMoodPicker :model-value="historyEditDraft.clientMood ?? selectedHistory.clientMood ?? null" @update:model-value="onHistoryMoodChange($event)" />
+              <ClientMoodPicker
+                :model-value="selectedHistory.clientMood ?? historyEditDraft.clientMood ?? null"
+                @update:model-value="onHistoryMoodChange($event)"
+              />
             </div>
           </section>
           <section v-show="historyFinalTab === 'files'" class="hist-final-page space-y-3" aria-label="Файлы">
@@ -1767,8 +1769,19 @@ function getHistoryDentSizeLabel(dentNum) {
   if (!w && !h) return '';
   return `${shape} длина: ${formatSingleDim(w)}, Высота: ${formatSingleDim(h)}`;
 }
+/** Как на финальном экране детализации: учитываем legacy clientName / carBrand и т.д. */
+const historyClientForDisplay = computed(() => {
+  const c = selectedHistory.value?.client || {};
+  return {
+    name: String(c.name ?? c.clientName ?? '').trim(),
+    phone: String(c.phone ?? c.clientPhone ?? '').trim(),
+    brand: String(c.brand ?? c.carBrand ?? '').trim(),
+    model: String(c.model ?? c.carModel ?? '').trim(),
+    company: String(c.company ?? c.clientCompany ?? '').trim(),
+  };
+});
 const historyDetailTelHref = computed(() => {
-  const raw = (selectedHistory.value?.client?.phone || '').replace(/\D/g, '');
+  const raw = (historyClientForDisplay.value.phone || '').replace(/\D/g, '');
   if (!raw) return '';
   if (raw.length >= 10 && (raw[0] === '8' || raw[0] === '7')) return '+7' + raw.slice(1);
   return '+' + raw;
@@ -2896,12 +2909,12 @@ function startHistoryEdit() {
   const rec = selectedHistory.value;
   const client = rec.client || {};
   historyEditDraft.clientName = client.name || '';
-  historyEditDraft.clientCompany = client.company || '';
-  historyEditDraft.clientPhone = client.phone || '';
+  historyEditDraft.clientCompany = client.company || client.clientCompany || '';
+  historyEditDraft.clientPhone = client.phone || client.clientPhone || '';
   historyEditDraft.clientMood = rec.clientMood ?? null;
-  historyEditDraft.carBrand = client.brand || '';
-  historyEditDraft.carModel = client.model || '';
-  historyEditDraft.carPlate = client.plate || '';
+  historyEditDraft.carBrand = client.brand || client.carBrand || '';
+  historyEditDraft.carModel = client.model || client.carModel || '';
+  historyEditDraft.carPlate = client.plate || client.carPlate || '';
   historyEditDraft.inspectDate = client.date || '';
   historyEditDraft.inspectTime = client.time || '';
   historyEditDraft.comment = rec.comment || '';
@@ -3563,6 +3576,21 @@ async function openHistoryEditField(field, label, inputType) {
   }
 }
 
+/** Строка клиента в истории: открываем полноценное редактирование, затем нужное поле (как ClientInfoBlock в детализации). */
+async function onHistoryClientInfoEditField(field) {
+  const map = {
+    name: ['clientName', 'Имя', 'text'],
+    phone: ['clientPhone', 'Тел', 'tel'],
+    car: ['carBrand', 'Марка', 'text'],
+    company: ['clientCompany', 'Компания', 'text'],
+  };
+  const spec = map[field];
+  if (!spec) return;
+  startHistoryEdit();
+  await nextTick();
+  await openHistoryEditField(spec[0], spec[1], spec[2]);
+}
+
 async function openHistoryCommentModal() {
   const value = await openInputModal({
     title: 'Комментарий',
@@ -3622,11 +3650,11 @@ watch(selectedHistory, (rec) => {
   if (!rec) return;
   const client = rec.client || {};
   historyEditDraft.clientName = client.name || '';
-  historyEditDraft.clientCompany = client.company || '';
-  historyEditDraft.clientPhone = client.phone || '';
-  historyEditDraft.carBrand = client.brand || '';
-  historyEditDraft.carModel = client.model || '';
-  historyEditDraft.carPlate = client.plate || '';
+  historyEditDraft.clientCompany = client.company || client.clientCompany || '';
+  historyEditDraft.clientPhone = client.phone || client.clientPhone || '';
+  historyEditDraft.carBrand = client.brand || client.carBrand || '';
+  historyEditDraft.carModel = client.model || client.carModel || '';
+  historyEditDraft.carPlate = client.plate || client.carPlate || '';
   historyEditDraft.inspectDate = client.date || '';
   historyEditDraft.inspectTime = client.time || '';
   historyEditDraft.comment = rec.comment || '';
@@ -4099,6 +4127,16 @@ label.dm-segment-btn { margin: 0; }
 }
 .history-detail-wrapper .history-detail-content {
   padding-bottom: calc(var(--content-padding-bottom) + var(--history-detail-actions-h));
+}
+/* Один скролл на .history-detail-content: вкладки не схлопывают панель (flex-1 + min-h-0 давали пустую зону). */
+.history-detail-wrapper :deep(.history-final-tabs.rf-tabs) {
+  flex: 0 1 auto;
+  min-height: 0;
+}
+.history-detail-wrapper :deep(.history-final-tabs .rf-tabs__panels) {
+  flex: 0 1 auto;
+  min-height: auto;
+  overflow: visible;
 }
 .app-root--gradient {
   background: #000000;

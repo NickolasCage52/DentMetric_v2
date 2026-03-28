@@ -113,10 +113,37 @@ export function normalizeHistoryRecord(raw: any): any | null {
         time: raw.inspectTime ?? (raw.client && (raw.client as any).time) ?? '',
       };
     } else {
-      const c = normalized.client as Record<string, unknown>;
+      const c = normalized.client as Record<string, any>;
       if (c.name == null || typeof c.name !== 'string') c.name = 'Клиент без имени';
       if (c.phone == null) c.phone = '';
       else if (typeof c.phone !== 'string') c.phone = String(c.phone);
+
+      const pickStr = (v: unknown) => (v == null ? '' : String(v));
+      if (!pickStr(c.name).trim() && raw.clientName != null) c.name = String(raw.clientName);
+      if (!pickStr(c.phone).trim() && raw.clientPhone != null) c.phone = String(raw.clientPhone);
+
+      if (!pickStr(c.company).trim()) {
+        c.company = pickStr(c.clientCompany ?? raw.clientCompany);
+      } else {
+        c.company = pickStr(c.company);
+      }
+      if (!pickStr(c.brand).trim()) {
+        c.brand = pickStr(c.carBrand ?? raw.carBrand);
+      } else {
+        c.brand = pickStr(c.brand);
+      }
+      if (!pickStr(c.model).trim()) {
+        c.model = pickStr(c.carModel ?? raw.carModel);
+      } else {
+        c.model = pickStr(c.model);
+      }
+      if (!pickStr(c.plate).trim()) {
+        c.plate = pickStr(c.carPlate ?? raw.carPlate);
+      } else {
+        c.plate = pickStr(c.plate);
+      }
+      if (!pickStr(c.date).trim()) c.date = pickStr(c.inspectDate ?? raw.inspectDate);
+      if (!pickStr(c.time).trim()) c.time = pickStr(c.inspectTime ?? raw.inspectTime);
     }
 
     if (normalized.comment == null) normalized.comment = '';

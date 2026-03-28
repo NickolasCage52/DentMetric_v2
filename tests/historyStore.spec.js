@@ -161,6 +161,24 @@ describe('historyStore', () => {
       expect(out.dents.items[0].type).toBe('circle');
       expect(out.dents.items[0].shape).toBe('circle');
     });
+
+    it('maps carBrand/carModel into brand/model when client object already exists', () => {
+      const out = normalizeHistoryRecord({
+        total: 1000,
+        client: { name: 'Иван', phone: '', carBrand: 'Toyota', carModel: 'Camry', brand: '', model: '' },
+      });
+      expect(out.client.brand).toBe('Toyota');
+      expect(out.client.model).toBe('Camry');
+    });
+
+    it('fills brand from root carBrand when client.brand empty', () => {
+      const out = normalizeHistoryRecord({
+        total: 1000,
+        carBrand: 'Kia',
+        client: { name: 'Пётр', phone: '' },
+      });
+      expect(out.client.brand).toBe('Kia');
+    });
   });
 
   it('loadHistory dedupes duplicate ids', () => {
