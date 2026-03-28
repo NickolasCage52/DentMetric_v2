@@ -31,12 +31,14 @@
 
 <script setup>
 import { ref, computed } from 'vue';
+/** Логотип главного экрана — файл в корне репозитория `dentmetric/new_logo.jpg` */
+import homeLogoJpg from '../../new_logo.jpg';
 
 defineOptions({ name: 'TopBrandBar' });
 
 const base = import.meta.env.BASE_URL;
-/** Порядок: новый файл → старый png → svg из репозитория (всегда есть в public) */
-const LOGO_CANDIDATES = [`${base}new_logo.jpg`, `${base}logo.png`, `${base}dm-logo.svg`];
+/** Сначала корневой new_logo.jpg (сборка), при ошибке загрузки — svg из public */
+const LOGO_CANDIDATES = [homeLogoJpg, `${base}dm-logo.svg`];
 
 const logoIndex = ref(0);
 const logoFailed = ref(false);
