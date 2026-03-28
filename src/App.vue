@@ -445,7 +445,8 @@
                 @edit-field="onQuickStep3EditClientField"
               />
               <StandardQuickFinalScreen
-                class="min-h-0"
+                class="w-full shrink-0"
+                :unified-parent-scroll="true"
                 :draft="estimateDraft"
                 :engine-line-items="quickLineItems"
                 :client-display="quickClientForDisplay"
