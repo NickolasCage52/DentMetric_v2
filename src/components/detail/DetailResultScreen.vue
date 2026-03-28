@@ -1,7 +1,9 @@
 <template>
   <div class="result-screen">
     <!-- Та же структура, что quickStep === 3 в App.vue: ClientInfoBlock + StandardQuickFinalScreen -->
-    <div class="result-screen__body qc-step3 qc-step3--tabbed flex flex-col min-h-0 flex-1 overflow-hidden">
+    <div
+      class="result-screen__body result-screen__body--detail-scroll qc-step3 qc-step3--tabbed flex flex-col min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y"
+    >
       <ClientInfoBlock
         :client="clientForDisplay"
         :editable="true"
@@ -9,7 +11,8 @@
         @edit-field="$emit('edit-client-field', $event)"
       />
       <StandardQuickFinalScreen
-        class="min-h-0 flex-1"
+        class="w-full shrink-0"
+        :unified-parent-scroll="true"
         :draft="estimateDraft"
         :engine-line-items="lineItems"
         :client-display="clientForDisplay"
@@ -113,7 +116,14 @@ const clientForDisplay = computed(() => {
   display: flex;
   flex-direction: column;
 }
+.result-screen__body--detail-scroll {
+  -webkit-overflow-scrolling: touch;
+}
 .result-screen__body :deep(.sqf) {
   min-height: 0;
+}
+.result-screen__body--detail-scroll :deep(.sqf) {
+  min-height: auto;
+  flex: 0 0 auto;
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
-  <div class="sqf">
-    <ResultFourTabs v-model="activeTab">
+  <div class="sqf" :class="{ 'sqf--unified-parent-scroll': unifiedParentScroll }">
+    <ResultFourTabs v-model="activeTab" :unified-parent-scroll="unifiedParentScroll">
       <div class="sqf-scroll">
         <!-- Расчёт -->
         <div v-show="activeTab === 'calculation'" class="sqf-panel space-y-2">
@@ -292,7 +292,9 @@ const props = defineProps({
   /** Сумма расчёта вмятин (движок), без доп. работ — для времени ремонта */
   engineDentsTotal: { type: Number, default: 0 },
   /** Режим детализации: превью снимка внутри вкладки «Расчёт» */
-  detailPhotoDataUrl: { type: String, default: null }
+  detailPhotoDataUrl: { type: String, default: null },
+  /** Родитель скроллит блок целиком (клиент + вкладки + контент) — экран результата детализации */
+  unifiedParentScroll: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['open-discount', 'open-comment']);
@@ -529,16 +531,28 @@ function onAttachments(v) {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  flex: 1 1 0;
+  /* basis auto: при height:auto у родителя flex:1 1 0 даёт нулевую высоту и «пустой» экран */
+  flex: 1 1 auto;
 }
 .sqf-scroll {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
   width: 100%;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: contain;
   padding-bottom: 12px;
+}
+.sqf--unified-parent-scroll {
+  flex: none;
+  width: 100%;
+  min-height: auto;
+}
+.sqf--unified-parent-scroll .sqf-scroll {
+  flex: none;
+  overflow: visible;
+  -webkit-overflow-scrolling: auto;
+  overscroll-behavior-y: auto;
 }
 .sqf-detail-photo {
   background: rgba(0, 0, 0, 0.35);

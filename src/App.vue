@@ -133,7 +133,7 @@
             <StepDots :current-step="quickLogicalStep" :total-steps="quickTotalSteps" />
           </div>
 
-          <div :class="(quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)) ? 'space-y-0 pb-4' : (quickStep === 3 ? 'pb-20' : 'space-y-4 pb-40')">
+          <div :class="(quickStep === 2 || (quickStep === 1 && !userSettings.showClientQuick)) ? 'space-y-0 pb-4' : (quickStep === 3 ? 'flex flex-col flex-auto min-h-0 pb-20' : 'space-y-4 pb-40')">
             <div v-if="quickStep === 1 && userSettings.showClientQuick" class="space-y-3">
               <div class="card-metallic rounded-2xl p-5 space-y-3">
                 <div class="flex items-center justify-between gap-2">
@@ -437,7 +437,7 @@
               </template>
             </div>
 
-            <div v-else-if="quickStep === 3" class="qc-step3 qc-step3--tabbed flex flex-col min-h-0 flex-1">
+            <div v-else-if="quickStep === 3" class="qc-step3 qc-step3--tabbed flex flex-col min-h-0 flex-auto w-full">
               <ClientInfoBlock
                 :client="quickClientForDisplay"
                 :editable="true"
@@ -445,7 +445,7 @@
                 @edit-field="onQuickStep3EditClientField"
               />
               <StandardQuickFinalScreen
-                class="min-h-0 flex-1"
+                class="min-h-0"
                 :draft="estimateDraft"
                 :engine-line-items="quickLineItems"
                 :client-display="quickClientForDisplay"

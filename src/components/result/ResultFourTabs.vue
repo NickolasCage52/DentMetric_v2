@@ -1,5 +1,9 @@
 <template>
-  <div ref="rootRef" class="rf-tabs">
+  <div
+    ref="rootRef"
+    class="rf-tabs"
+    :class="{ 'rf-tabs--unified-parent-scroll': unifiedParentScroll }"
+  >
     <!-- Как hs-range-tabs в истории: единая рамка, сегменты без зазоров -->
     <div class="rf-tabs__bar-row">
       <div
@@ -39,7 +43,9 @@ import { useSwipeNavigation } from '../../composables/useSwipeNavigation';
 const TAB_IDS = ['calculation', 'client', 'files', 'demo'];
 
 const props = defineProps({
-  modelValue: { type: String, default: 'calculation' }
+  modelValue: { type: String, default: 'calculation' },
+  /** Родитель скроллит всё (детализация): вкладки уезжают вместе с контентом */
+  unifiedParentScroll: { type: Boolean, default: false }
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -72,7 +78,7 @@ useSwipeNavigation(rootRef, {
   display: flex;
   flex-direction: column;
   gap: 0;
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
   width: 100%;
 }
@@ -118,10 +124,20 @@ useSwipeNavigation(rootRef, {
   z-index: 1;
 }
 .rf-tabs__panels {
-  flex: 1 1 0;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  touch-action: pan-y;
+}
+.rf-tabs--unified-parent-scroll {
+  flex: none;
+  width: 100%;
+}
+.rf-tabs--unified-parent-scroll .rf-tabs__panels {
+  flex: none;
+  overflow: visible;
+  min-height: 0;
   touch-action: pan-y;
 }
 </style>
