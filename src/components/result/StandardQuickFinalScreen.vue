@@ -97,106 +97,17 @@
             </div>
           </div>
 
-          <template v-for="(row, idx) in uiRows" :key="row.dent?.id ?? idx">
-            <div class="sqf-dent-head">
-              <span class="sqf-dent-title">Вмятина ‑{{ idx + 1 }}</span>
-              <span class="sqf-dent-el">{{ row.dent?.panelElement || row.dent?.conditions?.panelElement || '—' }}</span>
-            </div>
-            <div class="card-metallic rounded-xl sqf-section sqf-dent-card">
-              <div class="sqf-row">
-                <span class="sqf-row__label">Форма:</span>
-                <span class="sqf-row__val">{{ dentLabel(row.dent) }}</span>
-              </div>
-              <div class="sqf-row">
-                <span class="sqf-row__label">Ориентировочное время:</span>
-                <div class="sqf-row__val sqf-row__val--edit">
-                  <template v-if="editingDentTime !== row.dent?.id">
-                    <button type="button" class="sqf-edit-hit" @click="startDentTimeEdit(row.dent)">
-                      {{ dentRepairHours(row) }} ч <span class="sqf-pen">✎</span>
-                    </button>
-                  </template>
-                  <div v-else class="sqf-inline">
-                    <input
-                      v-model.number="dentTimeEditVal"
-                      type="number"
-                      step="0.05"
-                      min="0"
-                      class="sqf-num-input"
-                      @blur="saveDentTime(row.dent)"
-                      @keyup.enter="saveDentTime(row.dent)"
-                    >
-                    <span class="sqf-unit">ч</span>
-                  </div>
-                </div>
-              </div>
-              <div class="sqf-row">
-                <span class="sqf-row__label">Диаметр:</span>
-                <span class="sqf-row__val">{{ dim(row.dent?.sizeLengthMm) }}</span>
-              </div>
-              <div class="sqf-row">
-                <span class="sqf-row__label">Ширина:</span>
-                <span class="sqf-row__val">{{ dim(row.dent?.sizeWidthMm) }}</span>
-              </div>
-              <div class="sqf-row">
-                <span class="sqf-row__label">Базовая стоимость:</span>
-                <span class="sqf-row__val sqf-row__val--price">{{ fmt(row.base) }} ₽</span>
-              </div>
-              <div
-                v-for="(br, ri) in buildDetailedBreakdown(row)"
-                :key="ri"
-                class="sqf-row"
-              >
-                <span class="sqf-row__label">{{ br.label }}</span>
-                <span class="sqf-row__val sqf-row__val--wrap">{{ br.value }}</span>
-              </div>
-              <div class="sqf-row sqf-row--discount">
-                <span class="sqf-row__label">Скидка:</span>
-                <div class="sqf-row__val">
-                  <button type="button" class="sqf-disc-btn" @click="$emit('open-discount', row.dent)">
-                    {{ row.discountPercent ? row.discountPercent : '—' }}
-                  </button>
-                  <span class="sqf-pct">%</span>
-                </div>
-              </div>
-
-              <div class="sqf-price-block">
-                <div class="sqf-row sqf-row--strong">
-                  <span class="sqf-row__label">Итого по вмятине по системе DentMetric:</span>
-                  <div class="sqf-row__val sqf-row__val--edit">
-                    <template v-if="row.hasManual">
-                      <span class="sqf-strike">{{ fmt(row.dmTotal) }} ₽</span>
-                    </template>
-                    <template v-if="editingPrice !== row.dent?.id">
-                      <button type="button" class="sqf-edit-hit" @click="startPriceEdit(row)">
-                        {{ fmt(row.displayTotal) }} ₽ <span class="sqf-pen">✎</span>
-                      </button>
-                    </template>
-                    <div v-else class="sqf-inline">
-                      <input
-                        v-model.number="priceEditVal"
-                        type="number"
-                        min="0"
-                        class="sqf-num-input sqf-num-input--wide"
-                        @blur="savePriceEdit(row)"
-                        @keyup.enter="savePriceEdit(row)"
-                      >
-                      <span>₽</span>
-                    </div>
-                  </div>
-                </div>
-                <div v-if="row.hasManual" class="sqf-row">
-                  <span class="sqf-row__label">Индивидуальная корректировка стоимости:</span>
-                  <span class="sqf-row__val sqf-row__val--adj">
-                    {{ row.displayTotal > row.dmTotal ? '+' : '' }}{{ fmt(row.displayTotal - row.dmTotal) }} ₽
-                  </span>
-                </div>
-                <div class="sqf-row">
-                  <span class="sqf-row__label">Итоговая среднерыночная стоимость:</span>
-                  <span class="sqf-row__val sqf-row__val--muted">{{ fmt(row.marketDisplay) }} ₽</span>
-                </div>
-              </div>
-            </div>
-          </template>
+          <PerDentFinalCard
+            v-for="(row, idx) in uiRows"
+            :key="row.dent?.id ?? idx"
+            :index="idx"
+            :row="row"
+            :breakdown-rows="buildDetailedBreakdown(row)"
+            :user-settings="userSettings"
+            :engine-line-items="engineLineItems"
+            :read-only="false"
+            @open-discount="$emit('open-discount', $event)"
+          />
 
           <PrepaymentBlock v-model="prepaymentProxy" />
         </div>
@@ -277,8 +188,8 @@
 <script setup>
 import { ref, computed, nextTick } from 'vue';
 import { applyPriceRoundingCeil } from '../../utils/priceRounding';
-import { resolveDentShapeType } from '../../utils/resolveDentShapeType';
 import ResultFourTabs from './ResultFourTabs.vue';
+import PerDentFinalCard from './PerDentFinalCard.vue';
 import AttachmentPicker from '../AttachmentPicker.vue';
 import ClientMoodPicker from '../ClientMoodPicker.vue';
 import PrepaymentBlock from '../PrepaymentBlock.vue';
@@ -306,21 +217,6 @@ const roundStep = computed(() => props.userSettings.priceRoundStep ?? 0);
 
 function fmt(n) {
   return new Intl.NumberFormat('ru-RU').format(Math.round(Number(n) || 0));
-}
-
-function dim(mm) {
-  const v = Number(mm) || 0;
-  if (props.userSettings.sizeUnit === 'cm') return `${(v / 10).toFixed(1)} см`;
-  return `${v.toFixed(0)} мм`;
-}
-
-function dentLabel(dent) {
-  const l = Number(dent?.sizeLengthMm) || 0;
-  const w = Number(dent?.sizeWidthMm) || 0;
-  if (l > 0 && w > 0) {
-    return resolveDentShapeType(l, w) === 'stripe' ? 'Полоса' : 'Круг/овал';
-  }
-  return dent?.shape === 'circle' ? 'Круг/овал' : 'Полоса';
 }
 
 const metaDate = computed(() => {
@@ -429,78 +325,6 @@ function removeWork(id) {
   if (!Array.isArray(arr)) return;
   const i = arr.findIndex((w) => w.id === id);
   if (i >= 0) arr.splice(i, 1);
-}
-
-const editingPrice = ref(null);
-const priceEditVal = ref(0);
-
-function startPriceEdit(row) {
-  editingPrice.value = row.dent?.id;
-  priceEditVal.value = row.displayTotal;
-  nextTick(() => {
-    /* focus optional */
-  });
-}
-
-function savePriceEdit(row) {
-  const dent = row.dent;
-  if (!dent) {
-    editingPrice.value = null;
-    return;
-  }
-  const n = Number(priceEditVal.value);
-  if (!Number.isFinite(n) || n < 0) {
-    editingPrice.value = null;
-    return;
-  }
-  const rounded = roundStep.value > 0 ? applyPriceRoundingCeil(n, roundStep.value) : Math.round(n);
-  if (rounded === row.dmTotal) {
-    dent.manualLineTotal = null;
-  } else {
-    dent.manualLineTotal = rounded;
-  }
-  editingPrice.value = null;
-}
-
-/** Per-dent repair time override (hours), stored on dent */
-const editingDentTime = ref(null);
-const dentTimeEditVal = ref(0);
-
-function dentRepairHours(dent) {
-  const o = dent?.manualRepairTimeHours;
-  if (o != null && o !== '' && Number.isFinite(Number(o))) return Number(o);
-  const line = props.engineLineItems.find((i) => i.dent?.id === dent?.id);
-  const price = line?.appliedTotal ?? 0;
-  const rate = props.userSettings.hourlyRate > 0 ? props.userSettings.hourlyRate : 4000;
-  if (price <= 0 || rate <= 0) return 0;
-  return Math.round((price / rate) * 100) / 100;
-}
-
-function startDentTimeEdit(dent) {
-  editingDentTime.value = dent?.id;
-  dentTimeEditVal.value = dentRepairHours(dent);
-}
-
-function saveDentTime(dent) {
-  if (!dent) {
-    editingDentTime.value = null;
-    return;
-  }
-  const n = Number(dentTimeEditVal.value);
-  const defH = (() => {
-    const line = props.engineLineItems.find((i) => i.dent?.id === dent?.id);
-    const price = line?.appliedTotal ?? 0;
-    const rate = props.userSettings.hourlyRate > 0 ? props.userSettings.hourlyRate : 4000;
-    if (price <= 0 || rate <= 0) return 0;
-    return Math.round((price / rate) * 100) / 100;
-  })();
-  if (!Number.isFinite(n) || n < 0) {
-    editingDentTime.value = null;
-    return;
-  }
-  if (Math.abs(n - defH) < 0.001) dent.manualRepairTimeHours = null;
-  else dent.manualRepairTimeHours = n;
-  editingDentTime.value = null;
 }
 
 const prepaymentProxy = computed({
@@ -655,13 +479,6 @@ function onAttachments(v) {
   border-bottom: none;
   font-weight: 800;
 }
-.sqf-row--strong .sqf-row__label {
-  font-weight: 600;
-  color: #fff;
-}
-.sqf-row--discount {
-  align-items: center;
-}
 .sqf-row__label {
   color: #9ca3af;
   flex: 1;
@@ -718,12 +535,6 @@ function onAttachments(v) {
   opacity: 0.45;
   margin-left: 4px;
 }
-.sqf-strike {
-  text-decoration: line-through;
-  color: #6b7280;
-  font-size: 12px;
-  margin-right: 6px;
-}
 .sqf-inline {
   display: flex;
   align-items: center;
@@ -748,47 +559,6 @@ function onAttachments(v) {
 .sqf-unit {
   font-size: 12px;
   color: #9ca3af;
-}
-.sqf-disc-btn {
-  min-width: 36px;
-  height: 32px;
-  border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: #151515;
-  color: #fff;
-  font-weight: 600;
-}
-.sqf-pct {
-  margin-left: 4px;
-  color: #6b7280;
-  font-size: 12px;
-}
-.sqf-price-block {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-}
-.sqf-dent-head {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 4px 4px 0;
-}
-.sqf-dent-title {
-  font-size: 15px;
-  font-weight: 800;
-  color: #fff;
-}
-.sqf-dent-el {
-  font-size: 14px;
-  font-weight: 600;
-  color: #d1d5db;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.sqf-dent-card {
-  margin-bottom: 4px;
 }
 .sqf-extra-label {
   font-size: 11px;

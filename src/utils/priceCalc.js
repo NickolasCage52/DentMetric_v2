@@ -68,7 +68,7 @@ function calculateDentPrice(dent, conditions, initialData) {
  * @param {any} [dent] - optional dent object (unused for stripe)
  * @returns {number}
  */
-function getComplexityCoeff(initialData, kKey, sizeCodeForMatrix, dent) {
+export function getComplexityCoeff(initialData, kKey, sizeCodeForMatrix, dent) {
   const parsed = parseStripeMatrixKey(sizeCodeForMatrix);
   if (parsed) {
     return 1.0;

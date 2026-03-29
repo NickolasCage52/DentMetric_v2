@@ -679,40 +679,16 @@
               <span class="pgt-label text-[14px] text-gray-500 min-w-0">Итого по всем повреждениям</span>
               <span class="pgt-amount text-[24px] font-bold text-metric-green tabular-nums shrink-0 whitespace-nowrap">{{ formatCurrency(historyDisplayTotal) }} ₽</span>
             </div>
-            <template v-for="(dentItem, idx) in historyLineItems" :key="dentItem.dent?.id || idx">
-              <div class="space-y-1">
-                <div class="px-1">
-                  <div class="flex items-baseline gap-2 mb-0.5">
-                    <span class="text-white font-bold text-[15px]">Вмятина ‑{{ idx + 1 }}</span>
-                    <span class="text-gray-300 font-semibold text-[14px] truncate">{{ dentItem.dent?.panelElement || '—' }}</span>
-                  </div>
-                  <div class="text-[11px] text-gray-400 leading-snug">{{ getHistoryDentLabel(dentItem.dent) }} длина: {{ formatSingleDim(dentItem.dent?.sizeLengthMm) }}, Высота: {{ formatSingleDim(dentItem.dent?.sizeWidthMm) }}</div>
-                </div>
-                <div class="card-metallic rounded-xl qc-breakdown-card">
-                  <div class="qc-bk-row qc-bk-row--base">
-                    <span class="qc-bk-label font-semibold text-white">Базовая стоимость:</span>
-                    <span class="qc-bk-delta text-metric-green font-bold">{{ formatRoundedPrice(dentItem.base) }} ₽</span>
-                  </div>
-                  <div class="qc-bk-sep"></div>
-                  <div v-for="(row, ri) in buildDetailedBreakdown(dentItem)" :key="ri" class="qc-bk-row">
-                    <span class="qc-bk-label">{{ row.label }}</span>
-                    <span class="qc-bk-value">{{ row.value }}</span>
-                    <span class="qc-bk-delta" :class="deltaClass(row.delta)">{{ formatDelta(row.delta) }}</span>
-                  </div>
-                  <div class="qc-bk-sep"></div>
-                  <div class="qc-bk-row">
-                    <span class="qc-bk-label">Скидка:</span>
-                    <span class="qc-bk-value flex-1 text-gray-500 text-[11px]">{{ dentItem.discountPercent ? dentItem.discountPercent : '—' }}%</span>
-                    <span v-if="dentItem.discountPercent > 0" class="qc-bk-delta text-amber-400 text-[11px]">−{{ formatCurrency(dentItem.discountAmount ?? ((dentItem.preDiscountTotal || dentItem.appliedTotal) - dentItem.appliedTotal)) }} ₽</span>
-                  </div>
-                  <div class="qc-bk-sep qc-bk-sep--strong"></div>
-                  <div class="qc-bk-row qc-bk-row--total">
-                    <span class="font-bold text-white text-[13px]">Итог по вмятине:</span>
-                    <span class="text-metric-green font-bold text-[18px] tabular-nums">{{ formatRoundedPrice(dentItem.appliedTotal) }} ₽</span>
-                  </div>
-                </div>
-              </div>
-            </template>
+            <PerDentFinalCard
+              v-for="(dentItem, idx) in historyLineItems"
+              :key="dentItem.dent?.id || idx"
+              :index="idx"
+              :row="historyUiRowForPerDentCard(dentItem)"
+              :breakdown-rows="buildDetailedBreakdown(dentItem)"
+              :user-settings="userSettings"
+              :engine-line-items="historyEngineLineItemsForDent(dentItem)"
+              :read-only="true"
+            />
             <PrepaymentBlock
               :model-value="selectedHistory.prepayment ?? { amount: 0, method: null }"
               :readonly="true"
@@ -1362,6 +1338,7 @@ import HistoryAttachmentsView from './components/HistoryAttachmentsView.vue';
 import ClientInfoBlock from './components/ClientInfoBlock.vue';
 import ClientFoundCard from './components/ClientFoundCard.vue';
 import StandardQuickFinalScreen from './components/result/StandardQuickFinalScreen.vue';
+import PerDentFinalCard from './components/result/PerDentFinalCard.vue';
 import ResultFourTabs from './components/result/ResultFourTabs.vue';
 import { useClientSearch } from './composables/useClientSearch';
 import { calcPostSaveAnalytics, applyClientFields, normalizePhone } from './utils/clientSearch';
@@ -1593,6 +1570,7 @@ const historyLineItems = computed(() => {
       return {
         dent: dentDisplay,
         base: item.base ?? 0,
+        sizeCode: item.sizeCode ?? dent.sizeCode,
         breakdown: item.breakdown ?? [],
         appliedTotal: item.appliedTotal ?? item.base ?? 0,
         preDiscountTotal: item.preDiscountTotal ?? item.base ?? 0,
@@ -1633,6 +1611,7 @@ const historyLineItems = computed(() => {
       dent: d,
       base: (result.base || 0) * mult,
       total: (result.total || 0) * mult,
+      sizeCode: result.sizeCode,
       breakdown: result.breakdown || []
     });
   }
@@ -1665,7 +1644,16 @@ const historyLineItems = computed(() => {
       const discountAmount = Math.round(subtotal * discPct / 100);
       const final = Math.max(0, subtotal - discountAmount);
       const applied = roundStep > 0 ? applyPriceRoundingCeil(final, roundStep) : Math.round(final);
-      return { dent: dentDisplay, base, breakdown: paramItems, appliedTotal: applied, preDiscountTotal: subtotal, discountPercent: discPct, discountAmount };
+      return {
+        dent: dentDisplay,
+        base,
+        sizeCode: dent.sizeCode || 'STRIP_DEFAULT',
+        breakdown: paramItems,
+        appliedTotal: applied,
+        preDiscountTotal: subtotal,
+        discountPercent: discPct,
+        discountAmount
+      };
     });
   }
 
@@ -1704,6 +1692,7 @@ const historyLineItems = computed(() => {
     return {
       dent: dentDisplay,
       base: r.base,
+      sizeCode: r.sizeCode ?? dentDisplay.sizeCode,
       breakdown: r.breakdown,
       appliedTotal: applied,
       preDiscountTotal: t?.subtotal ?? r.total,
@@ -2553,15 +2542,6 @@ const getQuickDentLabel = (dent) => {
   }
   return dent?.shape === 'circle' ? 'Круг/Овал' : 'Полоса';
 };
-const getHistoryDentLabel = (dent) => {
-  const l = Number(dent?.sizeLengthMm ?? dent?.bboxMm?.width) || 0;
-  const w = Number(dent?.sizeWidthMm ?? dent?.bboxMm?.height) || 0;
-  if (l > 0 && w > 0) {
-    return resolveDentShapeType(l, w) === 'stripe' ? 'Полоса' : 'Круг/Овал';
-  }
-  return dent?.type === 'circle' || dent?.shape === 'circle' ? 'Круг/Овал' : 'Полоса';
-};
-
 // Helpers
 const formatCurrency = (v) => new Intl.NumberFormat('ru-RU').format(v);
 const formatRoundedPrice = (raw) =>
@@ -2591,15 +2571,38 @@ function buildDetailedBreakdown(dentItem) {
   return buildQuickFinalBreakdown(dentItem, initialData, formatArmaturnayaSummary);
 }
 
-function formatDelta(delta) {
-  if (!delta || delta === 0) return '0 ₽';
-  const sign = delta > 0 ? '+' : '';
-  return `${sign}${new Intl.NumberFormat('ru-RU').format(delta)} ₽`;
+/** Строка вмятины для карточки итога (как на экране расчёта), для просмотра в истории */
+function historyUiRowForPerDentCard(dentItem) {
+  const dent = dentItem?.dent;
+  const dm = dentItem?.appliedTotal ?? 0;
+  const step = userSettings.priceRoundStep ?? 0;
+  const rawM = dent?.manualLineTotal;
+  const manual =
+    rawM != null && rawM !== '' && Number.isFinite(Number(rawM))
+      ? applyPriceRoundingCeil(Number(rawM), step)
+      : null;
+  const displayTotal = manual != null ? manual : dm;
+  const market =
+    dent?.marketLinePrice != null && Number.isFinite(Number(dent.marketLinePrice))
+      ? Number(dent.marketLinePrice)
+      : displayTotal;
+  return {
+    ...dentItem,
+    dmTotal: dm,
+    displayTotal,
+    hasManual: manual != null,
+    marketDisplay: market
+  };
 }
 
-function deltaClass(delta) {
-  if (delta > 0) return 'text-white';
-  return 'text-gray-500';
+function historyEngineLineItemsForDent(dentItem) {
+  const id = dentItem?.dent?.id;
+  return [
+    {
+      dent: dentItem?.dent,
+      appliedTotal: dentItem?.appliedTotal ?? 0
+    }
+  ].filter((x) => x.dent);
 }
 
 async function openDiscountModal(dent) {
