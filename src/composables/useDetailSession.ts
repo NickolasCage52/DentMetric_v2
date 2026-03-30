@@ -13,6 +13,7 @@ const session = ref<DetailSession>({
   currentDentIndex: 0,
   client: null,
   photoDataUrl: null,
+  annotatedPhotoDataUrl: null,
   photoAssetKey: null,
   markingMode: 'idle',
   dents: [],
@@ -33,6 +34,11 @@ export function useDetailSession() {
   function setPhoto(dataUrl: string, assetKey?: string) {
     session.value.photoDataUrl = dataUrl;
     session.value.photoAssetKey = assetKey ?? null;
+    session.value.annotatedPhotoDataUrl = null;
+  }
+
+  function setAnnotatedPhoto(dataUrl: string) {
+    session.value.annotatedPhotoDataUrl = dataUrl;
   }
 
   function addDent(outlinePoints: number[]): DetailDent {
@@ -161,6 +167,7 @@ export function useDetailSession() {
       currentDentIndex: 0,
       client: null,
       photoDataUrl: null,
+      annotatedPhotoDataUrl: null,
       photoAssetKey: null,
       markingMode: 'idle',
       dents: [],
@@ -175,6 +182,7 @@ export function useDetailSession() {
     goToStep,
     setClient,
     setPhoto,
+    setAnnotatedPhoto,
     setSelectedDentId,
     addDent,
     addSecondaryDeformation,

@@ -62,7 +62,6 @@ async function drawDentOnCanvas(page) {
 test.describe('Detail flow', () => {
   test('Full flow: client → camera → marking → dimensions → params → result', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle');
 
     // 1. Open metric
     const metricBtn = page.getByTestId('btn-open-metric');
@@ -85,7 +84,16 @@ test.describe('Detail flow', () => {
     // 3. Client screen: click Continue to proceed to camera
     const continueClientBtn = page.locator('[data-testid="btn-continue-placement"]');
     if (await continueClientBtn.isVisible({ timeout: 3000 }).catch(() => false)) {
-      await continueClientBtn.click({ force: true });
+      if (await continueClientBtn.isDisabled().catch(() => false)) {
+        await page.getByRole('button', { name: /Телефон/i }).click({ force: true });
+        const dialog = page.getByRole('dialog', { name: /Данные клиента/i });
+        if (await dialog.isVisible({ timeout: 3000 }).catch(() => false)) {
+          await dialog.getByPlaceholder(/Телефон/i).fill('+79991112233');
+          await dialog.getByRole('button', { name: /Готово/i }).click();
+          await page.waitForTimeout(400);
+        }
+      }
+      await page.getByTestId('btn-continue-placement').click({ force: true });
       await page.waitForTimeout(500);
     }
 

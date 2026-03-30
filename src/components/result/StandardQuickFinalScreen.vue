@@ -36,7 +36,7 @@
               <div class="sqf-row__val sqf-row__val--edit">
                 <template v-if="!editingRepair">
                   <button type="button" class="sqf-edit-hit" @click="startRepairEdit">
-                    {{ displayRepairHours }} ч <span class="sqf-pen">✎</span>
+                    {{ repairTimeLabel }} <span class="sqf-pen">✎</span>
                   </button>
                 </template>
                 <div v-else class="sqf-inline">
@@ -93,7 +93,11 @@
             </div>
             <div class="sqf-row sqf-row--total">
               <span class="sqf-row__label">Итого:</span>
-              <span class="sqf-row__val sqf-row__val--grand">{{ fmt(worksheetGrandTotal) }} ₽</span>
+              <span
+                class="sqf-row__val sqf-row__val--grand"
+                :class="{ 'dm-total-price': detailUxParity }"
+                data-testid="total-price-graphics"
+              >{{ fmt(worksheetGrandTotal) }} ₽</span>
             </div>
           </div>
 
@@ -106,6 +110,8 @@
             :user-settings="userSettings"
             :engine-line-items="engineLineItems"
             :read-only="false"
+            :detail-ux-parity="detailUxParity"
+            :estimate-draft="detailUxParity ? draft : null"
             @open-discount="$emit('open-discount', $event)"
           />
 
@@ -115,30 +121,77 @@
         <!-- Клиент -->
         <div v-show="activeTab === 'client'" class="sqf-panel space-y-2">
           <div class="card-metallic rounded-xl sqf-section">
-            <div class="sqf-row">
-              <span class="sqf-row__label">Имя:</span>
-              <span class="sqf-row__val">{{ clientDisplay.name || '—' }}</span>
+            <div class="sqf-client-head">
+              <div class="sqf-block-title sqf-block-title--muted sqf-mb-0">Клиент</div>
+              <div v-if="detailUxParity" class="sqf-client-head__actions">
+                <button
+                  v-if="!clientInlineEditing"
+                  type="button"
+                  class="sqf-link-btn"
+                  @click="startClientInlineEdit"
+                >Изменить</button>
+                <template v-else>
+                  <button type="button" class="sqf-link-btn sqf-link-btn--muted" @click="cancelClientInlineEdit">Отмена</button>
+                  <button type="button" class="sqf-link-btn" @click="saveClientInlineEdit">Готово</button>
+                </template>
+              </div>
             </div>
-            <div class="sqf-row">
-              <span class="sqf-row__label">Телефон:</span>
-              <span class="sqf-row__val">{{ clientDisplay.phone || '—' }}</span>
-            </div>
-            <div class="sqf-row">
-              <span class="sqf-row__label">Компания:</span>
-              <span class="sqf-row__val">{{ clientDisplay.company || '—' }}</span>
-            </div>
-            <div class="sqf-row">
-              <span class="sqf-row__label">Марка:</span>
-              <span class="sqf-row__val">{{ clientDisplay.brand || '—' }}</span>
-            </div>
-            <div class="sqf-row">
-              <span class="sqf-row__label">Модель:</span>
-              <span class="sqf-row__val">{{ clientDisplay.model || '—' }}</span>
-            </div>
+            <template v-if="detailUxParity && clientInlineEditing">
+              <label class="sqf-inp-label">Имя</label>
+              <input v-model="clientEditBuffer.name" type="text" class="sqf-inp sqf-inp--block" placeholder="Имя" >
+              <label class="sqf-inp-label">Телефон</label>
+              <input v-model="clientEditBuffer.phone" type="tel" class="sqf-inp sqf-inp--block" placeholder="Телефон" >
+              <label class="sqf-inp-label">Компания</label>
+              <input v-model="clientEditBuffer.company" type="text" class="sqf-inp sqf-inp--block" placeholder="Компания" >
+              <label class="sqf-inp-label">Марка</label>
+              <input v-model="clientEditBuffer.brand" type="text" class="sqf-inp sqf-inp--block" placeholder="Марка" >
+              <label class="sqf-inp-label">Модель</label>
+              <input v-model="clientEditBuffer.model" type="text" class="sqf-inp sqf-inp--block" placeholder="Модель" >
+              <label class="sqf-inp-label">Гос. номер</label>
+              <input v-model="clientEditBuffer.plate" type="text" class="sqf-inp sqf-inp--block" placeholder="Гос. номер" >
+            </template>
+            <template v-else>
+              <div class="sqf-row">
+                <span class="sqf-row__label">Имя:</span>
+                <span class="sqf-row__val">{{ clientDisplay.name || '—' }}</span>
+              </div>
+              <div class="sqf-row">
+                <span class="sqf-row__label">Телефон:</span>
+                <span class="sqf-row__val">{{ clientDisplay.phone || '—' }}</span>
+              </div>
+              <div class="sqf-row">
+                <span class="sqf-row__label">Компания:</span>
+                <span class="sqf-row__val">{{ clientDisplay.company || '—' }}</span>
+              </div>
+              <div class="sqf-row">
+                <span class="sqf-row__label">Марка:</span>
+                <span class="sqf-row__val">{{ clientDisplay.brand || '—' }}</span>
+              </div>
+              <div class="sqf-row">
+                <span class="sqf-row__label">Модель:</span>
+                <span class="sqf-row__val">{{ clientDisplay.model || '—' }}</span>
+              </div>
+              <div v-if="detailUxParity" class="sqf-row">
+                <span class="sqf-row__label">Гос. номер:</span>
+                <span class="sqf-row__val">{{ draft.carPlate || '—' }}</span>
+              </div>
+            </template>
           </div>
           <div class="card-metallic rounded-xl sqf-section">
-            <div class="sqf-block-title sqf-block-title--muted">Адекватность клиента</div>
-            <ClientMoodPicker v-model="moodProxy" />
+            <div class="sqf-block-title sqf-block-title--muted sqf-title-with-info">
+              <span>Адекватность клиента</span>
+              <button
+                v-if="detailUxParity"
+                type="button"
+                class="sqf-info-ico"
+                aria-label="Справка"
+                @click="adequacyInfoOpen = !adequacyInfoOpen"
+              >ℹ️</button>
+            </div>
+            <p v-if="detailUxParity && adequacyInfoOpen" class="sqf-info-tip">
+              Оцените поведение клиента. Это поможет вам при повторных обращениях.
+            </p>
+            <ClientMoodPicker v-model="moodProxy" :hide-block-label="detailUxParity" />
           </div>
         </div>
 
@@ -186,8 +239,9 @@
 </template>
 
 <script setup>
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, reactive, watch } from 'vue';
 import { applyPriceRoundingCeil } from '../../utils/priceRounding';
+import { formatRepairTime } from '../../utils/formatRepairTime';
 import ResultFourTabs from './ResultFourTabs.vue';
 import PerDentFinalCard from './PerDentFinalCard.vue';
 import AttachmentPicker from '../AttachmentPicker.vue';
@@ -205,10 +259,12 @@ const props = defineProps({
   /** Режим детализации: превью снимка внутри вкладки «Расчёт» */
   detailPhotoDataUrl: { type: String, default: null },
   /** Родитель скроллит блок целиком (клиент + вкладки + контент) — экран результата детализации */
-  unifiedParentScroll: { type: Boolean, default: false }
+  unifiedParentScroll: { type: Boolean, default: false },
+  /** Единый UX с историей: время, длина, скидка, итого, клиент, адекватность */
+  detailUxParity: { type: Boolean, default: false }
 });
 
-const emit = defineEmits(['open-discount', 'open-comment']);
+const emit = defineEmits(['open-discount', 'open-comment', 'sync-detail-client']);
 
 const activeTab = ref('calculation');
 const detailPhotoOpen = ref(false);
@@ -249,6 +305,12 @@ const displayRepairHours = computed(() => {
   const m = props.draft.repairTimeHours;
   if (m != null && m !== '' && Number.isFinite(Number(m))) return Number(m);
   return defaultRepairHours.value;
+});
+
+const repairTimeLabel = computed(() => {
+  const h = displayRepairHours.value;
+  if (props.detailUxParity) return formatRepairTime(h);
+  return `${h} ч`;
 });
 
 const editingRepair = ref(false);
@@ -348,6 +410,81 @@ const moodProxy = computed({
 function onAttachments(v) {
   props.draft.attachments = v;
 }
+
+const adequacyInfoOpen = ref(false);
+const clientInlineEditing = ref(false);
+const clientEditSnapshot = ref(null);
+const clientEditBuffer = reactive({
+  name: '',
+  phone: '',
+  company: '',
+  brand: '',
+  model: '',
+  plate: ''
+});
+
+function fillClientEditBufferFromDraft() {
+  clientEditBuffer.name = props.draft.clientName ?? props.clientDisplay.name ?? '';
+  clientEditBuffer.phone = props.draft.clientPhone ?? props.clientDisplay.phone ?? '';
+  clientEditBuffer.company = props.draft.clientCompany ?? props.clientDisplay.company ?? '';
+  clientEditBuffer.brand = props.draft.carBrand ?? props.clientDisplay.brand ?? '';
+  clientEditBuffer.model = props.draft.carModel ?? props.clientDisplay.model ?? '';
+  clientEditBuffer.plate = props.draft.carPlate ?? '';
+}
+
+function startClientInlineEdit() {
+  fillClientEditBufferFromDraft();
+  clientEditSnapshot.value = JSON.stringify(clientEditBuffer);
+  clientInlineEditing.value = true;
+}
+
+function cancelClientInlineEdit() {
+  if (clientEditSnapshot.value) {
+    try {
+      const o = JSON.parse(clientEditSnapshot.value);
+      Object.assign(clientEditBuffer, o);
+      props.draft.clientName = o.name;
+      props.draft.clientPhone = o.phone;
+      props.draft.clientCompany = o.company;
+      props.draft.carBrand = o.brand;
+      props.draft.carModel = o.model;
+      props.draft.carPlate = o.plate;
+    } catch (_e) {
+      /* ignore */
+    }
+  }
+  clientInlineEditing.value = false;
+  clientEditSnapshot.value = null;
+}
+
+function saveClientInlineEdit() {
+  props.draft.clientName = clientEditBuffer.name;
+  props.draft.clientPhone = clientEditBuffer.phone;
+  props.draft.clientCompany = clientEditBuffer.company;
+  props.draft.carBrand = clientEditBuffer.brand;
+  props.draft.carModel = clientEditBuffer.model;
+  props.draft.carPlate = clientEditBuffer.plate;
+  emit('sync-detail-client', {
+    name: clientEditBuffer.name,
+    phone: clientEditBuffer.phone,
+    company: clientEditBuffer.company,
+    carBrand: clientEditBuffer.brand,
+    carModel: clientEditBuffer.model,
+    plateNumber: clientEditBuffer.plate
+  });
+  clientInlineEditing.value = false;
+  clientEditSnapshot.value = null;
+}
+
+watch(
+  () => props.detailUxParity,
+  (v) => {
+    if (!v) {
+      clientInlineEditing.value = false;
+      adequacyInfoOpen.value = false;
+    }
+  }
+);
 </script>
 
 <style scoped>
@@ -402,6 +539,7 @@ function onAttachments(v) {
 }
 .sqf-detail-photo__img {
   width: 100%;
+  max-height: 160px;
   height: 140px;
   object-fit: cover;
   display: block;
@@ -653,5 +791,75 @@ function onAttachments(v) {
   font-size: 12px;
   margin: 10px 0 0;
   opacity: 0.65;
+}
+.dm-total-price {
+  color: var(--dm-accent, #a0e040) !important;
+  font-size: 19px !important;
+  font-weight: 700 !important;
+}
+.sqf-client-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.sqf-mb-0 {
+  margin-bottom: 0;
+}
+.sqf-client-head__actions {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.sqf-link-btn {
+  min-height: 44px;
+  padding: 0 8px;
+  border: none;
+  background: none;
+  color: var(--dm-accent, #a0e040);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.sqf-link-btn--muted {
+  color: var(--dm-text-secondary, #888888);
+}
+.sqf-inp-label {
+  display: block;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--dm-text-secondary, #888888);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 8px 0 4px;
+}
+.sqf-inp--block {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 44px;
+}
+.sqf-title-with-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sqf-info-ico {
+  min-width: 44px;
+  min-height: 44px;
+  border: none;
+  background: none;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.85;
+}
+.sqf-info-tip {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--dm-text-secondary, #888888);
 }
 </style>

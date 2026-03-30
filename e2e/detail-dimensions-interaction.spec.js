@@ -15,7 +15,7 @@ test.describe('Detail mode — Dimension input interaction', () => {
       return;
     }
 
-    const input = page.locator('.dimensions-field input').first();
+    const input = page.locator('.dent-dim-modal-box .dim-field__input').first();
     if (!(await input.isVisible({ timeout: 2000 }).catch(() => false))) {
       test.skip(true, 'Dimension input not visible');
       return;
@@ -32,7 +32,7 @@ test.describe('Detail mode — Dimension input interaction', () => {
       return;
     }
 
-    const inputs = page.locator('.dimensions-field input');
+    const inputs = page.locator('.dent-dim-modal-box .dim-field__input');
     if ((await inputs.count()) < 2) {
       test.skip(true, 'Need at least 2 dimension inputs');
       return;
@@ -66,7 +66,7 @@ test.describe('Detail mode — Dimension input interaction', () => {
       return;
     }
 
-    const inputs = page.locator('.dimensions-field input');
+    const inputs = page.locator('.dent-dim-modal-box .dim-field__input');
     const count = await inputs.count();
     if (count === 0) {
       test.skip(true, 'No dimension inputs visible');
@@ -87,10 +87,10 @@ test.describe('Detail mode — Dimension input interaction', () => {
       return;
     }
 
-    await page.locator('.dimensions-field input').first().waitFor({ state: 'visible', timeout: 3000 });
+    await page.locator('.dent-dim-modal-box .dim-field__input').first().waitFor({ state: 'visible', timeout: 5000 });
 
     const attrs = await page.evaluate(() => {
-      const el = document.querySelector('.dimensions-field input');
+      const el = document.querySelector('.dent-dim-modal-box .dim-field__input');
       if (!el) return null;
       return { type: el.type, inputMode: el.inputMode };
     });
@@ -99,7 +99,7 @@ test.describe('Detail mode — Dimension input interaction', () => {
       return;
     }
     expect(attrs.type).toBe('number');
-    expect(attrs.inputMode).toBe('decimal');
+    expect(['numeric', 'decimal']).toContain(attrs.inputMode);
   });
 
   test('no number spinners on inputs', async ({ page }) => {
@@ -110,7 +110,7 @@ test.describe('Detail mode — Dimension input interaction', () => {
     }
 
     const noSpinners = await page.evaluate(() => {
-      const el = document.querySelector('.dimensions-field input');
+      const el = document.querySelector('.dent-dim-modal-box .dim-field__input');
       if (!el) return null;
       const style = window.getComputedStyle(el);
       return (

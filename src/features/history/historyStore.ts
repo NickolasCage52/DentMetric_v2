@@ -401,6 +401,7 @@ export function updateEstimate(id: string, partial: any) {
     if (partial.dmCalculatedPrice !== undefined) merged.dmCalculatedPrice = partial.dmCalculatedPrice;
     if (partial.manualAdjustedPrice !== undefined) merged.manualAdjustedPrice = partial.manualAdjustedPrice;
     if (partial.isPriceManuallyAdjusted !== undefined) merged.isPriceManuallyAdjusted = partial.isPriceManuallyAdjusted;
+    if (partial.lineItemsSnapshot !== undefined) merged.lineItemsSnapshot = partial.lineItemsSnapshot;
     if (merged.isPriceManuallyAdjusted && merged.manualAdjustedPrice != null) {
       merged.total = Number(merged.manualAdjustedPrice) || merged.total;
     }

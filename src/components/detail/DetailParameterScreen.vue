@@ -62,11 +62,19 @@
         v-if="dentCount > 1"
         type="button"
         class="apply-to-all-btn"
-        @click="$emit('apply-to-all', dent.id)"
+        :class="{ 'apply-to-all-btn--success': applyAllSuccess }"
+        :disabled="applyAllSuccess"
+        @click="handleApplyToAll"
       >
-        <span class="apply-to-all-btn__icon">⟳</span>
-        Применить параметры ко всем вмятинам
-        <span class="apply-to-all-btn__note">(кроме размеров)</span>
+        <template v-if="applyAllSuccess">
+          <span class="apply-to-all-btn__check">✓</span>
+          Применено ко всем вмятинам
+        </template>
+        <template v-else>
+          <span class="apply-to-all-btn__icon">⟳</span>
+          Применить параметры ко всем вмятинам
+          <span class="apply-to-all-btn__note">(кроме размеров)</span>
+        </template>
       </button>
 
     </div>
@@ -96,11 +104,11 @@
 
     <Teleport to="body">
       <div
-        v-if="showPhoto && photoDataUrl"
+        v-if="showPhoto && displayPhotoUrl"
         class="photo-modal"
         @click="showPhoto = false"
       >
-        <img :src="photoDataUrl" class="photo-modal__img" alt="" />
+        <img :src="displayPhotoUrl" class="photo-modal__img" alt="" />
         <button
           type="button"
           class="photo-modal__close"
@@ -115,7 +123,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 import QuickStyleStep2Section from '../quickStyle/QuickStyleStep2Section.vue';
 import DetailProgressDots from './DetailProgressDots.vue';
 const props = defineProps({
@@ -126,6 +134,7 @@ const props = defineProps({
   dentCount: { type: Number, default: 1 },
   currentIndex: { type: Number, default: 0 },
   photoDataUrl: { type: String, default: null },
+  annotatedPhotoUrl: { type: String, default: null },
   isLastDent: { type: Boolean, default: false },
   initialData: { type: Object, required: true },
   userSettings: { type: Object, default: () => ({}) },
@@ -144,6 +153,26 @@ const emit = defineEmits([
 ]);
 
 const showPhoto = ref(false);
+const applyAllSuccess = ref(false);
+let applyAllTimer = null;
+
+const displayPhotoUrl = computed(
+  () => props.annotatedPhotoUrl || props.photoDataUrl || null
+);
+
+function handleApplyToAll() {
+  emit('apply-to-all', props.dent.id);
+  applyAllSuccess.value = true;
+  if (applyAllTimer) clearTimeout(applyAllTimer);
+  applyAllTimer = setTimeout(() => {
+    applyAllSuccess.value = false;
+    applyAllTimer = null;
+  }, 2000);
+}
+
+onUnmounted(() => {
+  if (applyAllTimer) clearTimeout(applyAllTimer);
+});
 
 const displayDents = computed(() =>
   props.dents?.length > 0 ? props.dents : (props.dent ? [props.dent] : [])
@@ -300,6 +329,18 @@ function handleSaveAndNext() {
   align-items: center;
   justify-content: center;
   gap: 6px;
+  transition: border-color 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+.apply-to-all-btn--success {
+  border-style: solid;
+  border-color: var(--dm-accent, #a0e040);
+  background: rgba(160, 224, 64, 0.12);
+  color: var(--dm-accent, #a0e040);
+  cursor: default;
+}
+.apply-to-all-btn__check {
+  font-size: 16px;
+  font-weight: 700;
 }
 .apply-to-all-btn__icon {
   font-size: 18px;

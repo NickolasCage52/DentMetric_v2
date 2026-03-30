@@ -9,7 +9,6 @@ test.describe('Detail mode — Full flow and layout', () => {
 
   test('detail mode enters without crash', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle');
 
     const metricBtn = page.getByTestId('btn-open-metric');
     if (!(await metricBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
@@ -23,16 +22,14 @@ test.describe('Detail mode — Full flow and layout', () => {
       test.skip(true, 'Detail mode button not found'); return;
     }
     await detailBtn.click({ force: true });
-    await page.waitForTimeout(1000);
+    await page.locator('.dm-detail-screen, .detail-client-screen').first().waitFor({ state: 'visible', timeout: 10000 });
 
     await expect(page).not.toHaveURL(/error/);
-    const hasContent = await page.locator('button, input, canvas').first().isVisible({ timeout: 3000 }).catch(() => false);
-    expect(hasContent, 'Detail mode should render content').toBeTruthy();
+    await expect(page.locator('.dm-detail-screen, .detail-client-screen').first()).toBeVisible();
   });
 
   test('detail client screen shows form fields', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle');
 
     const metricBtn = page.getByTestId('btn-open-metric');
     if (!(await metricBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
@@ -55,7 +52,6 @@ test.describe('Detail mode — Full flow and layout', () => {
 
   test('progress dots are visible on client screen', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle');
 
     const metricBtn = page.getByTestId('btn-open-metric');
     if (!(await metricBtn.isVisible({ timeout: 5000 }).catch(() => false))) {
@@ -94,7 +90,6 @@ test.describe('Detail mode — Full flow and layout', () => {
 
   test('gallery button triggers file chooser on camera screen', async ({ page }) => {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
-    await page.waitForLoadState('networkidle');
 
     const metricBtn = page.getByTestId('btn-open-metric');
     if (!(await metricBtn.isVisible({ timeout: 5000 }).catch(() => false))) {

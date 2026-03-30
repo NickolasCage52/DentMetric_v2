@@ -114,6 +114,7 @@
         @dent-selected="detailSetSelectedDentId"
         @dent-moved="(e) => detailSetDentOutline(e.dentId, e.newPoints)"
         @go-to-dimensions="detailGoToStep('dimensions')"
+        @annotated-photo="detailSetAnnotatedPhoto"
         @proceed="onDetailMarkingComplete"
         @reset-drawing="handleDetailResetDrawing"
         @back="detailSession.currentStep === 'dimensions' ? detailGoToStep('marking') : detailGoToStep('camera')"
@@ -127,6 +128,7 @@
         :dent-count="detailSession.dents.length"
         :current-index="detailSession.currentDentIndex"
         :photo-data-url="detailSession.photoDataUrl"
+        :annotated-photo-url="detailSession.annotatedPhotoDataUrl"
         :is-last-dent="detailSession.currentDentIndex === detailSession.dents.length - 1"
         :initial-data="initialData"
         :user-settings="userSettings"
@@ -153,8 +155,7 @@
         @back="onDetailResultBack"
         @save="onDetailSave"
         @record="onDetailBook"
-        @edit-client="onDetailResultEditClient"
-        @edit-client-field="onDetailResultEditClientField"
+        @sync-detail-client="onDetailResultSyncClient"
         @open-discount="(d) => openDetailDiscountModal(d)"
         @open-comment="openDetailCommentModal"
       />
@@ -424,7 +425,7 @@ import { applyPriceRoundingCeil } from '../../utils/priceRounding';
 import { applyDiscount, clampDiscount } from '../../utils/discount';
 import { calculateEstimateTotals } from '../../utils/calculateEstimateTotals';
 import { calculateSessionTotalWithMultiDentRule } from '../../utils/multiDentAggregation';
-import { getPriceMultiplier } from '../../utils/settingsUtils';
+import { getPriceMultiplier, getUserStripPriceScaleFactor } from '../../utils/settingsUtils';
 import StepHeader from './StepHeader.vue';
 import Step0ClientPanel from './Step0ClientPanel.vue';
 import Step1PlacementPanel from './Step1PlacementPanel.vue';
@@ -487,6 +488,7 @@ const {
   goToStep: detailGoToStep,
   setClient: detailSetClient,
   setPhoto: detailSetPhoto,
+  setAnnotatedPhoto: detailSetAnnotatedPhoto,
   setSelectedDentId: detailSetSelectedDentId,
   addDent: detailAddDent,
   addSecondaryDeformation: detailAddSecondaryDeformation,
@@ -680,13 +682,18 @@ const detailPhotoDisplayUrl = computed(() => freeformPhotoUrl.value || null);
 const detailStepIndex = computed(() =>
   Math.max(0, DETAIL_STEPS.indexOf(detailSession.value.currentStep))
 );
+/** Масштаб stripe-таблицы под пользовательский прайс (регулятор «Полоса» в настройках). */
+const detailStripeTableScale = computed(() =>
+  getUserStripPriceScaleFactor(props.initialData, props.userSettings || {})
+);
 const dentsForPricing = computed(() => {
   const ctx = {
     circleSizes: props.circleSizes,
     stripSizes: props.stripSizes,
     prices: props.userSettings.prices,
     initialData: props.initialData,
-    conditions: conditionsForCalc.value
+    conditions: conditionsForCalc.value,
+    stripeTableScale: detailStripeTableScale.value
   };
   const normalized = normalizeGraphicsDentsForPricing(dents.value, ctx);
   return normalized.map((d) => {
@@ -783,7 +790,8 @@ const detailLineItems = computed(() => {
     stripSizesWithArea: props.stripSizes,
     prices: props.userSettings?.prices ?? {},
     initialData: props.initialData,
-    roundStep: props.userSettings?.priceRoundStep ?? 0
+    roundStep: props.userSettings?.priceRoundStep ?? 0,
+    stripeTableScale: detailStripeTableScale.value
   };
   const condMap = detailDentConditions.value;
   const list = dents.map((dent) => {
@@ -1103,8 +1111,19 @@ function onDetailResultBack() {
   detailGoToStep('parameters');
 }
 
-function onDetailResultEditClient() {
-  detailGoToStep('client');
+function onDetailResultSyncClient(payload) {
+  const cur = detailSession.value.client || {};
+  const p = payload || {};
+  detailSetClient({
+    name: String(p.name ?? cur.name ?? ''),
+    phone: String(p.phone ?? cur.phone ?? ''),
+    company: String(p.company ?? cur.company ?? ''),
+    carBrand: String(p.carBrand ?? cur.carBrand ?? ''),
+    carModel: String(p.carModel ?? cur.carModel ?? ''),
+    plateNumber: String(p.plateNumber ?? cur.plateNumber ?? ''),
+    inspectDate: cur.inspectDate,
+    inspectTime: cur.inspectTime
+  });
 }
 
 async function onDetailResultEditClientField(key) {
@@ -1295,6 +1314,7 @@ const detailLineItemsForNewFlow = computed(() => {
     prices: props.userSettings?.prices ?? {},
     initialData: props.initialData,
     roundStep: props.userSettings?.priceRoundStep ?? 0,
+    stripeTableScale: detailStripeTableScale.value
   };
   const list = dents.map((dent) => {
     const w = Number(dent.dimensions?.lengthMm) || 0;

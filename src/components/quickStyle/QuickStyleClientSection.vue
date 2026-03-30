@@ -63,7 +63,9 @@
         <p v-if="clientRequired && !canNext" class="text-[10px] text-gray-500 text-center">Заполните обязательные поля</p>
       </div>
     </div>
-    <div class="quick-nav-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10 relative z-[1] pointer-events-auto">
+    <div
+      class="quick-nav-bar quick-nav-bar--detail-footer shrink-0 pt-2 relative z-[1] pointer-events-auto"
+    >
       <div class="quick-nav-buttons grid gap-1" style="grid-template-columns: auto 1fr auto; align-items: center;">
         <button
           type="button"
@@ -155,6 +157,16 @@ function handleNext(e) {
 }
 .client-input-row {
   min-height: 36px;
+}
+.quick-nav-bar--detail-footer {
+  flex-shrink: 0;
+  background: var(--dm-surface, #161616);
+  border-top: 1px solid var(--dm-border, #2a2a2a);
+  padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  padding-top: 10px;
+}
+.quick-nav-bar--detail-footer .quick-nav-btn {
+  min-height: 44px;
 }
 .quick-nav-price {
   text-align: center;

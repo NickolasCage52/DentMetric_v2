@@ -5,6 +5,7 @@
  * Supports custom works and price overrides from user settings.
  */
 import { SETTINGS_KEY } from '../utils/settingsUtils';
+import { normalizeArmatureBodyElement } from '../constants/bodyElements';
 
 function loadArmatureSettings() {
   try {
@@ -89,7 +90,13 @@ export function getArmaturnayaWorksForElement(panelElement) {
   if (customArmatureWorks && customArmatureWorks.length > 0) {
     const custom = customArmatureWorks
       .filter((c) => c && c.id && c.name != null)
-      .map((c) => ({ code: c.id, name: String(c.name), price: Number(c.price) || 0, isCustom: true }));
+      .map((c) => ({
+        code: c.id,
+        name: String(c.name),
+        price: Number(c.price) || 0,
+        isCustom: true,
+        bodyElement: normalizeArmatureBodyElement(c.bodyElement)
+      }));
     list = [...list, ...custom];
   }
   return list;
@@ -113,6 +120,28 @@ export function getArmaturnayaTotalPrice(codes, panelElement) {
     const work = uniqueByCode.get(code);
     return sum + (work?.price ?? 0);
   }, 0);
+}
+
+/**
+ * Selected armature works with resolved names and prices (for per-line display).
+ * @param {string[]} codes
+ * @param {string|null} panelElement
+ * @returns {{ code: string, name: string, price: number }[]}
+ */
+export function getArmatureWorkLineItems(codes, panelElement) {
+  const arr = Array.isArray(codes) ? codes : [];
+  const filtered = arr.filter((c) => c && c !== 'Z0');
+  if (filtered.length === 0) return [];
+  const works = getArmaturnayaWorksForElement(panelElement);
+  const byCode = new Map(works.map((w) => [w.code, w]));
+  return filtered.map((code) => {
+    const w = byCode.get(code);
+    return {
+      code,
+      name: w?.name || String(code),
+      price: Math.round(Number(w?.price) || 0)
+    };
+  });
 }
 
 /** All system works (for settings UI). */

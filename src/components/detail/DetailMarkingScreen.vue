@@ -34,8 +34,26 @@
       <div class="marking-controls__top-spacer" />
     </div>
 
-    <!-- Нижняя плашка: инструменты поверх фото -->
-    <div class="marking-controls-overlay" :class="{ 'marking-controls-overlay--marking': currentStep === 'marking' }">
+    <!-- Нижняя плашка: инструменты поверх фото (сворачивается, чтобы не перекрывать фото) -->
+    <div
+      class="marking-controls-overlay"
+      :class="{
+        'marking-controls-overlay--marking': currentStep === 'marking',
+        'marking-controls-overlay--dimensions': currentStep === 'dimensions',
+        'marking-controls-overlay--collapsed': isPanelCollapsed,
+      }"
+    >
+      <button
+        type="button"
+        class="marking-controls__toggle"
+        :title="isPanelCollapsed ? 'Развернуть панель' : 'Свернуть панель'"
+        @click="togglePanel"
+      >
+        <span class="marking-controls__handle-bar" />
+        <span class="marking-controls__toggle-chevron">{{ isPanelCollapsed ? '▲' : '▼' }}</span>
+      </button>
+
+      <div v-show="!isPanelCollapsed" class="marking-controls__body">
 
       <DetailProgressDots
         v-if="detailSteps?.length && currentStep === 'marking'"
@@ -210,13 +228,14 @@
           class="dm-btn dm-btn--primary dm-btn--full dimensions-proceed"
           :disabled="!allDimensionsFilled"
           data-testid="btn-proceed-to-params"
-          @click="$emit('proceed')"
+          @click="handleProceedToParams"
         >
           <template v-if="allDimensionsFilled">К параметрам →</template>
           <template v-else>Заполните все размеры ({{ totalCount - filledCount }} осталось)</template>
         </button>
       </template>
 
+      </div>
     </div>
 
     <DentDimensionsModal
@@ -255,6 +274,7 @@ const emit = defineEmits([
   'dent-selected',
   'dent-moved',
   'go-to-dimensions',
+  'annotated-photo',
   'proceed',
   'back',
   'reset-drawing',
@@ -272,7 +292,17 @@ let stageInitializedForPhoto = null;
 let resizeObserver = null;
 
 const activeMode = ref('idle');
+const isPanelCollapsed = ref(false);
 const showResetConfirm = ref(false);
+
+const BADGE_RADIUS = 10;
+const BADGE_RADIUS_DIM_ACTIVE = 12;
+const BADGE_RADIUS_DIM_IDLE = 9;
+const BADGE_FONT_SIZE = 11;
+
+function togglePanel() {
+  isPanelCollapsed.value = !isPanelCollapsed.value;
+}
 const pulseAnimations = new Map();
 const dimModalOpen = ref(false);
 const dimModalDentId = ref(null);
@@ -368,6 +398,185 @@ function hexToRgba(hex, alpha) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
+/** Координаты контура [x0,y0,...] → ограничивающий прямоугольник */
+function outlineBBox(points) {
+  if (!points?.length) {
+    return { minX: 0, maxX: 0, minY: 0, maxY: 0 };
+  }
+  const xs = points.filter((_, i) => i % 2 === 0);
+  const ys = points.filter((_, i) => i % 2 === 1);
+  return {
+    minX: Math.min(...xs),
+    maxX: Math.max(...xs),
+    minY: Math.min(...ys),
+    maxY: Math.max(...ys),
+  };
+}
+
+/** Бейдж внизу слева у контура (внутри bbox на 2px от краёв) */
+function badgeAnchorFromOutline(points) {
+  const { minX, maxY } = outlineBBox(points);
+  return { bx: minX + 2, by: maxY - 2 };
+}
+
+function layoutCenteredBadgeText(textNode, bx, by) {
+  textNode.align('center');
+  textNode.verticalAlign('middle');
+  textNode.x(bx);
+  textNode.y(by);
+  textNode.offsetX(textNode.width() / 2);
+  textNode.offsetY(textNode.height() / 2);
+}
+
+const DIM_OVERLAY_COLOR = '#FFD700';
+
+/**
+ * Пунктирные линии размеров на фото (длина по вертикали, ширина по горизонтали — как в референсе).
+ */
+function drawDimensionOverlayOnLayer(layer, overlayId, outlinePoints, lengthMm, widthMm) {
+  if (!layer) return;
+  const existing = layer.findOne(`#${overlayId}`);
+  if (existing) existing.destroy();
+
+  const len = Number(lengthMm);
+  const wid = Number(widthMm);
+  if (!len || !wid || !outlinePoints?.length) return;
+
+  const { minX, maxX, minY, maxY } = outlineBBox(outlinePoints);
+  const cx = (minX + maxX) / 2;
+  const cy = (minY + maxY) / 2;
+
+  const group = new Konva.Group({
+    id: overlayId,
+    name: 'dim-overlay-group',
+    listening: false,
+  });
+
+  const hLine = new Konva.Line({
+    points: [minX - 4, cy, maxX + 4, cy],
+    stroke: DIM_OVERLAY_COLOR,
+    strokeWidth: 1.5,
+    dash: [6, 4],
+    listening: false,
+  });
+
+  const wLabel = new Konva.Text({
+    x: maxX + 6,
+    y: cy - 8,
+    text: `${wid}мм`,
+    fontSize: 11,
+    fontStyle: 'bold',
+    fill: DIM_OVERLAY_COLOR,
+    shadowColor: 'rgba(0,0,0,0.85)',
+    shadowBlur: 3,
+    shadowOffset: { x: 1, y: 1 },
+    listening: false,
+  });
+
+  const vLine = new Konva.Line({
+    points: [cx, minY - 4, cx, maxY + 4],
+    stroke: DIM_OVERLAY_COLOR,
+    strokeWidth: 1.5,
+    dash: [6, 4],
+    listening: false,
+  });
+
+  const lLabel = new Konva.Text({
+    x: cx - 20,
+    y: minY - 20,
+    text: `${len}мм`,
+    fontSize: 11,
+    fontStyle: 'bold',
+    fill: DIM_OVERLAY_COLOR,
+    shadowColor: 'rgba(0,0,0,0.85)',
+    shadowBlur: 3,
+    shadowOffset: { x: 1, y: 1 },
+    listening: false,
+  });
+
+  group.add(hLine);
+  group.add(wLabel);
+  group.add(vLine);
+  group.add(lLabel);
+  layer.add(group);
+}
+
+function redrawDimensionOverlays() {
+  if (!dentLayer || !props.dents?.length) return;
+  for (const dent of props.dents) {
+    if (dent.outline?.points?.length >= 4 && dent.dimensions?.lengthMm && dent.dimensions?.widthMm) {
+      const safeId = `dim_overlay_${String(dent.id).replace(/[^a-zA-Z0-9_]/g, '_')}`;
+      drawDimensionOverlayOnLayer(
+        dentLayer,
+        safeId,
+        dent.outline.points,
+        dent.dimensions.lengthMm,
+        dent.dimensions.widthMm
+      );
+    }
+    const sd = dent.secondaryDeformation;
+    if (
+      sd?.outline?.points?.length >= 4 &&
+      sd.dimensions?.lengthMm &&
+      sd.dimensions?.widthMm
+    ) {
+      const safeSdId = `dim_overlay_sd_${String(dent.id).replace(/[^a-zA-Z0-9_]/g, '_')}`;
+      drawDimensionOverlayOnLayer(
+        dentLayer,
+        safeSdId,
+        sd.outline.points,
+        sd.dimensions.lengthMm,
+        sd.dimensions.widthMm
+      );
+    }
+  }
+}
+
+function captureAnnotatedPhoto() {
+  return new Promise((resolve) => {
+    const imgEl = photoImg.value;
+    if (!stage || !imgEl?.complete || !imgEl.naturalWidth) {
+      resolve(null);
+      return;
+    }
+    try {
+      stage.batchDraw();
+      const w = stage.width();
+      const h = stage.height();
+      const out = document.createElement('canvas');
+      out.width = w;
+      out.height = h;
+      const ctx = out.getContext('2d');
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+      ctx.drawImage(imgEl, 0, 0, w, h);
+      const children = stage.getChildren();
+      for (let i = 0; i < children.length; i++) {
+        const node = children[i];
+        if (node.getClassName?.() === 'Layer') {
+          const native = node.getNativeCanvasElement?.();
+          if (native) {
+            ctx.drawImage(native, 0, 0, native.width, native.height, 0, 0, w, h);
+          }
+        }
+      }
+      resolve(out.toDataURL('image/jpeg', 0.88));
+    } catch (e) {
+      console.warn('[DetailMarking] captureAnnotatedPhoto', e);
+      resolve(null);
+    }
+  });
+}
+
+async function handleProceedToParams() {
+  if (!props.allDimensionsFilled) return;
+  const annotated = await captureAnnotatedPhoto();
+  if (annotated) emit('annotated-photo', annotated);
+  emit('proceed');
+}
+
 function selectDentFromBadge(dentId) {
   if (props.selectedDentId === dentId) {
     emit('dent-selected', null);
@@ -386,7 +595,9 @@ function toggleDrawSecondary() {
   activeMode.value = activeMode.value === 'drawing-secondary' ? 'idle' : 'drawing-secondary';
 }
 
-function goToDimensions() {
+async function goToDimensions() {
+  const annotated = await captureAnnotatedPhoto();
+  if (annotated) emit('annotated-photo', annotated);
   emit('update:currentDentIndex', 0);
   emit('go-to-dimensions');
   nextTick(() => {
@@ -440,8 +651,14 @@ function renumberCanvasBadges() {
   if (!dentLayer) return;
   const groups = dentLayer.find('.dent-group');
   groups.forEach((node, i) => {
-    const textNode = (node).findOne('.dent-badge-text');
-    if (textNode) textNode.text(String(i + 1));
+    const textNode = node.findOne('.dent-badge-text');
+    const circleNode = node.findOne('.dent-badge-circle');
+    if (textNode) {
+      textNode.text(String(i + 1));
+      if (circleNode) {
+        layoutCenteredBadgeText(textNode, circleNode.x(), circleNode.y());
+      }
+    }
   });
   dentLayer.batchDraw();
 }
@@ -493,7 +710,14 @@ function updateSelectionVisuals(selectedId) {
     const group = node;
     const id = group.getAttr('dentId');
     const outline = group.findOne('.dent-outline');
+    const badge = group.findOne('.dent-badge-circle');
     if (!outline) return;
+
+    if (props.currentStep !== 'dimensions') {
+      badge?.radius(BADGE_RADIUS);
+      badge?.shadowBlur(0);
+      badge?.shadowOpacity(0);
+    }
 
     if (id === selectedId) {
       outline.strokeWidth(5);
@@ -540,32 +764,28 @@ function createDentGroup(points, color, dentId, index) {
     name: 'dent-outline',
   });
 
-  const xs = points.filter((_, i) => i % 2 === 0);
-  const ys = points.filter((_, i) => i % 2 === 1);
-  const cx = xs.reduce((a, b) => a + b, 0) / (xs.length || 1);
-  const cy = ys.reduce((a, b) => a + b, 0) / (ys.length || 1);
+  const { bx, by } = badgeAnchorFromOutline(points);
 
   const circle = new Konva.Circle({
-    x: cx,
-    y: cy,
-    radius: 16,
+    x: bx,
+    y: by,
+    radius: BADGE_RADIUS,
     fill: color,
-    stroke: 'rgba(0,0,0,0.3)',
-    strokeWidth: 1.5,
-    listening: true,
+    stroke: 'rgba(0,0,0,0.45)',
+    strokeWidth: 1,
+    listening: false,
     name: 'dent-badge-circle',
   });
 
   const text = new Konva.Text({
-    x: cx - 7,
-    y: cy - 9,
     text: String(index),
-    fontSize: 18,
+    fontSize: BADGE_FONT_SIZE,
     fontStyle: 'bold',
     fill: '#000',
     listening: false,
     name: 'dent-badge-text',
   });
+  layoutCenteredBadgeText(text, bx, by);
 
   group.add(shape);
   group.add(circle);
@@ -605,13 +825,13 @@ function createDentGroup(points, color, dentId, index) {
     const newPoints = oldPoints.map((v, i) => (i % 2 === 0 ? v + dx : v + dy));
     const circleNode = group.findOne('.dent-badge-circle');
     const textNode = group.findOne('.dent-badge-text');
+    const anchor = badgeAnchorFromOutline(newPoints);
     if (circleNode) {
-      circleNode.x(cx + dx);
-      circleNode.y(cy + dy);
+      circleNode.x(anchor.bx);
+      circleNode.y(anchor.by);
     }
-    if (textNode) {
-      textNode.x(cx - 7 + dx);
-      textNode.y(cy - 9 + dy);
+    if (textNode && circleNode) {
+      layoutCenteredBadgeText(textNode, circleNode.x(), circleNode.y());
     }
     group.x(0);
     group.y(0);
@@ -661,6 +881,7 @@ function redrawDentLayer() {
   } else {
     updateSelectionVisuals(props.selectedDentId);
   }
+  redrawDimensionOverlays();
   dentLayer.batchDraw();
 }
 
@@ -1024,7 +1245,7 @@ function highlightDentForEditing(activeDentId) {
       outline?.shadowColor('#ffffff');
       outline?.shadowBlur(16);
       outline?.shadowOpacity(0.8);
-      badge?.radius(20);
+      badge?.radius(BADGE_RADIUS_DIM_ACTIVE);
       badge?.shadowColor('#ffffff');
       badge?.shadowBlur(10);
       badge?.shadowOpacity(0.6);
@@ -1036,7 +1257,7 @@ function highlightDentForEditing(activeDentId) {
       outline?.shadowBlur(0);
       outline?.shadowOpacity(0);
       outline?.fill(hexToRgba(outline?.stroke() || '#4CAF50', 0.12));
-      badge?.radius(14);
+      badge?.radius(BADGE_RADIUS_DIM_IDLE);
       badge?.shadowBlur(0);
       group.opacity(0.3);
     }
@@ -1192,21 +1413,59 @@ onUnmounted(() => {
   background: linear-gradient(to top, rgba(15, 15, 15, 0.98) 0%, rgba(15, 15, 15, 0.95) 60%, transparent);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  padding: 6px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 44vh;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: auto;
+  z-index: 5;
+  transition: max-height 0.25s ease, opacity 0.2s ease;
+}
+.marking-controls-overlay--collapsed {
+  max-height: 40px;
+}
+.marking-controls__toggle {
+  flex-shrink: 0;
+  width: 100%;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  color: var(--dm-text-secondary, #888);
+}
+.marking-controls__handle-bar {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--dm-border, #2a2a2a);
+}
+.marking-controls__toggle-chevron {
+  font-size: 10px;
+  opacity: 0.85;
+}
+.marking-controls__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: calc(44vh - 36px);
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   display: flex;
   flex-direction: column;
   gap: 7px;
-  max-height: 42vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  overscroll-behavior: contain;
-  pointer-events: auto;
-  z-index: 5;
-  transition: opacity 0.2s ease, transform 0.2s ease;
+  padding: 4px 12px calc(10px + env(safe-area-inset-bottom, 0px));
 }
 @media (max-width: 600px) {
-  .marking-controls-overlay {
+  .marking-controls__body {
     padding: 4px 10px calc(10px + env(safe-area-inset-bottom, 0px));
   }
 }
@@ -1241,18 +1500,18 @@ onUnmounted(() => {
   justify-content: center;
 }
 .marking-controls-overlay--marking {
-  max-height: 42vh;
+  max-height: 44vh;
 }
-.marking-controls-overlay:not(.marking-controls-overlay--marking) {
-  display: flex;
-  flex-direction: column;
-  height: 42vh;
-  max-height: 42vh;
-  min-height: 180px;
+/* Экран размеров: без фиксированной высоты — только по контенту, фото занимает остаток */
+.marking-controls-overlay--dimensions:not(.marking-controls-overlay--collapsed) {
+  max-height: 38vh;
+}
+.marking-controls-overlay--dimensions .marking-controls__body {
+  max-height: calc(38vh - 36px);
 }
 .dimensions-proceed {
   flex-shrink: 0;
-  margin-top: 12px;
+  margin-top: 6px;
   min-height: 48px;
 }
 .marking-hint-bar {

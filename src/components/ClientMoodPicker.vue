@@ -1,6 +1,6 @@
 <template>
   <div class="mood-picker">
-    <div class="mood-picker__label">АДЕКВАТНОСТЬ КЛИЕНТА</div>
+    <div v-if="!hideBlockLabel" class="mood-picker__label">АДЕКВАТНОСТЬ КЛИЕНТА</div>
     <div class="mood-picker__row">
       <button
         v-for="m in MOODS"
@@ -22,7 +22,9 @@
 
 <script setup>
 defineProps({
-  modelValue: { type: String, default: null }
+  modelValue: { type: String, default: null },
+  /** Скрыть крупную подпись внутри блока (остаётся только ряд эмодзи; заголовок снаружи). */
+  hideBlockLabel: { type: Boolean, default: false }
 });
 defineEmits(['update:modelValue']);
 

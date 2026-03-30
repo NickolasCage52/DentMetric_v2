@@ -70,6 +70,30 @@ export function getPriceMultiplier(dentType, settings = {}) {
 }
 
 /**
+ * Average ratio (current user strip prices / catalog base) for stripe table scaling.
+ * Used so «Регулятор цен» (mutates userSettings.prices) affects stripe/scratch path in Detail.
+ * @param {object} initialData
+ * @param {object} userSettings
+ * @returns {number}
+ */
+export function getUserStripPriceScaleFactor(initialData, userSettings = {}) {
+  const sizes = initialData?.stripSizes;
+  const prices = userSettings?.prices || {};
+  if (!Array.isArray(sizes) || sizes.length === 0) return 1;
+  let sumRatio = 0;
+  let count = 0;
+  for (const s of sizes) {
+    const base = Number(s.basePrice);
+    const current = Number(prices[s.code]);
+    if (base > 0 && Number.isFinite(current)) {
+      sumRatio += current / base;
+      count++;
+    }
+  }
+  return count === 0 ? 1 : sumRatio / count;
+}
+
+/**
  * Get discount rate for a non-primary dent based on same/different element.
  * @param {{ element?: string, panelElement?: string }} dent - current dent (not the most expensive)
  * @param {{ element?: string, panelElement?: string }} primaryDent - most expensive dent

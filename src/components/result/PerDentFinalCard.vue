@@ -13,12 +13,12 @@
         <span class="pdc-row__label">Ориентировочное время:</span>
         <div class="pdc-row__val pdc-row__val--edit pdc-row__val--span2">
           <template v-if="readOnly">
-            <span class="pdc-static">{{ dentRepairHours(row.dent) }} ч</span>
+            <span class="pdc-static">{{ timeDisplayLabel(row.dent) }}</span>
           </template>
           <template v-else>
             <template v-if="editingDentTime !== row.dent?.id">
               <button type="button" class="pdc-edit-hit" @click="startDentTimeEdit(row.dent)">
-                {{ dentRepairHours(row.dent) }} ч <span class="pdc-pen">✎</span>
+                {{ timeDisplayLabel(row.dent) }} <span class="pdc-pen">✎</span>
               </button>
             </template>
             <div v-else class="pdc-inline">
@@ -37,7 +37,7 @@
         </div>
       </div>
       <div class="pdc-row">
-        <span class="pdc-row__label">Диаметр:</span>
+        <span class="pdc-row__label">{{ lengthLabel }}:</span>
         <span class="pdc-row__val pdc-row__val--span2">{{ dim(row.dent?.sizeLengthMm ?? row.dent?.bboxMm?.width) }}</span>
       </div>
       <div class="pdc-row">
@@ -63,12 +63,29 @@
         <span class="pdc-row__label">Скидка:</span>
         <div class="pdc-row__val pdc-row__val--span2 pdc-row__val--discount">
           <template v-if="readOnly">
-            <span class="pdc-static">{{ row.discountPercent ? row.discountPercent : '—' }}</span>
+            <template v-if="detailUxParity && row.discountPercent > 0">
+              <span class="pdc-static">{{ row.discountPercent }}% — −{{ fmt(discountAmountRub) }} ₽</span>
+            </template>
+            <template v-else>
+              <span class="pdc-static">{{ row.discountPercent ? row.discountPercent : '—' }}</span>
+              <span class="pdc-pct">%</span>
+              <span
+                v-if="row.discountPercent > 0"
+                class="pdc-disc-amt"
+              >−{{ fmt(historyDiscountRub) }} ₽</span>
+            </template>
+          </template>
+          <template v-else-if="detailUxParity">
+            <input
+              v-model.number="discountPctProxy"
+              type="number"
+              min="0"
+              max="100"
+              class="pdc-num-input pdc-num-input--disc"
+              @blur="onDiscountBlur"
+            >
             <span class="pdc-pct">%</span>
-            <span
-              v-if="row.discountPercent > 0"
-              class="pdc-disc-amt"
-            >−{{ fmt(historyDiscountRub) }} ₽</span>
+            <span v-if="discountPctProxy > 0" class="pdc-disc-line">— −{{ fmt(discountAmountRub) }} ₽</span>
           </template>
           <template v-else>
             <button type="button" class="pdc-disc-btn" @click="$emit('open-discount', row.dent)">
@@ -84,14 +101,14 @@
           <span class="pdc-row__label pdc-row__label--total">Итого по вмятине по системе DentMetric:</span>
           <div class="pdc-row__val pdc-row__val--edit pdc-row__val--span2">
             <template v-if="readOnly">
-              <span class="pdc-grand">{{ fmt(row.displayTotal) }} ₽</span>
+              <span class="pdc-grand" :class="{ 'dm-total-price': detailUxParity }">{{ fmt(row.displayTotal) }} ₽</span>
             </template>
             <template v-else>
               <template v-if="row.hasManual">
                 <span class="pdc-strike">{{ fmt(row.dmTotal) }} ₽</span>
               </template>
               <template v-if="editingPrice !== row.dent?.id">
-                <button type="button" class="pdc-edit-hit" @click="startPriceEdit(row)">
+                <button type="button" class="pdc-edit-hit" :class="{ 'dm-total-price': detailUxParity }" @click="startPriceEdit(row)">
                   {{ fmt(row.displayTotal) }} ₽ <span class="pdc-pen">✎</span>
                 </button>
               </template>
@@ -129,6 +146,8 @@ import { ref, nextTick, computed } from 'vue';
 import { applyPriceRoundingCeil } from '../../utils/priceRounding';
 import { resolveDentShapeType } from '../../utils/resolveDentShapeType';
 import { formatBreakdownDelta, deltaClass as deltaClassFn } from '../../utils/buildDetailedBreakdown';
+import { formatRepairTime } from '../../utils/formatRepairTime';
+import { clampDiscount } from '../../utils/discount';
 
 const props = defineProps({
   index: { type: Number, required: true },
@@ -136,10 +155,15 @@ const props = defineProps({
   breakdownRows: { type: Array, default: () => [] },
   userSettings: { type: Object, required: true },
   engineLineItems: { type: Array, default: () => [] },
-  readOnly: { type: Boolean, default: false }
+  readOnly: { type: Boolean, default: false },
+  /** Detail / History parity: длина, время, скидка в ₽, стиль итого, инлайн-скидка */
+  detailUxParity: { type: Boolean, default: false },
+  estimateDraft: { type: Object, default: null }
 });
 
 defineEmits(['open-discount']);
+
+const lengthLabel = computed(() => (props.detailUxParity ? 'Длина' : 'Диаметр'));
 
 const historyDiscountRub = computed(() => {
   const r = props.row;
@@ -150,6 +174,35 @@ const historyDiscountRub = computed(() => {
   const post = Number(r.displayTotal ?? r.appliedTotal) || 0;
   return Math.max(0, Math.round(pre - post));
 });
+
+const discountAmountRub = computed(() => {
+  const pre = Number(props.row.preDiscountTotal) || 0;
+  const pct = Number(props.row.discountPercent) || 0;
+  const step = roundStep();
+  const raw = pre * (pct / 100);
+  if (step > 0) return applyPriceRoundingCeil(raw, step);
+  return Math.round(raw);
+});
+
+const discountPctProxy = computed({
+  get() {
+    return Number(props.row.discountPercent) || 0;
+  },
+  set(v) {
+    const p = clampDiscount(v ?? 0);
+    const d = props.row.dent;
+    if (d) d.discountPercent = p;
+    const draft = props.estimateDraft;
+    if (draft && d?.id != null) {
+      if (!draft.dentDiscounts) draft.dentDiscounts = {};
+      draft.dentDiscounts[d.id] = p;
+    }
+  }
+});
+
+function onDiscountBlur() {
+  discountPctProxy.value = clampDiscount(discountPctProxy.value);
+}
 
 const roundStep = () => props.userSettings.priceRoundStep ?? 0;
 
@@ -223,6 +276,12 @@ function dentRepairHours(dent) {
   const rate = props.userSettings.hourlyRate > 0 ? props.userSettings.hourlyRate : 4000;
   if (price <= 0 || rate <= 0) return 0;
   return Math.round((price / rate) * 100) / 100;
+}
+
+function timeDisplayLabel(dent) {
+  const h = dentRepairHours(dent);
+  if (props.detailUxParity || props.readOnly) return formatRepairTime(h);
+  return `${h} ч`;
 }
 
 function startDentTimeEdit(dent) {
@@ -387,6 +446,22 @@ function saveDentTime(dent) {
   font-size: 15px;
   font-weight: 800;
   color: #88e523;
+}
+.dm-total-price {
+  color: var(--dm-accent, #a0e040) !important;
+  font-size: 17px !important;
+  font-weight: 700 !important;
+}
+.pdc-num-input--disc {
+  width: 56px;
+  min-height: 44px;
+}
+.pdc-disc-line {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--dm-text-secondary, #888888);
+  white-space: nowrap;
 }
 .pdc-pen {
   font-size: 11px;

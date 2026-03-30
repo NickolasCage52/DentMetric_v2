@@ -631,35 +631,7 @@
           изменено, расчёт DM = <span class="line-through">{{ formatCurrency(selectedHistory.dmCalculatedPrice) }}₽</span> → <span class="text-metric-green font-semibold">{{ formatCurrency(selectedHistory.manualAdjustedPrice) }}₽</span>
         </div>
       </div>
-      <div v-if="isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-3">
-        <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Редактирование</div>
-        <div class="grid grid-cols-2 gap-2">
-          <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[14px] text-white min-h-[42px]" @click="openHistoryEditField('clientName', 'Имя', 'text')"><span class="truncate">{{ historyEditDraft.clientName || 'Имя' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
-          <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[14px] text-white min-h-[42px]" @click="openHistoryEditField('clientPhone', 'Тел', 'tel')"><span class="truncate">{{ historyEditDraft.clientPhone || 'Тел' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
-          <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[14px] text-white min-h-[42px]" @click="openHistoryEditField('carBrand', 'Марка', 'text')"><span class="truncate">{{ historyEditDraft.carBrand || 'Марка' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
-          <button type="button" class="input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-[#333] text-left text-[14px] text-white min-h-[42px]" @click="openHistoryEditField('carModel', 'Модель', 'text')"><span class="truncate">{{ historyEditDraft.carModel || 'Модель' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
-        </div>
-        <button type="button" class="input-row w-full flex items-center justify-between gap-2 rounded-xl px-3 py-3 min-h-[42px] bg-[#151515] border border-[#333] text-left text-[14px] text-white" @click="openHistoryCommentModal"><span class="truncate flex-1">{{ historyEditDraft.comment || 'Комментарий' }}</span><span class="text-gray-500 shrink-0">✎</span></button>
-        <div class="flex items-center justify-between gap-3 py-1">
-          <span class="text-sm text-gray-300 flex-1">Скидка (%)</span>
-          <input type="number" v-model.number="historyEditDraft.discountPercent" min="0" max="100" class="w-24 bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-right text-white focus:border-metric-green outline-none">
-        </div>
-        <div class="space-y-2">
-          <span class="text-sm text-gray-300">Изменить стоимость вручную</span>
-          <div class="flex gap-2 items-center">
-            <input type="number" v-model.number="historyEditDraft.editManualPrice" placeholder="Сумма" class="flex-1 bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:border-metric-green outline-none" inputmode="numeric">
-            <button type="button" @click="historyEditDraft.editManualPrice = null" class="text-xs text-gray-500 border border-white/10 rounded-lg px-2 py-2">Сбросить</button>
-          </div>
-        </div>
-        <div class="attachment-edit">
-          <AttachmentPicker :record-id="selectedHistory?.id || ''" :dent-index="0" :model-value="historyEditDraft.attachments" @update:model-value="historyEditDraft.attachments = $event" />
-        </div>
-        <div class="flex gap-2">
-          <button type="button" @click="cancelHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[40px]">Отмена</button>
-          <button type="button" @click="saveHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[40px] disabled:opacity-50" :disabled="isUpdatingHistory">{{ isUpdatingHistory ? '...' : 'Сохранить' }}</button>
-        </div>
-      </div>
-      <ResultFourTabs v-if="!isEditingHistory" v-model="historyFinalTab" class="history-final-tabs">
+      <ResultFourTabs v-model="historyFinalTab" class="history-final-tabs">
         <div class="hist-final-panels space-y-3 pb-2">
           <section v-show="historyFinalTab === 'calculation'" class="hist-final-page space-y-3" aria-label="Расчёт">
             <div class="card-metallic rounded-2xl p-4 space-y-3">
@@ -675,57 +647,115 @@
                 >{{ st.label }}</button>
               </div>
             </div>
-            <div class="price-grand-total card-metallic rounded-xl flex justify-between items-center gap-3 px-5 py-4 mb-2 min-w-0">
-              <span class="pgt-label text-[14px] text-gray-500 min-w-0">Итого по всем повреждениям</span>
-              <span class="pgt-amount text-[24px] font-bold text-metric-green tabular-nums shrink-0 whitespace-nowrap">{{ formatCurrency(historyDisplayTotal) }} ₽</span>
+            <div v-if="isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-3">
+              <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Параметры записи</div>
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-sm text-gray-300 flex-1">Скидка (%)</span>
+                <input v-model.number="historyEditDraft.discountPercent" type="number" min="0" max="100" class="w-24 min-h-[44px] bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-right text-white focus:border-metric-green outline-none">
+              </div>
+              <div class="space-y-2">
+                <span class="text-sm text-gray-300">Итого вручную (вся оценка)</span>
+                <div class="flex gap-2 items-center">
+                  <input v-model.number="historyEditDraft.editManualPrice" type="number" placeholder="Сумма" class="flex-1 min-h-[44px] bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:border-metric-green outline-none" inputmode="numeric">
+                  <button type="button" class="min-h-[44px] px-3 text-xs text-gray-500 border border-white/10 rounded-lg" @click="historyEditDraft.editManualPrice = null">Сбросить</button>
+                </div>
+              </div>
             </div>
             <PerDentFinalCard
-              v-for="(dentItem, idx) in historyLineItems"
+              v-for="(dentItem, idx) in historyDisplayLineItems"
               :key="dentItem.dent?.id || idx"
               :index="idx"
               :row="historyUiRowForPerDentCard(dentItem)"
-              :breakdown-rows="buildDetailedBreakdown(dentItem)"
+              :breakdown-rows="buildDetailedBreakdownForHistory(dentItem)"
               :user-settings="userSettings"
               :engine-line-items="historyEngineLineItemsForDent(dentItem)"
-              :read-only="true"
+              :read-only="!isEditingHistory"
+              :detail-ux-parity="true"
             />
             <PrepaymentBlock
-              :model-value="selectedHistory.prepayment ?? { amount: 0, method: null }"
-              :readonly="true"
+              :model-value="isEditingHistory ? historyEditDraft.prepayment : (selectedHistory.prepayment ?? { amount: 0, method: null })"
+              :readonly="!isEditingHistory"
+              @update:model-value="(v) => { if (isEditingHistory) historyEditDraft.prepayment = v; }"
             />
           </section>
           <section v-show="historyFinalTab === 'client'" class="hist-final-page space-y-3" aria-label="Клиент">
-            <ClientInfoBlock
-              :client="historyClientForDisplay"
-              :editable="true"
-              @edit="startHistoryEdit"
-              @edit-field="onHistoryClientInfoEditField"
-            />
-            <div
-              v-if="(historyClientForDisplay.phone || '').trim()"
-              class="flex justify-end card-metallic rounded-xl px-4 py-3"
-            >
-              <a
-                :href="`tel:${historyDetailTelHref}`"
-                class="px-4 py-2.5 rounded-lg text-xs font-bold bg-metric-green text-black border border-metric-green/40 touch-manipulation"
-              >Позвонить</a>
+            <div v-if="isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-3">
+              <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Данные клиента</div>
+              <input v-model="historyEditDraft.clientName" type="text" placeholder="Имя" class="w-full min-h-[44px] rounded-xl bg-[#151515] border border-[#333] px-3 text-sm text-white">
+              <input v-model="historyEditDraft.clientPhone" type="tel" placeholder="Телефон" class="w-full min-h-[44px] rounded-xl bg-[#151515] border border-[#333] px-3 text-sm text-white">
+              <input v-model="historyEditDraft.clientCompany" type="text" placeholder="Компания" class="w-full min-h-[44px] rounded-xl bg-[#151515] border border-[#333] px-3 text-sm text-white">
+              <input v-model="historyEditDraft.carBrand" type="text" placeholder="Марка" class="w-full min-h-[44px] rounded-xl bg-[#151515] border border-[#333] px-3 text-sm text-white">
+              <input v-model="historyEditDraft.carModel" type="text" placeholder="Модель" class="w-full min-h-[44px] rounded-xl bg-[#151515] border border-[#333] px-3 text-sm text-white">
+              <input v-model="historyEditDraft.carPlate" type="text" placeholder="Гос. номер" class="w-full min-h-[44px] rounded-xl bg-[#151515] border border-[#333] px-3 text-sm text-white">
             </div>
+            <template v-else>
+              <div class="card-metallic rounded-2xl p-4 space-y-2">
+                <div class="flex items-center justify-between gap-2 mb-1">
+                  <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Клиент</span>
+                  <button type="button" class="text-[11px] font-bold uppercase tracking-wider text-metric-green min-h-[44px] px-2" @click="startHistoryEdit">Изменить</button>
+                </div>
+                <div class="flex justify-between text-sm gap-2"><span class="text-gray-500 shrink-0">Имя</span><span class="text-white text-right">{{ historyClientForDisplay.name || '—' }}</span></div>
+                <div class="flex justify-between text-sm gap-2"><span class="text-gray-500 shrink-0">Телефон</span><span class="text-white text-right">{{ historyClientForDisplay.phone || '—' }}</span></div>
+                <div class="flex justify-between text-sm gap-2"><span class="text-gray-500 shrink-0">Компания</span><span class="text-white text-right">{{ historyClientForDisplay.company || '—' }}</span></div>
+                <div class="flex justify-between text-sm gap-2"><span class="text-gray-500 shrink-0">Марка</span><span class="text-white text-right">{{ historyClientForDisplay.brand || '—' }}</span></div>
+                <div class="flex justify-between text-sm gap-2"><span class="text-gray-500 shrink-0">Модель</span><span class="text-white text-right">{{ historyClientForDisplay.model || '—' }}</span></div>
+                <div class="flex justify-between text-sm gap-2"><span class="text-gray-500 shrink-0">Гос. номер</span><span class="text-white text-right">{{ selectedHistory.client?.plate || selectedHistory.client?.carPlate || '—' }}</span></div>
+              </div>
+              <div
+                v-if="(historyClientForDisplay.phone || '').trim()"
+                class="flex justify-end card-metallic rounded-xl px-4 py-3"
+              >
+                <a
+                  :href="`tel:${historyDetailTelHref}`"
+                  class="px-4 py-2.5 rounded-lg text-xs font-bold bg-metric-green text-black border border-metric-green/40 touch-manipulation min-h-[44px] flex items-center"
+                >Позвонить</a>
+              </div>
+            </template>
             <div class="card-metallic rounded-2xl p-4">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Адекватность клиента</span>
+                <button type="button" class="min-w-[44px] min-h-[44px] border-0 bg-transparent text-base opacity-80" aria-label="Справка" @click="historyAdequacyInfoOpen = !historyAdequacyInfoOpen">ℹ️</button>
+              </div>
+              <p v-if="historyAdequacyInfoOpen" class="text-xs text-gray-500 mb-3 leading-relaxed m-0">
+                Оцените поведение клиента. Это поможет вам при повторных обращениях.
+              </p>
               <ClientMoodPicker
-                :model-value="selectedHistory.clientMood ?? historyEditDraft.clientMood ?? null"
+                :hide-block-label="true"
+                :model-value="isEditingHistory ? historyEditDraft.clientMood : (selectedHistory.clientMood ?? null)"
                 @update:model-value="onHistoryMoodChange($event)"
               />
             </div>
           </section>
           <section v-show="historyFinalTab === 'files'" class="hist-final-page space-y-3" aria-label="Файлы">
-            <div v-if="selectedHistory.comment" class="card-metallic rounded-2xl p-4 space-y-2">
-              <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Комментарий</div>
-              <div class="text-sm text-gray-300">{{ selectedHistory.comment }}</div>
-            </div>
-            <HistoryAttachmentsView v-if="(selectedHistory.attachments || []).length > 0" :attachments="selectedHistory.attachments" />
-            <div v-if="!selectedHistory.comment && !(selectedHistory.attachments || []).length" class="text-center text-gray-500 text-sm py-10">
-              Нет комментария и вложений
-            </div>
+            <template v-if="isEditingHistory">
+              <div class="card-metallic rounded-2xl p-4 space-y-3">
+                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Комментарий мастера</div>
+                <textarea
+                  v-model="historyEditDraft.comment"
+                  class="w-full min-h-[100px] rounded-xl bg-[#151515] border border-[#333] px-3 py-3 text-sm text-white placeholder:text-gray-600 resize-y box-border"
+                  placeholder="Добавить комментарий..."
+                />
+                <AttachmentPicker
+                  :record-id="selectedHistory?.id || ''"
+                  :dent-index="0"
+                  :model-value="historyEditDraft.attachments"
+                  @update:model-value="historyEditDraft.attachments = $event"
+                />
+              </div>
+              <div v-if="!String(historyEditDraft.comment || '').trim() && !(historyEditDraft.attachments || []).length" class="text-center text-gray-500 text-sm py-6">
+                Нет комментария и вложений
+              </div>
+            </template>
+            <template v-else>
+              <div v-if="selectedHistory.comment" class="card-metallic rounded-2xl p-4 space-y-2">
+                <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Комментарий</div>
+                <div class="text-sm text-gray-300">{{ selectedHistory.comment }}</div>
+              </div>
+              <HistoryAttachmentsView v-if="(selectedHistory.attachments || []).length > 0" :attachments="selectedHistory.attachments" />
+              <div v-if="!selectedHistory.comment && !(selectedHistory.attachments || []).length" class="text-center text-gray-500 text-sm py-10">
+                Нет комментария и вложений
+              </div>
+            </template>
           </section>
           <section
             v-show="historyFinalTab === 'demo'"
@@ -737,19 +767,15 @@
           </section>
         </div>
       </ResultFourTabs>
-      <PrepaymentBlock
-        v-if="isEditingHistory"
-        :model-value="historyEditDraft.prepayment"
-        :readonly="false"
-        @update:model-value="(v) => { historyEditDraft.prepayment = v; }"
-      />
       </div>
       <!-- Sticky action bar: fixed above tab bar, always visible -->
       <div class="history-detail-actions">
         <div class="history-detail-actions__inner flex gap-2 p-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))] bg-black border-t border-white/10">
           <button type="button" data-testid="btn-history-back" @click="selectedHistoryId = null" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[44px]">Назад</button>
           <button v-if="!isEditingHistory" type="button" @click="startHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[44px]">Редакт.</button>
-          <button type="button" @click="deleteHistoryConfirm(selectedHistory.id)" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-red-400 border border-red-500/40 rounded-xl min-h-[44px]">Удалить</button>
+          <button v-if="isEditingHistory" type="button" @click="cancelHistoryEdit" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-gray-300 border border-white/10 rounded-xl min-h-[44px]">Отмена</button>
+          <button v-if="isEditingHistory" type="button" :disabled="isUpdatingHistory" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[44px] disabled:opacity-50" @click="saveHistoryEdit">{{ isUpdatingHistory ? '...' : 'Сохранить' }}</button>
+          <button v-if="!isEditingHistory" type="button" @click="deleteHistoryConfirm(selectedHistory.id)" class="flex-1 py-2.5 text-xs font-bold uppercase tracking-widest text-red-400 border border-red-500/40 rounded-xl min-h-[44px]">Удалить</button>
         </div>
       </div>
     </div>
@@ -1206,61 +1232,62 @@
     >
       <button
         type="button"
-        data-testid="nav-history"
-        @click="goToHistory"
-        class="bottom-nav-btn flex-1 min-w-0 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[52px] touch-manipulation"
-        :class="currentSection === 'history' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
-        :aria-current="currentSection === 'history' ? 'page' : undefined"
-        :aria-label="currentSection === 'history' ? 'История (текущий раздел)' : 'История'"
+        data-testid="nav-info"
+        @click="switchSection('info')"
+        class="bottom-nav-btn flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[56px] touch-manipulation"
+        :class="currentSection === 'info' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
+        :aria-current="currentSection === 'info' ? 'page' : undefined"
+        :aria-label="currentSection === 'info' ? 'Инфо (текущий раздел)' : 'Инфо'"
       >
-        <span class="text-xl" aria-hidden="true">🗂️</span>
-        <span class="text-[9px] font-bold uppercase tracking-widest">История</span>
+        <svg class="bottom-nav-ico" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+        <span class="text-[9px] font-bold uppercase tracking-widest">Инфо</span>
       </button>
       <button
         type="button"
         data-testid="nav-settings"
         @click="switchSection('settings')"
-        class="bottom-nav-btn flex-1 min-w-0 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[52px] touch-manipulation"
+        class="bottom-nav-btn flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[56px] touch-manipulation"
         :class="currentSection === 'settings' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
         :aria-current="currentSection === 'settings' ? 'page' : undefined"
         :aria-label="currentSection === 'settings' ? 'Настройки (текущий раздел)' : 'Настройки'"
       >
-        <span class="text-xl" aria-hidden="true">⚙️</span>
+        <svg class="bottom-nav-ico" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         <span class="text-[9px] font-bold uppercase tracking-widest">Настройки</span>
       </button>
       <button
         type="button"
         data-testid="nav-metric"
         @click="openMetricMenu"
-        class="bottom-nav-btn flex-1 min-w-0 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[52px] touch-manipulation"
+        class="bottom-nav-btn flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[56px] touch-manipulation"
         :class="currentSection === 'metric' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
         :aria-current="currentSection === 'metric' ? 'page' : undefined"
         :aria-label="currentSection === 'metric' ? 'Метрика (текущий раздел)' : 'Метрика'"
       >
-        <span class="text-xl" aria-hidden="true">🧮</span>
+        <svg class="bottom-nav-ico" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19V5M4 19h16M8 17V9M12 17V3M16 17v-5"/></svg>
         <span class="text-[9px] font-bold uppercase tracking-widest">Метрика</span>
       </button>
       <button
         type="button"
-        @click="switchSection('info')"
-        class="bottom-nav-btn flex-1 min-w-0 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[52px] touch-manipulation"
-        :class="currentSection === 'info' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
-        :aria-current="currentSection === 'info' ? 'page' : undefined"
-        :aria-label="currentSection === 'info' ? 'Инфо (текущий раздел)' : 'Инфо'"
+        data-testid="nav-history"
+        @click="goToHistory"
+        class="bottom-nav-btn flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[56px] touch-manipulation"
+        :class="currentSection === 'history' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
+        :aria-current="currentSection === 'history' ? 'page' : undefined"
+        :aria-label="currentSection === 'history' ? 'История (текущий раздел)' : 'История'"
       >
-        <span class="text-xl" aria-hidden="true">ℹ️</span>
-        <span class="text-[9px] font-bold uppercase tracking-widest">Инфо</span>
+        <svg class="bottom-nav-ico" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        <span class="text-[9px] font-bold uppercase tracking-widest">История</span>
       </button>
       <button
         type="button"
         data-testid="nav-home"
         @click="goHome"
-        class="bottom-nav-btn flex-1 min-w-0 py-2.5 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[52px] touch-manipulation"
+        class="bottom-nav-btn flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[56px] touch-manipulation"
         :class="currentSection === 'home' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
         :aria-current="currentSection === 'home' ? 'page' : undefined"
         :aria-label="currentSection === 'home' ? 'Домой (текущий раздел)' : 'Домой'"
       >
-        <span class="text-xl" aria-hidden="true">🏠</span>
+        <svg class="bottom-nav-ico" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1v-9.5z"/></svg>
         <span class="text-[9px] font-bold uppercase tracking-widest">Домой</span>
       </button>
     </nav>
@@ -1313,7 +1340,7 @@ import { applyDiscount, clampDiscount } from './utils/discount';
 import { calculateEstimateTotals } from './utils/calculateEstimateTotals';
 import { calculateSessionTotalWithMultiDentRule } from './utils/multiDentAggregation';
 import { buildQuickFinalBreakdown } from './utils/buildQuickFinalBreakdown';
-import { migrateSettings, validateSettings, getPriceMultiplier, SETTINGS_KEY } from './utils/settingsUtils';
+import { migrateSettings, validateSettings, getPriceMultiplier, getUserStripPriceScaleFactor, SETTINGS_KEY } from './utils/settingsUtils';
 import GraphicsWizard from './components/graphics/GraphicsWizard.vue';
 import StepDots from './components/graphics/StepDots.vue';
 import InfoIcon from './components/InfoIcon.vue';
@@ -1519,6 +1546,7 @@ const selectedHistory = computed(() => historyItems.value.find((item) => item.id
 
 watch(selectedHistoryId, () => {
   historyFinalTab.value = 'calculation';
+  historyAdequacyInfoOpen.value = false;
 });
 
 /** Группировка breakdown по вмятинам для отображения в истории: [{ dentNum, title, items }] */
@@ -1586,7 +1614,8 @@ const historyLineItems = computed(() => {
     stripSizesWithArea,
     prices: userSettings.prices,
     initialData,
-    roundStep: 0
+    roundStep: 0,
+    stripeTableScale: getUserStripPriceScaleFactor(initialData, userSettings)
   };
 
   const recomputed = [];
@@ -1721,20 +1750,6 @@ if (import.meta.env.DEV) {
   );
 }
 
-/** Итог по истории: manual override > sum of line items > saved total. */
-const historyDisplayTotal = computed(() => {
-  const rec = selectedHistory.value;
-  if (rec?.isPriceManuallyAdjusted && rec.manualAdjustedPrice != null) {
-    return Number(rec.manualAdjustedPrice) || 0;
-  }
-  const items = historyLineItems.value;
-  if (items?.length > 0) {
-    const sum = items.reduce((s, i) => s + (i.appliedTotal ?? 0), 0);
-    if (sum > 0) return sum;
-  }
-  return rec?.total ?? 0;
-});
-
 function historyBreakdownDeltaClass(value) {
   if (!value || typeof value !== 'string') return '';
   if (value.startsWith('−') || value.startsWith('-')) return 'text-gray-500';
@@ -1815,7 +1830,34 @@ const historyEditDraft = reactive({
   prepayment: { amount: 0, method: null },
   discountPercent: 0,
   editManualPrice: null,
-  attachments: []
+  attachments: [],
+  /** Копия line items для инлайн-редактирования вкладки «Расчёт» */
+  editLineItems: null
+});
+const historyAdequacyInfoOpen = ref(false);
+
+const historyDisplayLineItems = computed(() => {
+  if (isEditingHistory.value && Array.isArray(historyEditDraft.editLineItems) && historyEditDraft.editLineItems.length > 0) {
+    return historyEditDraft.editLineItems;
+  }
+  return historyLineItems.value;
+});
+
+/** Итог по истории: manual override > sum of line items > saved total. */
+const historyDisplayTotal = computed(() => {
+  const rec = selectedHistory.value;
+  if (isEditingHistory.value && historyEditDraft.editManualPrice != null && Number(historyEditDraft.editManualPrice) > 0) {
+    return Number(historyEditDraft.editManualPrice) || 0;
+  }
+  if (!isEditingHistory.value && rec?.isPriceManuallyAdjusted && rec.manualAdjustedPrice != null) {
+    return Number(rec.manualAdjustedPrice) || 0;
+  }
+  const items = historyDisplayLineItems.value;
+  if (items?.length > 0) {
+    const sum = items.reduce((s, i) => s + (i.appliedTotal ?? 0), 0);
+    if (sum > 0) return sum;
+  }
+  return rec?.total ?? 0;
 });
 
 /** Элементы только для стороны ВЕРХ (Капот, Крыша, Багажник) */
@@ -2401,7 +2443,8 @@ const graphicsDentsForPricing = computed(() => {
     stripSizes: stripSizesWithArea,
     prices: userSettings.prices,
     initialData,
-    conditions: graphicsConditions.value
+    conditions: graphicsConditions.value,
+    stripeTableScale: getUserStripPriceScaleFactor(initialData, userSettings)
   };
   const normalized = normalizeGraphicsDentsForPricing(graphicsState.dents || [], ctx);
   return normalized.map((d) => {
@@ -2569,6 +2612,10 @@ const getSoundInsulationLabel = (code) => initialData.soundInsulation?.find((s) 
 
 function buildDetailedBreakdown(dentItem) {
   return buildQuickFinalBreakdown(dentItem, initialData, formatArmaturnayaSummary);
+}
+
+function buildDetailedBreakdownForHistory(dentItem) {
+  return buildQuickFinalBreakdown(dentItem, initialData, formatArmaturnayaSummary, { namedArmatureLines: true });
 }
 
 /** Строка вмятины для карточки итога (как на экране расчёта), для просмотра в истории */
@@ -2929,11 +2976,17 @@ function startHistoryEdit() {
   historyEditDraft.prepayment = (p && typeof p === 'object')
     ? { amount: Number(p.amount) || 0, method: ['cash', 'transfer', 'card'].includes(p.method) ? p.method : null }
     : { amount: 0, method: null };
+  try {
+    historyEditDraft.editLineItems = JSON.parse(JSON.stringify(historyLineItems.value));
+  } catch (_e) {
+    historyEditDraft.editLineItems = null;
+  }
   isEditingHistory.value = true;
 }
 
 function cancelHistoryEdit() {
   isEditingHistory.value = false;
+  historyEditDraft.editLineItems = null;
 }
 
 async function saveHistoryEdit() {
@@ -2962,8 +3015,10 @@ async function saveHistoryEdit() {
       attachments: historyEditDraft.attachments || [],
       dmCalculatedPrice: rec.dmCalculatedPrice ?? dmPrice,
       manualAdjustedPrice: isManual ? Number(manualVal) : null,
-      isPriceManuallyAdjusted: isManual
+      isPriceManuallyAdjusted: isManual,
+      lineItemsSnapshot: Array.isArray(historyEditDraft.editLineItems) ? historyEditDraft.editLineItems : rec.lineItemsSnapshot
     });
+    historyEditDraft.editLineItems = null;
     isEditingHistory.value = false;
     showToast('История обновлена ✅', 'success', 1800);
   } catch (e) {
@@ -3276,6 +3331,7 @@ function changeDetailStatus(status) {
 
 function onHistoryMoodChange(mood) {
   historyEditDraft.clientMood = mood;
+  if (isEditingHistory.value) return;
   if (selectedHistory.value?.id) {
     updateEstimate(selectedHistory.value.id, { clientMood: mood });
     showToast('Сохранено', 'success', 1200);
@@ -3414,7 +3470,12 @@ function addCustomArmatureWork() {
   if (!name) return;
   const price = Number(newArmatureWorkPrice.value) || 0;
   if (!userSettings.customArmatureWorks) userSettings.customArmatureWorks = [];
-  userSettings.customArmatureWorks.push({ id: `custom_${Date.now()}`, name, price });
+  userSettings.customArmatureWorks.push({
+    id: `custom_${Date.now()}`,
+    name,
+    price,
+    bodyElement: 'other'
+  });
   newArmatureWorkName.value = '';
   newArmatureWorkPrice.value = 0;
 }
@@ -4547,16 +4608,20 @@ body.graphics-fullscreen-active {
   width: 1px;
   background: rgba(255, 255, 255, 0.08);
 }
+.bottom-nav-ico {
+  display: block;
+  flex-shrink: 0;
+}
 .bottom-nav-btn--active {
-  color: #88e523;
-  background: rgba(136, 229, 35, 0.08);
-  box-shadow: 0 0 10px rgba(136, 229, 35, 0.15);
+  color: var(--dm-accent, #a0e040);
+  background: color-mix(in srgb, var(--dm-accent, #a0e040) 12%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--dm-accent, #a0e040) 18%, transparent);
 }
 .bottom-nav-btn--idle {
-  color: #6b7280;
+  color: var(--dm-text-secondary, #888888);
 }
 .bottom-nav-btn--idle:hover {
-  color: #9ca3af;
+  color: color-mix(in srgb, var(--dm-text-secondary, #888888) 85%, #fff);
 }
 .bottom-nav-btn:focus-visible {
   outline: 2px solid rgba(136, 229, 35, 0.5);

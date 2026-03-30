@@ -114,7 +114,7 @@ function getStripeCoeffClass(conditions, initialData) {
  * @param {number} heightMm
  * @param {Array} sizesWithArea - circleSizesWithArea или stripSizesWithArea
  * @param {Object} prices - userSettings.prices
- * @param {object} [options] - { conditions, initialData } для stripe (coeffClass)
+ * @param {object} [options] - { conditions, initialData, stripeTableScale } для stripe (coeffClass + прайс-регулятор)
  * @returns {number} базовая цена
  */
 export function calculateDentBasePrice(shape, widthMm, heightMm, sizesWithArea, prices, options = {}) {
@@ -122,12 +122,14 @@ export function calculateDentBasePrice(shape, widthMm, heightMm, sizesWithArea, 
   if (w <= 0 || h <= 0) return 0;
   const type = shape === 'freeform' ? 'circle' : (shape === 'strip' ? 'strip' : 'circle');
   const useStripe = type === 'strip' && isStripeCase(shape, w, h);
+  const stripeScale = Number(options.stripeTableScale);
+  const scale = Number.isFinite(stripeScale) && stripeScale > 0 ? stripeScale : 1;
   if (useStripe) {
     const lengthCm = Math.max(w, h) / 10;
     const heightCm = Math.min(w, h) / 10;
     const coeffClass = getStripeCoeffClass(options.conditions, options.initialData);
     const { price } = calculateStripePriceFromUserBase({ lengthCm, heightCm, coeffClass });
-    return price;
+    return Math.round(price * scale);
   }
   return getBasePriceByMm(type, w, h, sizesWithArea, prices);
 }
@@ -154,7 +156,15 @@ export function getSizeCodeForConditions(shape, widthMm, heightMm, sizesWithArea
  */
 export function calculateDentPrice(input, context) {
   const { shape, widthMm, heightMm, conditions, panelElement } = input;
-  const { sizesWithArea, circleSizesWithArea, stripSizesWithArea, prices, initialData, roundStep = 0 } = context;
+  const {
+    sizesWithArea,
+    circleSizesWithArea,
+    stripSizesWithArea,
+    prices,
+    initialData,
+    roundStep = 0,
+    stripeTableScale
+  } = context;
   const circleSizes = circleSizesWithArea ?? sizesWithArea;
   const stripSizes = stripSizesWithArea ?? sizesWithArea;
   const conditionsWithCost = { ...conditions };
@@ -172,8 +182,9 @@ export function calculateDentPrice(input, context) {
   const useStripe = type === 'strip' && isStripeCase(shape, w, h);
   const effectiveShape = useStripe ? 'strip' : 'circle';
   const sizesForCalc = useStripe ? stripSizes : circleSizes;
+  const baseOpts = { conditions, initialData, stripeTableScale };
   const base = useStripe
-    ? calculateDentBasePrice(type, w, h, stripSizes, prices, { conditions, initialData })
+    ? calculateDentBasePrice(type, w, h, stripSizes, prices, baseOpts)
     : getBasePriceByMm(effectiveShape, w, h, circleSizes, prices);
   const sizeCode = getSizeCodeForMatrix(effectiveShape, w, h, sizesForCalc);
   const total = base > 0 && (conditions.repairCode && conditions.riskCode && conditions.materialCode && conditions.carClassCode && (conditions.disassemblyCode || conditions.disassemblyCodes?.length || typeof conditions.disassemblyCost === 'number'))
@@ -196,7 +207,7 @@ export function calculateDentPrice(input, context) {
  */
 export function normalizeGraphicsDentsForPricing(dents, context) {
   if (!dents || !Array.isArray(dents)) return [];
-  const { circleSizes, stripSizes, prices, initialData, conditions } = context;
+  const { circleSizes, stripSizes, prices, initialData, conditions, stripeTableScale } = context;
   return dents.map((d) => {
     const bbox = d.bboxMm || {};
     const w = Number(bbox.width) || 0;
@@ -208,7 +219,8 @@ export function normalizeGraphicsDentsForPricing(dents, context) {
     if (w <= 0 || h <= 0) return d;
     const base = calculateDentBasePrice(shape, w, h, sizes, prices, {
       conditions,
-      initialData
+      initialData,
+      stripeTableScale
     });
     const effectiveShape = useStripe ? 'strip' : 'circle';
     const sizeCode = getSizeCodeForConditions(effectiveShape, w, h, sizes);

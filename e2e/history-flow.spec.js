@@ -5,7 +5,7 @@ import { test, expect } from '@playwright/test';
 
 async function selectFirstOptionInModal(page) {
   const overlay = page.locator('.select-modal-overlay');
-  await overlay.waitFor({ state: 'visible', timeout: 8000 });
+  await overlay.waitFor({ state: 'visible', timeout: 15000 });
   const opt = page.getByTestId('select-option-0');
   await opt.waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(250);

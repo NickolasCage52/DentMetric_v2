@@ -33,8 +33,9 @@
         :class="{ 'hs-sum-row--active': activeStatusFilter === 'estimate' }"
         @click="toggleStatusFilter('estimate')"
       >
+        <span class="hs-sum-badge">{{ summary.noBooking.count }}</span>
         <span class="hs-sum-label">Оценок без записи</span>
-        <span class="hs-sum-nums"><b>{{ summary.noBooking.count }}</b> {{ fmtK(summary.noBooking.sum) }} ₽</span>
+        <span class="hs-sum-nums">{{ fmtK(summary.noBooking.sum) }} ₽</span>
       </button>
       <button
         type="button"
@@ -42,8 +43,9 @@
         :class="{ 'hs-sum-row--active': activeStatusFilter === 'scheduled' }"
         @click="toggleStatusFilter('scheduled')"
       >
+        <span class="hs-sum-badge">{{ summary.booked.count }}</span>
         <span class="hs-sum-label">Записаны на ремонт</span>
-        <span class="hs-sum-nums"><b>{{ summary.booked.count }}</b> {{ fmtK(summary.booked.sum) }} ₽</span>
+        <span class="hs-sum-nums">{{ fmtK(summary.booked.sum) }} ₽</span>
       </button>
       <button
         type="button"
@@ -51,12 +53,14 @@
         :class="{ 'hs-sum-row--active': activeStatusFilter === 'done' }"
         @click="toggleStatusFilter('done')"
       >
+        <span class="hs-sum-badge">{{ summary.done.count }}</span>
         <span class="hs-sum-label">Выполнено</span>
-        <span class="hs-sum-nums"><b>{{ summary.done.count }}</b> {{ fmtK(summary.done.sum) }} ₽</span>
+        <span class="hs-sum-nums">{{ fmtK(summary.done.sum) }} ₽</span>
       </button>
       <div class="hs-sum-row hs-sum-row--total">
+        <span class="hs-sum-badge hs-sum-badge--total">{{ summary.all.count }}</span>
         <span class="hs-sum-label" style="font-weight:700">Всего</span>
-        <span class="hs-sum-nums hs-sum-nums--green"><b>{{ summary.all.count }}</b> {{ fmtK(summary.all.sum) }} ₽</span>
+        <span class="hs-sum-nums hs-sum-nums--green">{{ fmtK(summary.all.sum) }} ₽</span>
       </div>
     </div>
     </div>
@@ -635,11 +639,31 @@ function fmtK(v) {
   display: flex; flex-direction: column; gap: 3px;
 }
 .hs-sum-row {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; align-items: center; gap: 10px;
   padding: 7px 12px; border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.06);
   background: linear-gradient(180deg, #1a1a1a 0%, #111 100%);
   font-size: 12px;
+}
+.hs-sum-badge {
+  flex-shrink: 0;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--dm-accent, #a0e040);
+  color: #0a0a0a;
+  font-variant-numeric: tabular-nums;
+}
+.hs-sum-badge--total {
+  background: var(--dm-surface-2, #1e1e1e);
+  color: var(--dm-accent, #a0e040);
+  border: 1px solid var(--dm-border, #2a2a2a);
 }
 .hs-sum-row--clickable {
   width: 100%; text-align: left; cursor: pointer; border: none;
@@ -651,11 +675,19 @@ function fmtK(v) {
   background: linear-gradient(180deg, #1f2a18 0%, #151d0f 100%);
 }
 .hs-sum-row--total { border-color: rgba(136,229,35,0.15); }
-.hs-sum-label { color: #9ca3af; }
-.hs-sum-nums { color: #e5e7eb; font-variant-numeric: tabular-nums; }
-.hs-sum-nums b { color: #fff; font-weight: 800; margin-right: 4px; font-size: 14px; }
-.hs-sum-nums--green { color: #88e523; }
-.hs-sum-nums--green b { color: #88e523; }
+.hs-sum-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--dm-text-secondary, #888888);
+  text-align: left;
+}
+.hs-sum-nums {
+  flex-shrink: 0;
+  color: #e5e7eb;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+.hs-sum-nums--green { color: var(--dm-accent, #a0e040); }
 
 .hs-list-wrap {
   flex: 1; overflow-y: auto; padding: 8px 16px;

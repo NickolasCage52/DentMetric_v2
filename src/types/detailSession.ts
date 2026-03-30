@@ -110,6 +110,8 @@ export interface DetailSession {
   client: ClientData | null;
 
   photoDataUrl: string | null;
+  /** Снимок фото с контурами/номерами/размерной разметкой для экранов после разметки */
+  annotatedPhotoDataUrl: string | null;
   photoAssetKey: string | null;
 
   markingMode: 'idle' | 'drawing-dent' | 'drawing-secondary';

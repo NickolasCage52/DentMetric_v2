@@ -4,12 +4,6 @@
     <div
       class="result-screen__body result-screen__body--detail-scroll qc-step3 qc-step3--tabbed flex flex-col min-h-0 flex-1 overflow-y-auto overscroll-contain touch-pan-y"
     >
-      <ClientInfoBlock
-        :client="clientForDisplay"
-        :editable="true"
-        @edit="$emit('edit-client')"
-        @edit-field="$emit('edit-client-field', $event)"
-      />
       <StandardQuickFinalScreen
         class="w-full shrink-0"
         :unified-parent-scroll="true"
@@ -19,9 +13,11 @@
         :user-settings="userSettings"
         :build-detailed-breakdown="runBuildDetailedBreakdown"
         :engine-dents-total="engineDentsTotal"
-        :detail-photo-data-url="session.photoDataUrl || null"
+        :detail-photo-data-url="session.annotatedPhotoDataUrl || session.photoDataUrl || null"
+        :detail-ux-parity="true"
         @open-discount="$emit('open-discount', $event)"
         @open-comment="$emit('open-comment')"
+        @sync-detail-client="$emit('sync-detail-client', $event)"
       />
     </div>
 
@@ -58,7 +54,6 @@
 
 <script setup>
 import { computed } from 'vue';
-import ClientInfoBlock from '../ClientInfoBlock.vue';
 import StandardQuickFinalScreen from '../result/StandardQuickFinalScreen.vue';
 import { buildQuickFinalBreakdown } from '../../utils/buildQuickFinalBreakdown';
 import { formatArmaturnayaSummary } from '../../data/armaturnayaWorks';
@@ -74,11 +69,13 @@ const props = defineProps({
   finalActionsDisabled: { type: Boolean, default: false },
 });
 
-defineEmits(['back', 'save', 'record', 'open-discount', 'open-comment', 'edit-client', 'edit-client-field']);
+defineEmits(['back', 'save', 'record', 'open-discount', 'open-comment', 'sync-detail-client']);
 
 /** Разбор цены здесь, без передачи Function через пропсы (надёжно в Telegram WebView). */
 function runBuildDetailedBreakdown(dentItem) {
-  return buildQuickFinalBreakdown(dentItem, props.initialData, formatArmaturnayaSummary);
+  return buildQuickFinalBreakdown(dentItem, props.initialData, formatArmaturnayaSummary, {
+    namedArmatureLines: true
+  });
 }
 
 const clientForDisplay = computed(() => {

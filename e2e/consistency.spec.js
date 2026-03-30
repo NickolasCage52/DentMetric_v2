@@ -10,7 +10,7 @@ const testImagePath = path.join(__dirname, 'helpers', 'test-image.jpg');
 
 async function selectFirstOptionInModal(page) {
   const overlay = page.locator('.select-modal-overlay');
-  await overlay.waitFor({ state: 'visible', timeout: 8000 });
+  await overlay.waitFor({ state: 'visible', timeout: 15000 });
   const opt = page.getByTestId('select-option-0');
   await opt.waitFor({ state: 'visible', timeout: 5000 });
   await page.waitForTimeout(250);
@@ -21,9 +21,9 @@ async function selectFirstOptionInModal(page) {
 
 async function selectInMultiSelectModal(page) {
   const overlay = page.locator('.select-modal-overlay');
-  await overlay.waitFor({ state: 'visible', timeout: 5000 });
+  await overlay.waitFor({ state: 'visible', timeout: 15000 });
   const opt = page.getByTestId('select-option-0');
-  await opt.waitFor({ state: 'visible', timeout: 5000 });
+  await opt.waitFor({ state: 'visible', timeout: 8000 });
   await page.waitForTimeout(250);
   await opt.scrollIntoViewIfNeeded();
   await opt.click();

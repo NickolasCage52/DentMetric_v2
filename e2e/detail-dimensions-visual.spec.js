@@ -15,7 +15,7 @@ test.describe('Detail mode — Dimension layout visual checks', () => {
       return;
     }
 
-    const inputs = page.locator('.dimensions-field input');
+    const inputs = page.locator('.dent-dim-modal-box .dim-field__input');
     if ((await inputs.count()) < 2) {
       test.skip(true, 'Need 2 inputs to check side-by-side layout');
       return;
@@ -43,7 +43,7 @@ test.describe('Detail mode — Dimension layout visual checks', () => {
     const viewport = page.viewportSize();
     if (!viewport) return;
 
-    const inputs = page.locator('.dimensions-field input');
+    const inputs = page.locator('.dent-dim-modal-box .dim-field__input');
     const count = await inputs.count();
     if (count === 0) {
       test.skip(true, 'No inputs found');
@@ -59,23 +59,25 @@ test.describe('Detail mode — Dimension layout visual checks', () => {
     }
   });
 
-  test('dimensions-card does not overflow marking controls', async ({ page }) => {
+  test('dimension modal fits horizontally over marking controls row', async ({ page }) => {
     const reached = await goToDetailDimensions(page);
     if (!reached) {
       test.skip(true, 'Could not reach dimensions screen');
       return;
     }
 
-    const card = page.locator('.dimensions-card').first();
-    const controls = page.locator('.marking-controls').first();
-    if (!(await card.isVisible({ timeout: 2000 }).catch(() => false))) {
-      test.skip(true, 'Dim card not visible');
+    const modal = page.locator('.dent-dim-modal-box').first();
+    const controls = page.locator('.marking-controls-overlay').first();
+    if (!(await modal.isVisible({ timeout: 3000 }).catch(() => false))) {
+      test.skip(true, 'Dimension modal not visible');
       return;
     }
 
-    const cardBox = await card.boundingBox();
+    const modalBox = await modal.boundingBox();
     const controlsBox = await controls.boundingBox();
-    if (!cardBox || !controlsBox) return;
-    expect(cardBox.x + cardBox.width).toBeLessThanOrEqual(controlsBox.x + controlsBox.width + 2);
+    if (!modalBox || !controlsBox) return;
+    const vw = page.viewportSize()?.width ?? 400;
+    expect(modalBox.x + modalBox.width).toBeLessThanOrEqual(vw + 2);
+    expect(modalBox.width).toBeLessThanOrEqual(controlsBox.width + 24);
   });
 });

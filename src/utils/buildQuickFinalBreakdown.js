@@ -3,7 +3,7 @@
  * Дельты в ₽ — последовательное влияние множителей (как в applyConditionsToBase), не «base×(k−1)» для каждого.
  */
 import { getComplexityCoeff } from './priceCalc';
-import { getArmaturnayaTotalPrice } from '../data/armaturnayaWorks';
+import { getArmaturnayaTotalPrice, getArmatureWorkLineItems } from '../data/armaturnayaWorks';
 
 function resolveDisassemblyCost(conditions, initialData, panelElement) {
   if (!conditions) return 0;
@@ -26,9 +26,11 @@ function resolveSoundCost(conditions, initialData) {
  * @param {object} dentItem
  * @param {object} initialData
  * @param {Function} formatArmaturnayaSummary
+ * @param {{ namedArmatureLines?: boolean }} [opts]
  * @returns {Array<{ label: string, value: string, delta: number }>}
  */
-export function buildQuickFinalBreakdown(dentItem, initialData, formatArmaturnayaSummary) {
+export function buildQuickFinalBreakdown(dentItem, initialData, formatArmaturnayaSummary, opts = {}) {
+  const namedArmature = Boolean(opts?.namedArmatureLines);
   const dent = dentItem?.dent;
   if (!dent) return [];
   const c = dent.conditions || {};
@@ -86,6 +88,7 @@ export function buildQuickFinalBreakdown(dentItem, initialData, formatArmaturnay
   const disCodes = Array.isArray(c.disassemblyCodes) ? c.disassemblyCodes : [];
   const disLabel =
     disCodes.length > 0 ? fmtArm(disCodes, panelEl) || 'Без арматурных работ' : 'Без арматурных работ';
+  const armatureLineItems = namedArmature ? getArmatureWorkLineItems(disCodes, panelEl) : [];
 
   const soundObj = c.soundInsulationCode
     ? initialData?.soundInsulation?.find((s) => s.code === c.soundInsulationCode)
@@ -106,7 +109,20 @@ export function buildQuickFinalBreakdown(dentItem, initialData, formatArmaturnay
     });
   }
 
-  rows.push({ label: 'Арматурные работы:', value: disLabel, delta: dDis });
+  if (namedArmature && armatureLineItems.length > 0) {
+    armatureLineItems.forEach((aw, i) => {
+      rows.push({
+        label: i === 0 ? 'Арматурные работы:' : '',
+        value: aw.name,
+        delta: aw.price
+      });
+    });
+    if (armatureLineItems.length > 1) {
+      rows.push({ label: '', value: 'Итого арматура', delta: dDis });
+    }
+  } else {
+    rows.push({ label: 'Арматурные работы:', value: disLabel, delta: dDis });
+  }
   rows.push({
     label: 'Дополнительная шумоизоляция:',
     value: soundObj?.name || '—',

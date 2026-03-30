@@ -18,7 +18,9 @@ export async function goToDetailPlacement(page) {
   await page.getByTestId('btn-detail-mode').click({ force: true });
   await page.waitForTimeout(500);
 
-  const continuePlacementBtn = page.getByRole('button', { name: /Продолжить.*Размещение/i });
+  const continuePlacementBtn = page
+    .getByRole('button', { name: /Продолжить.*Размещение/i })
+    .or(page.getByTestId('btn-continue-placement'));
   if (await continuePlacementBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
     await continuePlacementBtn.click({ force: true });
     await page.waitForTimeout(500);
@@ -60,10 +62,23 @@ export async function goToDetailDimensions(page) {
   await page.getByTestId('btn-detail-mode').click({ force: true });
   await page.waitForTimeout(500);
 
-  const continueClientBtn = page.getByRole('button', { name: /Продолжить|Далее/i });
-  if (await continueClientBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-    await continueClientBtn.click({ force: true });
-    await page.waitForTimeout(500);
+  const fwd = page.getByTestId('btn-continue-placement');
+  const fwdAlt = page.getByRole('button', { name: /Продолжить|Далее|Вперёд/i });
+  const clientNext = (await fwd.isVisible({ timeout: 2000 }).catch(() => false)) ? fwd : fwdAlt;
+  if (await clientNext.isVisible({ timeout: 2000 }).catch(() => false)) {
+    if (await clientNext.isDisabled().catch(() => false)) {
+      await page.getByRole('button', { name: /Телефон/i }).click({ force: true }).catch(() => {});
+      const dialog = page.getByRole('dialog', { name: /Данные клиента/i });
+      if (await dialog.isVisible({ timeout: 2000 }).catch(() => false)) {
+        await dialog.getByPlaceholder(/Телефон/i).fill('+79991112233');
+        await dialog.getByRole('button', { name: /Готово/i }).click();
+        await page.waitForTimeout(400);
+      }
+    }
+    await page.getByTestId('btn-continue-placement').click({ force: true }).catch(async () => {
+      await page.getByRole('button', { name: /Вперёд/i }).click({ force: true });
+    });
+    await page.waitForTimeout(600);
   }
 
   const galleryBtn = page.locator('[data-testid="btn-photo-from-gallery"]');
