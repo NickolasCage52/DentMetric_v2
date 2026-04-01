@@ -413,10 +413,10 @@ function outlineBBox(points) {
   };
 }
 
-/** Бейдж внизу слева у контура (внутри bbox на 2px от краёв) */
+/** Бейдж внизу слева у контура (как в PRD: minX+4, maxY−4 от bbox) */
 function badgeAnchorFromOutline(points) {
   const { minX, maxY } = outlineBBox(points);
-  return { bx: minX + 2, by: maxY - 2 };
+  return { bx: minX + 4, by: maxY - 4 };
 }
 
 function layoutCenteredBadgeText(textNode, bx, by) {
@@ -431,7 +431,9 @@ function layoutCenteredBadgeText(textNode, bx, by) {
 const DIM_OVERLAY_COLOR = '#FFD700';
 
 /**
- * Пунктирные линии размеров на фото (длина по вертикали, ширина по горизонтали — как в референсе).
+ * Пунктирные линии размеров на фото.
+ * Модалка: «Длина» = lengthMm, «Ширина» = widthMm.
+ * По референсу Notes: горизонтальная линия — длина (мм справа), вертикальная — ширина (мм сверху).
  */
 function drawDimensionOverlayOnLayer(layer, overlayId, outlinePoints, lengthMm, widthMm) {
   if (!layer) return;
@@ -455,16 +457,16 @@ function drawDimensionOverlayOnLayer(layer, overlayId, outlinePoints, lengthMm, 
   const hLine = new Konva.Line({
     points: [minX - 4, cy, maxX + 4, cy],
     stroke: DIM_OVERLAY_COLOR,
-    strokeWidth: 1.5,
+    strokeWidth: 2,
     dash: [6, 4],
     listening: false,
   });
 
-  const wLabel = new Konva.Text({
+  const lengthLabel = new Konva.Text({
     x: maxX + 6,
     y: cy - 8,
-    text: `${wid}мм`,
-    fontSize: 11,
+    text: `${len}мм`,
+    fontSize: 12,
     fontStyle: 'bold',
     fill: DIM_OVERLAY_COLOR,
     shadowColor: 'rgba(0,0,0,0.85)',
@@ -476,16 +478,16 @@ function drawDimensionOverlayOnLayer(layer, overlayId, outlinePoints, lengthMm, 
   const vLine = new Konva.Line({
     points: [cx, minY - 4, cx, maxY + 4],
     stroke: DIM_OVERLAY_COLOR,
-    strokeWidth: 1.5,
+    strokeWidth: 2,
     dash: [6, 4],
     listening: false,
   });
 
-  const lLabel = new Konva.Text({
+  const widthLabel = new Konva.Text({
     x: cx - 20,
     y: minY - 20,
-    text: `${len}мм`,
-    fontSize: 11,
+    text: `${wid}мм`,
+    fontSize: 12,
     fontStyle: 'bold',
     fill: DIM_OVERLAY_COLOR,
     shadowColor: 'rgba(0,0,0,0.85)',
@@ -495,9 +497,9 @@ function drawDimensionOverlayOnLayer(layer, overlayId, outlinePoints, lengthMm, 
   });
 
   group.add(hLine);
-  group.add(wLabel);
+  group.add(lengthLabel);
   group.add(vLine);
-  group.add(lLabel);
+  group.add(widthLabel);
   layer.add(group);
 }
 
@@ -1442,10 +1444,10 @@ onUnmounted(() => {
   color: var(--dm-text-secondary, #888);
 }
 .marking-controls__handle-bar {
-  width: 36px;
+  width: 32px;
   height: 4px;
   border-radius: 2px;
-  background: var(--dm-border, #2a2a2a);
+  background: var(--dm-text-secondary, #888);
 }
 .marking-controls__toggle-chevron {
   font-size: 10px;

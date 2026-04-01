@@ -438,12 +438,6 @@
             </div>
 
             <div v-else-if="quickStep === 3" class="qc-step3 qc-step3--tabbed flex flex-col min-h-0 flex-auto w-full">
-              <ClientInfoBlock
-                :client="quickClientForDisplay"
-                :editable="true"
-                @edit="onQuickStep3EditClient"
-                @edit-field="onQuickStep3EditClientField"
-              />
               <StandardQuickFinalScreen
                 class="w-full shrink-0"
                 :unified-parent-scroll="true"
@@ -453,6 +447,7 @@
                 :user-settings="userSettings"
                 :build-detailed-breakdown="buildDetailedBreakdown"
                 :engine-dents-total="quickDmDentSubtotal"
+                :detail-ux-parity="true"
                 @open-discount="openDiscountModal"
                 @open-comment="openCommentModal"
               />
@@ -620,16 +615,12 @@
         <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" onerror="this.style.display='none'">
         <div class="app-header-logo-bar__right"></div>
       </div>
-      <div class="card-metallic rounded-2xl p-4 space-y-2">
-        <div class="text-xs text-gray-400 uppercase tracking-widest">Сохранённая оценка</div>
-        <div class="flex justify-between text-sm"><span class="text-gray-400">Дата:</span><span class="text-white font-medium">{{ formatDateTime(selectedHistory.createdAt) }}</span></div>
-        <div class="flex justify-between text-sm"><span class="text-gray-400">Режим:</span><span class="text-white font-medium">{{ selectedHistory.mode === 'detail' ? 'Детализация' : 'Быстрый расчёт' }}</span></div>
-        <div class="flex justify-between text-sm"><span class="text-gray-400">Элемент:</span><span class="text-white font-medium">{{ selectedHistory.element || '—' }}</span></div>
-        <div v-if="selectedHistory.discountPercent > 0" class="flex justify-between text-sm"><span class="text-amber-400">Скидка:</span><span class="text-amber-400 font-medium">−{{ selectedHistory.discountPercent }}%</span></div>
-        <div class="flex justify-between text-sm"><span class="text-gray-400">Итог:</span><span class="text-metric-green font-bold">{{ formatCurrency(historyDisplayTotal) }} ₽</span></div>
-        <div v-if="selectedHistory.isPriceManuallyAdjusted && selectedHistory.dmCalculatedPrice != null" class="text-[11px] text-gray-500 mt-1">
-          изменено, расчёт DM = <span class="line-through">{{ formatCurrency(selectedHistory.dmCalculatedPrice) }}₽</span> → <span class="text-metric-green font-semibold">{{ formatCurrency(selectedHistory.manualAdjustedPrice) }}₽</span>
-        </div>
+      <div class="text-[11px] text-gray-500 uppercase tracking-widest px-1">{{ formatDateTime(selectedHistory.createdAt) }} · {{ selectedHistory.mode === 'detail' ? 'Детализация' : 'Быстрый расчёт' }}</div>
+      <div
+        v-if="!isEditingHistory && selectedHistory.isPriceManuallyAdjusted && selectedHistory.dmCalculatedPrice != null"
+        class="text-[11px] text-amber-500/90 px-1 leading-snug"
+      >
+        Итог изменён вручную: расчёт DentMetric {{ formatCurrency(selectedHistory.dmCalculatedPrice) }} ₽ → {{ formatCurrency(historyDisplayTotal) }} ₽
       </div>
       <ResultFourTabs v-model="historyFinalTab" class="history-final-tabs">
         <div class="hist-final-panels space-y-3 pb-2">
@@ -647,18 +638,13 @@
                 >{{ st.label }}</button>
               </div>
             </div>
-            <div v-if="isEditingHistory" class="card-metallic rounded-2xl p-4 space-y-3">
-              <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Параметры записи</div>
-              <div class="flex items-center justify-between gap-3">
-                <span class="text-sm text-gray-300 flex-1">Скидка (%)</span>
-                <input v-model.number="historyEditDraft.discountPercent" type="number" min="0" max="100" class="w-24 min-h-[44px] bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-right text-white focus:border-metric-green outline-none">
-              </div>
-              <div class="space-y-2">
-                <span class="text-sm text-gray-300">Итого вручную (вся оценка)</span>
-                <div class="flex gap-2 items-center">
-                  <input v-model.number="historyEditDraft.editManualPrice" type="number" placeholder="Сумма" class="flex-1 min-h-[44px] bg-[#151515] border border-[#333] rounded-lg px-3 py-2 text-sm text-white focus:border-metric-green outline-none" inputmode="numeric">
-                  <button type="button" class="min-h-[44px] px-3 text-xs text-gray-500 border border-white/10 rounded-lg" @click="historyEditDraft.editManualPrice = null">Сбросить</button>
-                </div>
+            <div
+              v-if="!isEditingHistory && selectedHistory.recordRepairTimeHours != null && Number.isFinite(Number(selectedHistory.recordRepairTimeHours))"
+              class="card-metallic rounded-2xl p-4"
+            >
+              <div class="flex justify-between text-sm gap-2">
+                <span class="text-gray-400">Ориентировочное время ремонта</span>
+                <span class="text-white font-semibold">{{ formatRepairTime(Number(selectedHistory.recordRepairTimeHours)) }}</span>
               </div>
             </div>
             <PerDentFinalCard
@@ -671,6 +657,7 @@
               :engine-line-items="historyEngineLineItemsForDent(dentItem)"
               :read-only="!isEditingHistory"
               :detail-ux-parity="true"
+              @open-discount="openDiscountModal"
             />
             <PrepaymentBlock
               :model-value="isEditingHistory ? historyEditDraft.prepayment : (selectedHistory.prepayment ?? { amount: 0, method: null })"
@@ -712,12 +699,11 @@
               </div>
             </template>
             <div class="card-metallic rounded-2xl p-4">
-              <div class="flex items-center gap-2 mb-2">
-                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Адекватность клиента</span>
-                <button type="button" class="min-w-[44px] min-h-[44px] border-0 bg-transparent text-base opacity-80" aria-label="Справка" @click="historyAdequacyInfoOpen = !historyAdequacyInfoOpen">ℹ️</button>
+              <div class="flex justify-end mb-1">
+                <button type="button" class="min-w-[44px] min-h-[44px] border-0 bg-transparent text-base opacity-80" aria-label="Справка: адекватность клиента" @click="historyAdequacyInfoOpen = !historyAdequacyInfoOpen">ℹ️</button>
               </div>
               <p v-if="historyAdequacyInfoOpen" class="text-xs text-gray-500 mb-3 leading-relaxed m-0">
-                Оцените поведение клиента. Это поможет вам при повторных обращениях.
+                Оцените поведение клиента. Это поможет вам при повторных обращениях. Подробнее — в разделе «Инфо».
               </p>
               <ClientMoodPicker
                 :hide-block-label="true"
@@ -938,25 +924,39 @@
             <span class="dm-section-header__chevron" :class="{ open: settingsOpenSection === 'armature' }">›</span>
           </div>
           <div v-show="settingsOpenSection === 'armature'" class="settings-section-content">
-            <p class="settings-helper-text mb-2">Редактирование цен системных работ и добавление пользовательских.</p>
-            <div v-for="w in systemArmatureWorks" :key="w.code" class="dm-settings-row">
-              <div class="dm-settings-row__label-area">
-                <span class="dm-settings-row__label">{{ w.name }}</span>
+            <p class="settings-helper-text mb-2">Цены по зонам кузова. Пользовательские работы можно отнести к элементу — так проще ориентироваться в списках.</p>
+            <template v-for="group in armatureSettingsGroups" :key="group.key">
+              <div class="dm-settings-subsection-label">{{ group.label }}</div>
+              <div v-for="w in group.works" :key="`${group.key}-${w.code}`" class="dm-settings-row">
+                <div class="dm-settings-row__label-area">
+                  <span class="dm-settings-row__label">{{ w.name }}</span>
+                </div>
+                <div class="flex items-center gap-1 shrink-0">
+                  <input type="number" :value="effectiveArmaturePrice(w.code)" @input="setArmaturePriceOverride(w.code, $event.target.value)" inputmode="numeric" class="dm-number-input">
+                  <span class="text-gray-500 text-sm">₽</span>
+                </div>
               </div>
-              <div class="flex items-center gap-1 shrink-0">
-                <input type="number" :value="effectiveArmaturePrice(w.code)" @input="setArmaturePriceOverride(w.code, $event.target.value)" inputmode="numeric" class="dm-number-input">
-                <span class="text-gray-500 text-sm">₽</span>
+            </template>
+            <div class="dm-settings-subsection-label">Пользовательские работы</div>
+            <div v-for="(cw, idx) in userSettings.customArmatureWorks" :key="cw.id" class="dm-settings-row dm-settings-row--custom dm-settings-row--custom-stack">
+              <div class="flex flex-wrap gap-2 w-full items-center">
+                <input type="text" v-model="cw.name" placeholder="Название" class="dm-text-input flex-1 min-w-[120px]">
+                <input type="number" v-model.number="cw.price" placeholder="₽" class="dm-number-input">
+                <select v-model="cw.bodyElement" class="dm-text-input min-h-[44px] text-sm flex-1 min-w-[140px] bg-[#151515] border border-white/10 rounded-lg px-2 text-white">
+                  <option v-for="b in BODY_ELEMENTS" :key="b.id" :value="b.id">{{ b.label }}</option>
+                </select>
+                <button type="button" @click="removeCustomArmatureWork(idx)" class="dm-settings-row__remove" aria-label="Удалить">✕</button>
               </div>
             </div>
-            <div v-for="(cw, idx) in userSettings.customArmatureWorks" :key="cw.id" class="dm-settings-row dm-settings-row--custom">
-              <input type="text" v-model="cw.name" placeholder="Название" class="dm-text-input flex-1">
-              <input type="number" v-model.number="cw.price" placeholder="₽" class="dm-number-input">
-              <button type="button" @click="removeCustomArmatureWork(idx)" class="dm-settings-row__remove" aria-label="Удалить">✕</button>
-            </div>
-            <div class="dm-settings-row dm-settings-row--add">
-              <input v-model="newArmatureWorkName" type="text" placeholder="введите название" class="dm-text-input flex-1">
-              <input v-model.number="newArmatureWorkPrice" type="number" placeholder="₽" class="dm-number-input">
-              <button type="button" @click="addCustomArmatureWork" class="dm-segment-btn dm-segment-btn--add">+</button>
+            <div class="dm-settings-row dm-settings-row--add dm-settings-row--custom-stack">
+              <div class="flex flex-wrap gap-2 w-full items-center">
+                <input v-model="newArmatureWorkName" type="text" placeholder="Название" class="dm-text-input flex-1 min-w-[120px]">
+                <input v-model.number="newArmatureWorkPrice" type="number" placeholder="₽" class="dm-number-input">
+                <select v-model="newArmatureWorkBodyElement" class="dm-text-input min-h-[44px] text-sm flex-1 min-w-[140px] bg-[#151515] border border-white/10 rounded-lg px-2 text-white">
+                  <option v-for="b in BODY_ELEMENTS" :key="'n-' + b.id" :value="b.id">{{ b.label }}</option>
+                </select>
+                <button type="button" @click="addCustomArmatureWork" class="dm-segment-btn dm-segment-btn--add">+</button>
+              </div>
             </div>
           </div>
         </div>
@@ -1232,15 +1232,20 @@
     >
       <button
         type="button"
-        data-testid="nav-info"
-        @click="switchSection('info')"
+        data-testid="nav-history"
+        @click="goToHistory"
         class="bottom-nav-btn flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[56px] touch-manipulation"
-        :class="currentSection === 'info' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
-        :aria-current="currentSection === 'info' ? 'page' : undefined"
-        :aria-label="currentSection === 'info' ? 'Инфо (текущий раздел)' : 'Инфо'"
+        :class="currentSection === 'history' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
+        :aria-current="currentSection === 'history' ? 'page' : undefined"
+        :aria-label="currentSection === 'history' ? 'История (текущий раздел)' : 'История'"
       >
-        <svg class="bottom-nav-ico" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        <span class="text-[9px] font-bold uppercase tracking-widest">Инфо</span>
+        <svg class="bottom-nav-ico bottom-nav-ico--brand" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M5 4h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+          <path d="M8 2v4M16 2v4M4 9h16" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          <circle cx="12" cy="14" r="3.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M12 12.2v1.8l1.2.7" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span class="text-[9px] font-bold uppercase tracking-widest">История</span>
       </button>
       <button
         type="button"
@@ -1268,15 +1273,18 @@
       </button>
       <button
         type="button"
-        data-testid="nav-history"
-        @click="goToHistory"
+        data-testid="nav-info"
+        @click="switchSection('info')"
         class="bottom-nav-btn flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[56px] touch-manipulation"
-        :class="currentSection === 'history' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
-        :aria-current="currentSection === 'history' ? 'page' : undefined"
-        :aria-label="currentSection === 'history' ? 'История (текущий раздел)' : 'История'"
+        :class="currentSection === 'info' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
+        :aria-current="currentSection === 'info' ? 'page' : undefined"
+        :aria-label="currentSection === 'info' ? 'Инфо (текущий раздел)' : 'Инфо'"
       >
-        <svg class="bottom-nav-ico" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-        <span class="text-[9px] font-bold uppercase tracking-widest">История</span>
+        <svg class="bottom-nav-ico bottom-nav-ico--brand" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M6.5 5.5h11a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-11a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2Z" stroke="currentColor" stroke-width="1.65" stroke-linejoin="round"/>
+          <path d="M12 10v5M12 8.2h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+        </svg>
+        <span class="text-[9px] font-bold uppercase tracking-widest">Инфо</span>
       </button>
       <button
         type="button"
@@ -1327,7 +1335,9 @@ import {
   getArmaturnayaWorksForElement,
   getArmaturnayaTotalPrice,
   getAllSystemArmatureWorks,
+  getArmatureSettingsGroups,
 } from './data/armaturnayaWorks';
+import { BODY_ELEMENTS, normalizeArmatureBodyElement } from './constants/bodyElements';
 import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from './utils/armatureSelection';
 import { CAR_PARTS } from './data/carParts';
 import { getPartsByClass } from './data/partsCatalog';
@@ -1338,6 +1348,7 @@ import { resolveDentShapeType, getResolvedShapeDisplayLabel } from './utils/reso
 import { applyPriceRoundingCeil, PRICE_ROUND_OPTIONS } from './utils/priceRounding';
 import { applyDiscount, clampDiscount } from './utils/discount';
 import { calculateEstimateTotals } from './utils/calculateEstimateTotals';
+import { formatRepairTime } from './utils/formatRepairTime';
 import { calculateSessionTotalWithMultiDentRule } from './utils/multiDentAggregation';
 import { buildQuickFinalBreakdown } from './utils/buildQuickFinalBreakdown';
 import { migrateSettings, validateSettings, getPriceMultiplier, getUserStripPriceScaleFactor, SETTINGS_KEY } from './utils/settingsUtils';
@@ -1362,7 +1373,6 @@ import HistoryScreen from './components/HistoryScreen.vue';
 import InfoScreen from './components/info/InfoScreen.vue';
 import AttachmentPicker from './components/AttachmentPicker.vue';
 import HistoryAttachmentsView from './components/HistoryAttachmentsView.vue';
-import ClientInfoBlock from './components/ClientInfoBlock.vue';
 import ClientFoundCard from './components/ClientFoundCard.vue';
 import StandardQuickFinalScreen from './components/result/StandardQuickFinalScreen.vue';
 import PerDentFinalCard from './components/result/PerDentFinalCard.vue';
@@ -1831,6 +1841,8 @@ const historyEditDraft = reactive({
   discountPercent: 0,
   editManualPrice: null,
   attachments: [],
+  /** Ориентировочное время ремонта (ч), как в расчёте */
+  recordRepairTimeHours: null,
   /** Копия line items для инлайн-редактирования вкладки «Расчёт» */
   editLineItems: null
 });
@@ -1859,6 +1871,57 @@ const historyDisplayTotal = computed(() => {
   }
   return rec?.total ?? 0;
 });
+
+/**
+ * При редактировании записи в истории: пересчёт appliedTotal по сохранённому preDiscountTotal
+ * и текущему per-dent discountPercent (скидка через модалку мутирует dent; watch пересчитывает суммы).
+ */
+function resolveHistoryLineSubtotalForEdit(item) {
+  const pre = Number(item.preDiscountTotal);
+  if (Number.isFinite(pre) && pre > 0) return pre;
+  const app = Number(item.appliedTotal) || 0;
+  const da = Number(item.discountAmount);
+  if (Number.isFinite(da) && da >= 0 && app >= 0) return app + da;
+  const pct = clampDiscount(item.dent?.discountPercent ?? item.discountPercent ?? 0);
+  if (pct > 0 && pct < 100 && app > 0) return Math.round((app * 100) / (100 - pct));
+  return Math.max(0, app);
+}
+
+function recalcHistoryEditLineTotals(items) {
+  if (!Array.isArray(items) || items.length === 0) return;
+  const roundStep = userSettings.priceRoundStep ?? 0;
+  const dentInputs = items.map((item, idx) => ({
+    id: String(item.dent?.id ?? `idx_${idx}`),
+    basePrice: Number(item.base) || 0,
+    subtotal: resolveHistoryLineSubtotalForEdit(item),
+    discountPercent: clampDiscount(item.dent?.discountPercent ?? item.discountPercent ?? 0)
+  }));
+  const totals = calculateEstimateTotals(dentInputs, 0);
+  items.forEach((item, idx) => {
+    const t = totals.dents[idx];
+    if (!t) return;
+    item.discountPercent = t.discountPercent;
+    item.discountAmount = t.discountAmount;
+    item.appliedTotal =
+      roundStep > 0 ? applyPriceRoundingCeil(t.final, roundStep) : Math.round(t.final);
+    item.rawDiscounted = t.final;
+  });
+}
+
+watch(
+  () =>
+    isEditingHistory.value && Array.isArray(historyEditDraft.editLineItems)
+      ? historyEditDraft.editLineItems
+          .map((i, idx) => `${i?.dent?.id ?? idx}:${Number(i?.dent?.discountPercent ?? i?.discountPercent ?? 0)}`)
+          .join('|')
+      : '',
+  (sig, prev) => {
+    if (!sig || sig === prev) return;
+    if (isEditingHistory.value && Array.isArray(historyEditDraft.editLineItems)) {
+      recalcHistoryEditLineTotals(historyEditDraft.editLineItems);
+    }
+  }
+);
 
 /** Элементы только для стороны ВЕРХ (Капот, Крыша, Багажник) */
 const TOP_ONLY_ELEMENTS = ['Капот', 'Крыша', 'Крышка багажника'];
@@ -2175,7 +2238,12 @@ function loadUserSettings() {
     if (typeof p.enableSecondDentDiscount === 'boolean') userSettings.enableSecondDentDiscount = p.enableSecondDentDiscount;
     if (typeof p.secondDentDiscountPercent === 'number' && p.secondDentDiscountPercent >= 0 && p.secondDentDiscountPercent <= 100) userSettings.secondDentDiscountPercent = p.secondDentDiscountPercent;
     if (typeof p.useQuickUiInDetail === 'boolean') userSettings.useQuickUiInDetail = p.useQuickUiInDetail;
-    if (Array.isArray(p.customArmatureWorks)) userSettings.customArmatureWorks = p.customArmatureWorks;
+    if (Array.isArray(p.customArmatureWorks)) {
+      userSettings.customArmatureWorks = p.customArmatureWorks.map((c) => ({
+        ...c,
+        bodyElement: normalizeArmatureBodyElement(c?.bodyElement)
+      }));
+    }
     if (p.armaturePriceOverrides && typeof p.armaturePriceOverrides === 'object') userSettings.armaturePriceOverrides = p.armaturePriceOverrides;
     userSettings.priceAdjustmentRoundOval = migrated.priceAdjustmentRoundOval ?? 1.0;
     userSettings.priceAdjustmentStripe = migrated.priceAdjustmentStripe ?? 1.0;
@@ -2190,6 +2258,17 @@ function loadUserSettings() {
     userSettings.discountDiffPartValue = validated.discountDiffPartValue;
   } catch (e) {
     if (import.meta.env?.DEV) console.error('Failed to load settings', e);
+  }
+  mergeMissingPricesFromDefaults();
+}
+/** Подставить базовые цены из каталога, если в сохранённых настройках нет ключа (иначе регулятор цен не срабатывает). */
+function mergeMissingPricesFromDefaults() {
+  const defs = buildDefaultPrices();
+  for (const k of Object.keys(defs)) {
+    const cur = userSettings.prices[k];
+    if (cur == null || cur === '' || !Number.isFinite(Number(cur))) {
+      userSettings.prices[k] = defs[k];
+    }
   }
 }
 loadUserSettings();
@@ -2427,7 +2506,7 @@ const quickWorksheetGrandTotal = computed(() => {
   return s;
 });
 
-/** Клиент для ClientInfoBlock на Quick step 3. */
+/** Клиент для итогового экрана (вкладка «Клиент») в быстром расчёте. */
 const quickClientForDisplay = computed(() => ({
   name: estimateDraft.clientName || '',
   phone: estimateDraft.clientPhone || '',
@@ -2513,19 +2592,12 @@ const quickPreliminaryPrice = computed(() => {
 });
 const animatedQuickPrice = useAnimatedNumber(quickPreliminaryPrice, 300, 80);
 
-/** Estimated repair time in hours, updates in real-time from total price and hourly rate. */
+/** Ориентировочное время ремонта (человекочитаемо: ч + мин, не «8,95 ч»). */
 const estimatedRepairTime = computed(() => {
   const total = displayTotal.value;
   const rate = userSettings.hourlyRate > 0 ? userSettings.hourlyRate : 4000;
   if (total <= 0 || rate <= 0) return '—';
-  const hours = total / rate;
-  if (hours < 1) {
-    const minutes = Math.round(hours * 60);
-    return `${minutes} мин`;
-  }
-  const h = Math.floor(hours);
-  const m = Math.round((hours - h) * 60);
-  return m > 0 ? `${h} ч ${m} мин` : `${h} ч`;
+  return formatRepairTime(total / rate);
 });
 
 const multiDentDiscountLabel = computed(() => {
@@ -2611,7 +2683,7 @@ const getPaintMaterialLabel = (code) => initialData.paintMaterials?.find((p) => 
 const getSoundInsulationLabel = (code) => initialData.soundInsulation?.find((s) => s.code === code)?.name || '';
 
 function buildDetailedBreakdown(dentItem) {
-  return buildQuickFinalBreakdown(dentItem, initialData, formatArmaturnayaSummary);
+  return buildQuickFinalBreakdown(dentItem, initialData, formatArmaturnayaSummary, { namedArmatureLines: true });
 }
 
 function buildDetailedBreakdownForHistory(dentItem) {
@@ -2665,7 +2737,12 @@ async function openDiscountModal(dent) {
   });
   if (value === undefined) return;
   if (dent) {
-    dent.discountPercent = (value === '' || value === null) ? null : clampDiscount(value);
+    const p = value === '' || value === null ? null : clampDiscount(value);
+    dent.discountPercent = p;
+    if (dent?.id != null) {
+      if (!estimateDraft.dentDiscounts) estimateDraft.dentDiscounts = {};
+      estimateDraft.dentDiscounts[dent.id] = p;
+    }
   } else {
     if (value === '' || value === null) {
       estimateDraft.discountPercent = null;
@@ -2915,6 +2992,7 @@ function getEditablePriceKeys() {
 
 function applyPriceRegulator(type, percentDelta) {
   // +10% / −10%: добавляют/вычитают 10 п.п. от базы (100→110→120…). 0%: сброс к 100%.
+  mergeMissingPricesFromDefaults();
   const sizes = type === 'roundOval' ? initialData.circleSizes : initialData.stripSizes;
   const snapshot = {};
   sizes.forEach((s) => {
@@ -2970,6 +3048,10 @@ function startHistoryEdit() {
   historyEditDraft.inspectTime = client.time || '';
   historyEditDraft.comment = rec.comment || '';
   historyEditDraft.discountPercent = rec.discountPercent ?? 0;
+  historyEditDraft.recordRepairTimeHours =
+    rec.recordRepairTimeHours != null && rec.recordRepairTimeHours !== '' && Number.isFinite(Number(rec.recordRepairTimeHours))
+      ? Number(rec.recordRepairTimeHours)
+      : null;
   historyEditDraft.editManualPrice = rec.isPriceManuallyAdjusted ? (rec.manualAdjustedPrice ?? null) : null;
   historyEditDraft.attachments = (rec.attachments || []).map((a) => ({ ...a, dentIndex: a.dentIndex ?? 0 }));
   const p = rec.prepayment;
@@ -2978,6 +3060,9 @@ function startHistoryEdit() {
     : { amount: 0, method: null };
   try {
     historyEditDraft.editLineItems = JSON.parse(JSON.stringify(historyLineItems.value));
+    if (Array.isArray(historyEditDraft.editLineItems) && historyEditDraft.editLineItems.length > 0) {
+      recalcHistoryEditLineTotals(historyEditDraft.editLineItems);
+    }
   } catch (_e) {
     historyEditDraft.editLineItems = null;
   }
@@ -3012,6 +3097,12 @@ async function saveHistoryEdit() {
       clientMood: historyEditDraft.clientMood ?? null,
       prepayment: historyEditDraft.prepayment ?? { amount: 0, method: null },
       discountPercent: Number(historyEditDraft.discountPercent) || 0,
+      recordRepairTimeHours: (() => {
+        const v = historyEditDraft.recordRepairTimeHours;
+        if (v === '' || v == null) return null;
+        const n = Number(v);
+        return Number.isFinite(n) && n >= 0 ? n : null;
+      })(),
       attachments: historyEditDraft.attachments || [],
       dmCalculatedPrice: rec.dmCalculatedPrice ?? dmPrice,
       manualAdjustedPrice: isManual ? Number(manualVal) : null,
@@ -3448,8 +3539,10 @@ const addMaster = () => userSettings.masters.push({ name: '', rate: 0 });
 const removeMaster = (i) => userSettings.masters.splice(i, 1);
 
 const systemArmatureWorks = getAllSystemArmatureWorks();
+const armatureSettingsGroups = getArmatureSettingsGroups();
 const newArmatureWorkName = ref('');
 const newArmatureWorkPrice = ref(0);
+const newArmatureWorkBodyElement = ref('other');
 function effectiveArmaturePrice(code) {
   const overrides = userSettings.armaturePriceOverrides || {};
   if (overrides[code] != null) return overrides[code];
@@ -3474,10 +3567,11 @@ function addCustomArmatureWork() {
     id: `custom_${Date.now()}`,
     name,
     price,
-    bodyElement: 'other'
+    bodyElement: newArmatureWorkBodyElement.value || 'other'
   });
   newArmatureWorkName.value = '';
   newArmatureWorkPrice.value = 0;
+  newArmatureWorkBodyElement.value = 'other';
 }
 function removeCustomArmatureWork(idx) {
   userSettings.customArmatureWorks?.splice(idx, 1);
@@ -3561,28 +3655,6 @@ async function openClientField(field, label, inputType, placeholder) {
   }
 }
 
-/** Редактирование клиента на экране итогового расчёта (step 3): переход на шаг 1 или открытие первого поля */
-function onQuickStep3EditClient() {
-  if (userSettings.showClientQuick) {
-    quickStep.value = 1;
-    nextTick(() => scrollMetricToTop());
-  } else {
-    openClientField('clientName', 'Имя клиента', 'text', 'Имя клиента');
-  }
-}
-
-const QUICK_CLIENT_FIELD_MAP = {
-  name: ['clientName', 'Имя клиента', 'text', 'Имя клиента'],
-  phone: ['clientPhone', 'Телефон', 'tel', 'Телефон'],
-  car: ['carBrand', 'Марка автомобиля', 'text', 'Марка'],
-  company: ['clientCompany', 'Компания (необязательно)', 'text', 'Компания']
-};
-
-function onQuickStep3EditClientField(key) {
-  const [field, label, inputType, placeholder] = QUICK_CLIENT_FIELD_MAP[key] || [];
-  if (field) openClientField(field, label, inputType, placeholder);
-}
-
 async function openRepairHoursModal() {
   const value = await openInputModal({
     title: 'Часы работы',
@@ -3641,7 +3713,7 @@ async function openHistoryEditField(field, label, inputType) {
   }
 }
 
-/** Строка клиента в истории: открываем полноценное редактирование, затем нужное поле (как ClientInfoBlock в детализации). */
+/** Строка клиента в истории: открываем полноценное редактирование, затем нужное поле. */
 async function onHistoryClientInfoEditField(field) {
   const map = {
     name: ['clientName', 'Имя', 'text'],
@@ -4611,6 +4683,10 @@ body.graphics-fullscreen-active {
 .bottom-nav-ico {
   display: block;
   flex-shrink: 0;
+}
+.bottom-nav-ico--brand {
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 .bottom-nav-btn--active {
   color: var(--dm-accent, #a0e040);

@@ -128,7 +128,7 @@
 <script setup>
 import { computed, watch, inject } from 'vue';
 import InfoIcon from '../InfoIcon.vue';
-import { getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks.js';
+import { getArmaturnayaWorksForElement, formatArmaturnayaSummary, getArmaturnayaTotalPrice } from '../../data/armaturnayaWorks.js';
 import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from '../../utils/armatureSelection.js';
 import SelectRow from '../ui/SelectRow.vue';
 
@@ -192,14 +192,13 @@ const disassemblyModalOptions = computed(() =>
 );
 
 function getDisassemblyLabel(codes) {
-  const arr = normalizeArmatureWorkIds(codes);
-  if (arr.length === 0) return '';
-  const works = disassemblyOptions.value || [];
-  const byCode = new Map(works.map((w) => [w.code, w]));
-  const normalized = normalizeArmatureWorkIds(arr).filter((c) => byCode.has(c));
-  if (normalized.length === 1) return byCode.get(normalized[0])?.name || String(normalized[0]);
-  const sum = normalized.reduce((acc, c) => acc + (byCode.get(c)?.price ?? 0), 0);
-  return sum > 0 ? `${normalized.length} выбрано · +${sum.toLocaleString('ru-RU')} ₽` : `${normalized.length} выбрано`;
+  const part = props.selectedPartName;
+  const summary = formatArmaturnayaSummary(codes, part);
+  if (!summary) return '';
+  const sum = getArmaturnayaTotalPrice(codes, part);
+  const arr = normalizeArmatureWorkIds(codes).filter((c) => c && c !== 'Z0');
+  if (arr.length > 1 && sum > 0) return `${summary} · +${sum.toLocaleString('ru-RU')} ₽`;
+  return summary;
 }
 
 async function openPicker(field, title, options) {

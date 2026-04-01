@@ -64,9 +64,9 @@
       </div>
     </div>
     <div
-      class="quick-nav-bar quick-nav-bar--detail-footer shrink-0 pt-2 relative z-[1] pointer-events-auto"
+      class="quick-nav-bar quick-nav-bar--detail-footer shrink-0 pt-2 relative z-[1] pointer-events-auto w-full box-border"
     >
-      <div class="quick-nav-buttons grid gap-1" style="grid-template-columns: auto 1fr auto; align-items: center;">
+      <div class="quick-nav-buttons grid gap-1 w-full" style="grid-template-columns: minmax(0,auto) 1fr minmax(0,auto); align-items: center;">
         <button
           type="button"
           @click="$emit('back')"

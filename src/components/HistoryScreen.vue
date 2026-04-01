@@ -94,6 +94,14 @@
         :data-testid="'history-item-' + item.id"
         @click="$emit('select', item.id)"
       >
+        <div class="hs-card-start">
+          <span class="hs-start-count" aria-hidden="true">{{ dentCount(item) }}</span>
+          <div class="hs-start-total">
+            <span class="hs-start-total-val">{{ fmtPrice(item.total || 0) }}</span>
+            <span class="hs-start-total-cur">₽</span>
+          </div>
+          <span class="hs-badge hs-badge--start" :class="badgeClass(item)">{{ badgeText(item) }}</span>
+        </div>
         <a
           v-if="(item.client?.phone || '').trim()"
           :href="`tel:${telHref(item)}`"
@@ -111,10 +119,8 @@
             {{ displayPhone(item) }}<span class="hs-card-time">{{ relativeTime(item) }}</span>
           </div>
           <div class="hs-card-car">{{ carLine(item) }}</div>
-          <div class="hs-card-total">Итого: {{ fmtPrice(item.total || 0) }} ₽ ·</div>
         </div>
         <div class="hs-card-right">
-          <span class="hs-badge" :class="badgeClass(item)">{{ badgeText(item) }}</span>
           <button
             v-if="itemStatus(item) === 'no_booking'"
             type="button"
@@ -493,6 +499,17 @@ function carLine(item) {
   return car || el || '—';
 }
 
+function dentCount(item) {
+  try {
+    const n = item?.dents?.count;
+    if (typeof n === 'number' && n >= 1) return n;
+    const items = Array.isArray(item?.dents?.items) ? item.dents.items : (Array.isArray(item?.quickDents) ? item.quickDents : []);
+    return Math.max(1, items.length || 1);
+  } catch (_e) {
+    return 1;
+  }
+}
+
 function extractElement(item) {
   try {
     const elVal = item?.element;
@@ -705,8 +722,58 @@ function fmtK(v) {
   background: linear-gradient(180deg, #1e1e1e 0%, #121212 100%);
   box-shadow: 0 2px 10px rgba(0,0,0,0.3);
   cursor: pointer; transition: border-color 0.15s;
+  align-items: flex-start;
 }
 .hs-card:active { border-color: rgba(136,229,35,0.3); }
+
+.hs-card-start {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 52px;
+  padding-top: 2px;
+}
+.hs-start-count {
+  min-width: 26px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  background: var(--dm-accent, #a0e040);
+  color: #0a0a0a;
+  font-variant-numeric: tabular-nums;
+}
+.hs-start-total {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+.hs-start-total-val {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--dm-accent, #a0e040);
+  font-variant-numeric: tabular-nums;
+}
+.hs-start-total-cur {
+  font-size: 9px;
+  font-weight: 700;
+  color: #6b7280;
+}
+.hs-badge--start {
+  font-size: 9px;
+  padding: 2px 6px;
+  max-width: 100%;
+  text-align: center;
+  white-space: normal;
+  line-height: 1.15;
+}
 
 .hs-card-avatar { flex-shrink: 0; }
 .hs-avatar-circle {
@@ -733,11 +800,12 @@ function fmtK(v) {
 .hs-card-phone { font-size: 11px; color: #6b7280; margin-bottom: 2px; }
 .hs-card-time { margin-left: 4px; color: #88e523; font-size: 10px; }
 .hs-card-car { font-size: 11px; color: #9ca3af; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hs-card-total { font-size: 12px; color: #e5e7eb; font-weight: 600; }
 
 .hs-card-right {
   display: flex; flex-direction: column; align-items: flex-end;
+  justify-content: center;
   gap: 6px; flex-shrink: 0;
+  min-height: 40px;
 }
 .hs-badge {
   font-size: 10px; font-weight: 700; padding: 3px 10px;

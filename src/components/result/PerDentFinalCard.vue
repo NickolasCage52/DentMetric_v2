@@ -76,16 +76,16 @@
             </template>
           </template>
           <template v-else-if="detailUxParity">
-            <input
-              v-model.number="discountPctProxy"
-              type="number"
-              min="0"
-              max="100"
-              class="pdc-num-input pdc-num-input--disc"
-              @blur="onDiscountBlur"
+            <button
+              type="button"
+              class="pdc-disc-hit pdc-disc-hit--parity"
+              @click="$emit('open-discount', row.dent)"
             >
-            <span class="pdc-pct">%</span>
-            <span v-if="discountPctProxy > 0" class="pdc-disc-line">— −{{ fmt(discountAmountRub) }} ₽</span>
+              <span class="pdc-disc-main">{{ discountPctDisplay }}</span>
+              <span class="pdc-pct">%</span>
+              <span v-if="discountPctNum > 0" class="pdc-disc-line">— −{{ fmt(discountAmountRub) }} ₽</span>
+              <span class="pdc-pen">✎</span>
+            </button>
           </template>
           <template v-else>
             <button type="button" class="pdc-disc-btn" @click="$emit('open-discount', row.dent)">
@@ -184,25 +184,12 @@ const discountAmountRub = computed(() => {
   return Math.round(raw);
 });
 
-const discountPctProxy = computed({
-  get() {
-    return Number(props.row.discountPercent) || 0;
-  },
-  set(v) {
-    const p = clampDiscount(v ?? 0);
-    const d = props.row.dent;
-    if (d) d.discountPercent = p;
-    const draft = props.estimateDraft;
-    if (draft && d?.id != null) {
-      if (!draft.dentDiscounts) draft.dentDiscounts = {};
-      draft.dentDiscounts[d.id] = p;
-    }
-  }
-});
+const discountPctNum = computed(() => clampDiscount(Number(props.row.discountPercent) || 0));
 
-function onDiscountBlur() {
-  discountPctProxy.value = clampDiscount(discountPctProxy.value);
-}
+const discountPctDisplay = computed(() => {
+  const p = discountPctNum.value;
+  return p > 0 ? String(p) : '—';
+});
 
 const roundStep = () => props.userSettings.priceRoundStep ?? 0;
 
@@ -279,9 +266,7 @@ function dentRepairHours(dent) {
 }
 
 function timeDisplayLabel(dent) {
-  const h = dentRepairHours(dent);
-  if (props.detailUxParity || props.readOnly) return formatRepairTime(h);
-  return `${h} ч`;
+  return formatRepairTime(dentRepairHours(dent));
 }
 
 function startDentTimeEdit(dent) {
@@ -452,9 +437,35 @@ function saveDentTime(dent) {
   font-size: 17px !important;
   font-weight: 700 !important;
 }
-.pdc-num-input--disc {
-  width: 56px;
+.pdc-disc-hit {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 4px 8px;
   min-height: 44px;
+  min-width: 0;
+  padding: 8px 2px 8px 10px;
+  margin: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-align: right;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.pdc-disc-hit--parity {
+  width: 100%;
+  box-sizing: border-box;
+}
+.pdc-disc-hit:active {
+  opacity: 0.88;
+}
+.pdc-disc-main {
+  font-variant-numeric: tabular-nums;
 }
 .pdc-disc-line {
   margin-left: 6px;

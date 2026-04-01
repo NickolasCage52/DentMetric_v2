@@ -107,8 +107,53 @@ export function formatArmaturnayaSummary(codes, panelElement) {
   const works = getArmaturnayaWorksForElement(panelElement);
   const byCode = new Map(works.map((w) => [w.code, w]));
   const normalized = arr.length ? arr : ['Z0'];
-  if (normalized.length === 1) return byCode.get(normalized[0])?.name || '—';
-  return `${normalized.length} выбрано`;
+  const filtered = normalized.filter((c) => c && c !== 'Z0');
+  if (filtered.length === 0) {
+    return byCode.get('Z0')?.name || 'Без дополнительных работ';
+  }
+  if (filtered.length === 1) return byCode.get(filtered[0])?.name || String(filtered[0]);
+  const names = filtered.map((c) => byCode.get(c)?.name || String(c));
+  let text = names.join(' · ');
+  const maxLen = 96;
+  if (text.length > maxLen) text = `${text.slice(0, maxLen - 1)}…`;
+  return text;
+}
+
+/** Заголовки групп для экрана настроек (по кузовной зоне). */
+export const ARMATURE_ELEMENT_GROUP_LABELS = {
+  door: 'Двери',
+  rearWing: 'Заднее крыло',
+  trunkLid: 'Крышка багажника',
+  frontWing: 'Переднее крыло',
+  hood: 'Капот',
+  roof: 'Крыша / стойки',
+  bumper: 'Порог и бампер'
+};
+
+/**
+ * Системные арматурные работы для настроек: общие (Z0) + по элементам кузова.
+ * @returns {{ key: string, label: string, works: { code: string, name: string, price: number }[] }[]}
+ */
+export function getArmatureSettingsGroups() {
+  const base = ARMATURNAYA_BY_ELEMENT.none || [];
+  const keys = Object.keys(ARMATURNAYA_BY_ELEMENT).filter((k) => k !== 'none');
+  const groups = [
+    {
+      key: 'base',
+      label: 'Общие',
+      works: [...base]
+    }
+  ];
+  for (const key of keys) {
+    const list = ARMATURNAYA_BY_ELEMENT[key];
+    if (!list?.length) continue;
+    groups.push({
+      key,
+      label: ARMATURE_ELEMENT_GROUP_LABELS[key] || key,
+      works: [...list]
+    });
+  }
+  return groups;
 }
 
 export function getArmaturnayaTotalPrice(codes, panelElement) {

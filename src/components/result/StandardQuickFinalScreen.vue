@@ -177,21 +177,25 @@
               </div>
             </template>
           </div>
-          <div class="card-metallic rounded-xl sqf-section">
-            <div class="sqf-block-title sqf-block-title--muted sqf-title-with-info">
-              <span>Адекватность клиента</span>
-              <button
-                v-if="detailUxParity"
-                type="button"
-                class="sqf-info-ico"
-                aria-label="Справка"
-                @click="adequacyInfoOpen = !adequacyInfoOpen"
-              >ℹ️</button>
-            </div>
-            <p v-if="detailUxParity && adequacyInfoOpen" class="sqf-info-tip">
-              Оцените поведение клиента. Это поможет вам при повторных обращениях.
-            </p>
-            <ClientMoodPicker v-model="moodProxy" :hide-block-label="detailUxParity" />
+          <div class="card-metallic rounded-xl sqf-section sqf-section--mood">
+            <template v-if="!detailUxParity">
+              <div class="sqf-block-title sqf-block-title--muted">Адекватность клиента</div>
+              <ClientMoodPicker v-model="moodProxy" :hide-block-label="false" />
+            </template>
+            <template v-else>
+              <div class="sqf-mood-head">
+                <button
+                  type="button"
+                  class="sqf-info-ico"
+                  aria-label="Справка: адекватность клиента"
+                  @click="adequacyInfoOpen = !adequacyInfoOpen"
+                >ℹ️</button>
+              </div>
+              <p v-if="adequacyInfoOpen" class="sqf-info-tip">
+                Оцените поведение клиента. Это поможет вам при повторных обращениях. Подробнее — в разделе «Инфо».
+              </p>
+              <ClientMoodPicker v-model="moodProxy" :hide-block-label="true" />
+            </template>
           </div>
         </div>
 
@@ -307,11 +311,7 @@ const displayRepairHours = computed(() => {
   return defaultRepairHours.value;
 });
 
-const repairTimeLabel = computed(() => {
-  const h = displayRepairHours.value;
-  if (props.detailUxParity) return formatRepairTime(h);
-  return `${h} ч`;
-});
+const repairTimeLabel = computed(() => formatRepairTime(displayRepairHours.value));
 
 const editingRepair = ref(false);
 const repairEditVal = ref(0);
@@ -861,5 +861,13 @@ watch(
   font-size: 12px;
   line-height: 1.4;
   color: var(--dm-text-secondary, #888888);
+}
+.sqf-section--mood {
+  position: relative;
+}
+.sqf-mood-head {
+  display: flex;
+  justify-content: flex-end;
+  margin: -4px 0 4px;
 }
 </style>

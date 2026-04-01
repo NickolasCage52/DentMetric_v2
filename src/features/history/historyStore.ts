@@ -402,6 +402,13 @@ export function updateEstimate(id: string, partial: any) {
     if (partial.manualAdjustedPrice !== undefined) merged.manualAdjustedPrice = partial.manualAdjustedPrice;
     if (partial.isPriceManuallyAdjusted !== undefined) merged.isPriceManuallyAdjusted = partial.isPriceManuallyAdjusted;
     if (partial.lineItemsSnapshot !== undefined) merged.lineItemsSnapshot = partial.lineItemsSnapshot;
+    if (partial.recordRepairTimeHours !== undefined) {
+      const v = partial.recordRepairTimeHours;
+      merged.recordRepairTimeHours =
+        v === null || v === ''
+          ? null
+          : (Number.isFinite(Number(v)) ? Number(v) : merged.recordRepairTimeHours);
+    }
     if (merged.isPriceManuallyAdjusted && merged.manualAdjustedPrice != null) {
       merged.total = Number(merged.manualAdjustedPrice) || merged.total;
     }
