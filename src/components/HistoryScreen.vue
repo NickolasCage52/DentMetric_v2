@@ -120,9 +120,8 @@
           </div>
           <div class="hs-card-car">{{ carLine(item) }}</div>
         </div>
-        <div class="hs-card-right">
+        <div v-if="itemStatus(item) === 'no_booking'" class="hs-card-right">
           <button
-            v-if="itemStatus(item) === 'no_booking'"
             type="button"
             class="hs-book-btn"
             @click.stop="bookItem(item)"
@@ -716,13 +715,12 @@ function fmtK(v) {
 }
 
 .hs-card {
-  display: flex; gap: 10px; padding: 12px;
+  display: flex; align-items: stretch; gap: 12px; padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.06);
   background: linear-gradient(180deg, #1e1e1e 0%, #121212 100%);
   box-shadow: 0 2px 10px rgba(0,0,0,0.3);
   cursor: pointer; transition: border-color 0.15s;
-  align-items: flex-start;
 }
 .hs-card:active { border-color: rgba(136,229,35,0.3); }
 
@@ -731,9 +729,9 @@ function fmtK(v) {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  min-width: 52px;
-  padding-top: 2px;
+  justify-content: center;
+  gap: 5px;
+  min-width: 56px;
 }
 .hs-start-count {
   min-width: 26px;
@@ -750,10 +748,13 @@ function fmtK(v) {
   font-variant-numeric: tabular-nums;
 }
 .hs-start-total {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  line-height: 1.1;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: center;
+  gap: 3px;
+  line-height: 1.15;
+  white-space: nowrap;
 }
 .hs-start-total-val {
   font-size: 13px;
@@ -762,20 +763,26 @@ function fmtK(v) {
   font-variant-numeric: tabular-nums;
 }
 .hs-start-total-cur {
-  font-size: 9px;
-  font-weight: 700;
-  color: #6b7280;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--dm-accent, #a0e040);
 }
 .hs-badge--start {
   font-size: 9px;
-  padding: 2px 6px;
+  padding: 2px 8px;
   max-width: 100%;
+  width: max-content;
   text-align: center;
-  white-space: normal;
+  white-space: nowrap;
   line-height: 1.15;
 }
 
-.hs-card-avatar { flex-shrink: 0; }
+.hs-card-avatar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .hs-avatar-circle {
   width: 40px; height: 40px; border-radius: 50%;
   background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
@@ -784,7 +791,7 @@ function fmtK(v) {
   font-size: 16px; font-weight: 700; color: #9ca3af;
 }
 .hs-card-phone-btn {
-  width: 40px; height: 40px; flex-shrink: 0;
+  width: 40px; height: 40px; flex-shrink: 0; align-self: center;
   display: flex; align-items: center; justify-content: center;
   border-radius: 50%;
   background: rgba(136,229,35,0.15);
@@ -795,17 +802,21 @@ function fmtK(v) {
 .hs-card-phone-btn:active { opacity: 0.85; }
 .hs-phone-icon { flex-shrink: 0; }
 
-.hs-card-body { flex: 1; min-width: 0; }
-.hs-card-name { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 1px; }
-.hs-card-phone { font-size: 11px; color: #6b7280; margin-bottom: 2px; }
-.hs-card-time { margin-left: 4px; color: #88e523; font-size: 10px; }
-.hs-card-car { font-size: 11px; color: #9ca3af; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hs-card-body {
+  flex: 1; min-width: 0; min-height: 0;
+  display: flex; flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+}
+.hs-card-name { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.25; margin: 0 0 2px; }
+.hs-card-phone { font-size: 11px; color: #6b7280; line-height: 1.25; margin: 0 0 2px; }
+.hs-card-time { margin-left: 6px; color: #88e523; font-size: 10px; }
+.hs-card-car { font-size: 11px; color: #9ca3af; line-height: 1.25; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .hs-card-right {
   display: flex; flex-direction: column; align-items: flex-end;
   justify-content: center;
   gap: 6px; flex-shrink: 0;
-  min-height: 40px;
 }
 .hs-badge {
   font-size: 10px; font-weight: 700; padding: 3px 10px;
