@@ -715,17 +715,18 @@ function fmtK(v) {
 }
 
 .hs-card {
-  display: flex; align-items: stretch; gap: 12px; padding: 12px 14px;
+  display: flex; align-items: stretch; gap: 10px; padding: 12px 14px;
   border-radius: 14px;
   border: 1px solid rgba(255,255,255,0.06);
   background: linear-gradient(180deg, #1e1e1e 0%, #121212 100%);
   box-shadow: 0 2px 10px rgba(0,0,0,0.3);
   cursor: pointer; transition: border-color 0.15s;
+  min-width: 0;
 }
 .hs-card:active { border-color: rgba(136,229,35,0.3); }
 
 .hs-card-start {
-  flex-shrink: 0;
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -769,19 +770,25 @@ function fmtK(v) {
 }
 .hs-badge--start {
   font-size: 9px;
-  padding: 2px 8px;
+  padding: 2px 6px;
   max-width: 100%;
-  width: max-content;
+  width: 100%;
+  box-sizing: border-box;
   text-align: center;
-  white-space: nowrap;
+  white-space: normal;
   line-height: 1.15;
+  word-break: break-word;
 }
 
 .hs-card-avatar {
-  flex-shrink: 0;
+  flex: 0 0 40px;
+  width: 40px;
+  min-width: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
+  position: relative;
+  z-index: 1;
 }
 .hs-avatar-circle {
   width: 40px; height: 40px; border-radius: 50%;
@@ -791,32 +798,74 @@ function fmtK(v) {
   font-size: 16px; font-weight: 700; color: #9ca3af;
 }
 .hs-card-phone-btn {
-  width: 40px; height: 40px; flex-shrink: 0; align-self: center;
-  display: flex; align-items: center; justify-content: center;
+  flex: 0 0 40px;
+  width: 40px;
+  min-width: 40px;
+  height: 40px;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 50%;
   background: rgba(136,229,35,0.15);
   border: 1px solid rgba(136,229,35,0.4);
   color: #88e523;
   text-decoration: none;
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
 }
 .hs-card-phone-btn:active { opacity: 0.85; }
 .hs-phone-icon { flex-shrink: 0; }
 
 .hs-card-body {
-  flex: 1; min-width: 0; min-height: 0;
-  display: flex; flex-direction: column;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: stretch;
+  overflow: hidden;
 }
-.hs-card-name { font-size: 14px; font-weight: 700; color: #fff; line-height: 1.25; margin: 0 0 2px; }
-.hs-card-phone { font-size: 11px; color: #6b7280; line-height: 1.25; margin: 0 0 2px; }
+.hs-card-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.25;
+  margin: 0 0 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hs-card-phone {
+  font-size: 11px;
+  color: #6b7280;
+  line-height: 1.25;
+  margin: 0 0 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .hs-card-time { margin-left: 6px; color: #88e523; font-size: 10px; }
-.hs-card-car { font-size: 11px; color: #9ca3af; line-height: 1.25; margin: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hs-card-car {
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.25;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .hs-card-right {
-  display: flex; flex-direction: column; align-items: flex-end;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   justify-content: center;
-  gap: 6px; flex-shrink: 0;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 .hs-badge {
   font-size: 10px; font-weight: 700; padding: 3px 10px;
