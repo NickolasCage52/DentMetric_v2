@@ -1,13 +1,22 @@
 import { buildQuickFinalBreakdown } from './buildQuickFinalBreakdown';
+import { formatMoneyWithCurrency } from './regionFormat';
 
 export function buildDetailedBreakdownRows(dentItem, initialData, formatArmaturnayaSummary) {
   return buildQuickFinalBreakdown(dentItem, initialData, formatArmaturnayaSummary);
 }
 
-export function formatBreakdownDelta(delta) {
-  if (delta == null || delta === 0) return '0 ₽';
-  const sign = delta > 0 ? '+' : '';
-  return `${sign}${new Intl.NumberFormat('ru-RU').format(delta)} ₽`;
+/**
+ * @param {number|null|undefined} delta
+ * @param {'RUB'|'BYN'} [displayCurrency]
+ */
+export function formatBreakdownDelta(delta, displayCurrency = 'RUB') {
+  const cur = displayCurrency === 'BYN' ? 'BYN' : 'RUB';
+  if (delta == null || delta === 0) return formatMoneyWithCurrency(0, cur);
+  const n = Number(delta);
+  const core = formatMoneyWithCurrency(Math.abs(n), cur);
+  if (n < 0) return `−${core}`;
+  if (n > 0) return `+${core}`;
+  return formatMoneyWithCurrency(0, cur);
 }
 
 export function deltaClass(delta) {

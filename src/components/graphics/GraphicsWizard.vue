@@ -83,6 +83,7 @@
         :history-enabled="props.historyEnabled"
         :found-client="detailFoundClient"
         :search-by-phone="searchByPhone"
+        :phone-region="phoneInputRegion"
         :on-confirm="onDetailClientConfirmed"
         @client-confirmed="onDetailClientConfirmed"
         @back="goBack"
@@ -108,7 +109,7 @@
         @dent-added="(pts) => detailAddDent(pts)"
         @update:currentDentIndex="(v) => (detailSession.currentDentIndex = v)"
         @secondary-added="(p) => detailAddSecondaryDeformation(p.parentDentId, p.points)"
-        @dimensions-set="(e) => detailSetDentDimensions(e.dentId, e.dims)"
+        @dimensions-set="(e) => detailSetDentDimensions(e.dentId, e.dims, e.shapeType)"
         @secondary-dimensions-set="(e) => detailSetSecondaryDimensions(e.dentId, e.dims)"
         @dent-deleted="detailDeleteDent"
         @dent-selected="detailSetSelectedDentId"
@@ -236,7 +237,7 @@
                 Назад
               </button>
               <div class="detail-step4-price text-center overflow-hidden px-1 min-w-0 flex items-center justify-center">
-                <span class="text-[15px] font-bold text-metric-green tabular-nums truncate">{{ formatCurrency(displayTotal) }} ₽</span>
+                <span class="text-[15px] font-bold text-metric-green tabular-nums truncate">{{ formatMoneyWithCurrency(displayTotal, detailUiDisplayCurrency) }}</span>
               </div>
               <button
                 type="button"
@@ -280,6 +281,7 @@
         :initial-data="initialData"
         :selected-part-name="selectedPart?.name"
         :total-price="displayTotal"
+        :display-currency="detailUiDisplayCurrency"
         :show-paint-material="userSettings?.showPaintMaterial !== false"
         :show-sound-insulation="userSettings?.showSoundInsulation !== false"
         :armature-summary="detailArmatureSummary"
@@ -292,6 +294,7 @@
         v-else-if="!useNewDetailFlow && wizardStep === 5"
         :line-items="detailLineItems"
         :initial-data="initialData"
+        :display-currency="detailUiDisplayCurrency"
         :detail-photo-url="detailPhotoDisplayUrl"
         :format-armaturnaya-summary="formatArmaturnayaSummary"
         :comment="estimateDraft.comment"
@@ -420,12 +423,12 @@ import {
   getDents
 } from '../../graphics/konvaEditor';
 import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown, roundPrice, getPerDentCoresAndAddons } from '../../utils/priceCalc';
-import { normalizeGraphicsDentsForPricing, isRatioOneToOne } from '../../features/pricing/pricingAdapter';
+import { normalizeGraphicsDentsForPricing, isRatioOneToOne, isStripeCase } from '../../features/pricing/pricingAdapter';
 import { applyPriceRoundingCeil } from '../../utils/priceRounding';
 import { applyDiscount, clampDiscount } from '../../utils/discount';
 import { calculateEstimateTotals } from '../../utils/calculateEstimateTotals';
 import { calculateSessionTotalWithMultiDentRule } from '../../utils/multiDentAggregation';
-import { getPriceMultiplier, getUserStripPriceScaleFactor } from '../../utils/settingsUtils';
+import { getPriceMultiplier } from '../../utils/settingsUtils';
 import StepHeader from './StepHeader.vue';
 import Step0ClientPanel from './Step0ClientPanel.vue';
 import Step1PlacementPanel from './Step1PlacementPanel.vue';
@@ -451,6 +454,8 @@ import DetailMarkingScreen from '../detail/DetailMarkingScreen.vue';
 import DetailParameterScreen from '../detail/DetailParameterScreen.vue';
 import DetailResultScreen from '../detail/DetailResultScreen.vue';
 import { DETAIL_STEPS } from '../../types/detailSession';
+import { formatMoneyWithCurrency, displayCurrencyForRegionCountry } from '../../utils/regionFormat';
+import { normalizePhoneForInput } from '../../utils/phoneFormat';
 
 /** New photo-based Detail flow: client → camera → marking → dimensions → parameters → result */
 const useNewDetailFlow = true;
@@ -523,13 +528,17 @@ function openClientHistorySheet(payload) {
 
 async function openClientField(field, label, inputType) {
   const mask = field === 'clientPhone' ? 'phone' : field === 'clientName' ? 'name' : null;
+  const pr = phoneInputRegion.value;
+  let val = props.estimateDraft[field] ?? '';
+  if (field === 'clientPhone') val = normalizePhoneForInput(val, pr);
   const value = await openInputModal({
     title: 'Данные клиента',
     label,
-    value: props.estimateDraft[field] ?? '',
+    value: val,
     inputType,
     placeholder: label,
-    mask
+    mask,
+    phoneRegion: mask === 'phone' ? pr : undefined
   });
   if (value !== undefined && value !== null) {
     props.estimateDraft[field] = typeof value === 'string' ? value : String(value);
@@ -682,22 +691,29 @@ const detailPhotoDisplayUrl = computed(() => freeformPhotoUrl.value || null);
 const detailStepIndex = computed(() =>
   Math.max(0, DETAIL_STEPS.indexOf(detailSession.value.currentStep))
 );
-/** Масштаб stripe-таблицы под пользовательский прайс (регулятор «Полоса» в настройках). */
-const detailStripeTableScale = computed(() =>
-  getUserStripPriceScaleFactor(props.initialData, props.userSettings || {})
-);
+/** Валюта подписей в мастере детализации (настройки приложения, не запись истории). */
+const detailUiDisplayCurrency = computed(() => displayCurrencyForRegionCountry(props.userSettings?.regionCountry));
+/** Маска телефона в модалках клиента (+375 при выборе Беларуси в настройках). */
+const phoneInputRegion = computed(() => (props.userSettings?.regionCountry === 'BY' ? 'BY' : 'RU'));
 const dentsForPricing = computed(() => {
   const ctx = {
     circleSizes: props.circleSizes,
     stripSizes: props.stripSizes,
     prices: props.userSettings.prices,
     initialData: props.initialData,
-    conditions: conditionsForCalc.value,
-    stripeTableScale: detailStripeTableScale.value
+    conditions: conditionsForCalc.value
   };
   const normalized = normalizeGraphicsDentsForPricing(dents.value, ctx);
   return normalized.map((d) => {
-    const mult = getPriceMultiplier(d.type || 'circle', props.userSettings || {});
+    const bbox = d?.bboxMm || {};
+    const w = Number(bbox.width) || 0;
+    const h = Number(bbox.height) || 0;
+    const resolved = w > 0 && h > 0 ? resolveDentShapeType(w, h) : null;
+    const t = String(d?.type || '').toLowerCase();
+    const wantsStrip = ['strip', 'stripe', 'scratch'].some((k) => t.includes(k));
+    const shape = d?.type === 'freeform' ? 'circle' : wantsStrip || resolved === 'stripe' ? 'strip' : 'circle';
+    const multType = isStripeCase(shape, w, h) ? 'strip' : 'circle';
+    const mult = getPriceMultiplier(multType, props.userSettings || {});
     return { ...d, price: (d.price || 0) * mult };
   });
 });
@@ -790,8 +806,7 @@ const detailLineItems = computed(() => {
     stripSizesWithArea: props.stripSizes,
     prices: props.userSettings?.prices ?? {},
     initialData: props.initialData,
-    roundStep: props.userSettings?.priceRoundStep ?? 0,
-    stripeTableScale: detailStripeTableScale.value
+    roundStep: props.userSettings?.priceRoundStep ?? 0
   };
   const condMap = detailDentConditions.value;
   const list = dents.map((dent) => {
@@ -799,14 +814,17 @@ const detailLineItems = computed(() => {
     const w = Number(bbox.width) || 0;
     const h = Number(bbox.height) || 0;
     const resolved = w > 0 && h > 0 ? resolveDentShapeType(w, h) : null;
-    const shape = dent?.type === 'freeform' ? 'circle' : (resolved === 'stripe' ? 'strip' : 'circle');
+    const dt = String(dent?.type || '').toLowerCase();
+    const wantsStrip = ['strip', 'stripe', 'scratch'].some((k) => dt.includes(k));
+    const shape = dent?.type === 'freeform' ? 'circle' : wantsStrip || resolved === 'stripe' ? 'strip' : 'circle';
     const perDent = condMap[dent?.id] ? { ...cond, ...condMap[dent.id] } : cond;
     const conditions = props.userSettings?.showPaintMaterial !== false ? perDent : { ...perDent, paintMaterialCode: null };
     const result = calcDentViaAdapter(
       { shape, widthMm: w, heightMm: h, conditions, panelElement: props.selectedPart?.name },
       ctx
     );
-    const mult = getPriceMultiplier(shape, props.userSettings || {});
+    const multType = isStripeCase(shape, w, h) ? 'strip' : 'circle';
+    const mult = getPriceMultiplier(multType, props.userSettings || {});
     const dentDisplay = {
       ...dent,
       conditions,
@@ -1153,13 +1171,15 @@ async function onDetailResultEditClientField(key) {
     return;
   }
   if (key === 'phone') {
+    const pr = phoneInputRegion.value;
     const value = await openInputModal({
       title: 'Данные клиента',
       label: 'Телефон',
-      value: base.phone,
+      value: normalizePhoneForInput(base.phone, pr),
       inputType: 'tel',
       placeholder: 'Телефон',
       mask: 'phone',
+      phoneRegion: pr
     });
     if (value !== undefined && value !== null) {
       const phone = typeof value === 'string' ? value : String(value);
@@ -1217,10 +1237,15 @@ function onDetailParamUpdateConditions({ dentId, field, value }) {
 
 function onDetailParamPresetSelected({ dentId, preset }) {
   if (dentId && preset?.widthMm && preset?.heightMm) {
-    detailSetDentDimensions(dentId, {
-      lengthMm: preset.widthMm,
-      widthMm: preset.heightMm,
-    });
+    const shapeType = preset.group === 'stripe' ? 'strip' : 'circle';
+    detailSetDentDimensions(
+      dentId,
+      {
+        lengthMm: preset.widthMm,
+        widthMm: preset.heightMm,
+      },
+      shapeType
+    );
   }
 }
 
@@ -1313,15 +1338,16 @@ const detailLineItemsForNewFlow = computed(() => {
     stripSizesWithArea: props.stripSizes,
     prices: props.userSettings?.prices ?? {},
     initialData: props.initialData,
-    roundStep: props.userSettings?.priceRoundStep ?? 0,
-    stripeTableScale: detailStripeTableScale.value
+    roundStep: props.userSettings?.priceRoundStep ?? 0
   };
   const list = dents.map((dent) => {
     const w = Number(dent.dimensions?.lengthMm) || 0;
     const h = Number(dent.dimensions?.widthMm) || 0;
     const cond = dent.conditions || {};
     const resolved = w > 0 && h > 0 ? resolveDentShapeType(w, h) : null;
-    const shape = resolved === 'stripe' ? 'strip' : 'circle';
+    const st = String(dent.shapeType || '').toLowerCase();
+    const wantsStrip = ['strip', 'stripe', 'scratch'].some((k) => st.includes(k));
+    const shape = wantsStrip || resolved === 'stripe' ? 'strip' : 'circle';
     const conditions = props.userSettings?.showPaintMaterial !== false ? { ...cond } : { ...cond, paintMaterialCode: null };
     if (!conditions.disassemblyCodes?.length) conditions.disassemblyCodes = ['Z0'];
     const panelEl = cond.panelElement ?? props.selectedPart?.name ?? null;
@@ -1329,7 +1355,8 @@ const detailLineItemsForNewFlow = computed(() => {
       { shape, widthMm: w, heightMm: h, conditions, panelElement: panelEl },
       ctx
     );
-    const mult = getPriceMultiplier(shape, props.userSettings || {});
+    const multType = isStripeCase(shape, w, h) ? 'strip' : 'circle';
+    const mult = getPriceMultiplier(multType, props.userSettings || {});
     return { dent, sizeCode: result.sizeCode, base: result.base * mult, total: result.total * mult, breakdown: result.breakdown };
   });
   const filtered = list.filter((d) => d.total > 0).sort((a, b) => b.total - a.total);
@@ -1400,13 +1427,17 @@ const detailFinalActionsDisabled = computed(
 
 async function onQuickStyleOpenField(field, label, inputType, placeholder) {
   const mask = field === 'clientPhone' ? 'phone' : field === 'clientName' ? 'name' : null;
+  const pr = phoneInputRegion.value;
+  let val = props.estimateDraft[field] ?? '';
+  if (field === 'clientPhone') val = normalizePhoneForInput(val, pr);
   const value = await openInputModal({
     title: 'Данные клиента',
     label,
-    value: props.estimateDraft[field] ?? '',
+    value: val,
     inputType,
     placeholder: placeholder || label,
-    mask
+    mask,
+    phoneRegion: mask === 'phone' ? pr : undefined
   });
   if (value !== undefined && value !== null) {
     props.estimateDraft[field] = typeof value === 'string' ? value : String(value);
@@ -1435,7 +1466,7 @@ async function onQuickStylePickArmature() {
     options: works.map((w) => ({
       value: w.code,
       label: w.name,
-      rightText: w.price > 0 ? `${w.price.toLocaleString('ru-RU')} ₽` : ''
+      rightText: w.price > 0 ? formatMoneyWithCurrency(w.price, detailUiDisplayCurrency.value) : ''
     })),
     value: cur,
     confirmText: 'Готово'
@@ -1993,7 +2024,6 @@ function onFreeformConfirm(points) {
   if (freeformPhotoMode.value) goToStep(3);
 }
 
-const formatCurrency = (v) => new Intl.NumberFormat('ru-RU').format(v);
 
 const initKonvaEditor = async () => {
   if (!konvaContainer.value || !props.selectedPart) return;

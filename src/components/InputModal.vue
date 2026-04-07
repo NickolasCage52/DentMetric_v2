@@ -108,6 +108,9 @@ onUnmounted(() => {
 
 const mask = () => props.config?.mask;
 
+/** Маска телефона: BY → +375 + 9 цифр; иначе RU (+7 + 10) */
+const phoneRegion = () => (props.config?.phoneRegion === 'BY' ? 'BY' : 'RU');
+
 const effectiveInputType = computed(() => {
   if (mask() === 'phone' || mask() === 'name') return 'text';
   return props.config?.inputType ?? 'text';
@@ -121,10 +124,24 @@ const effectiveInputMode = computed(() => {
 });
 
 function applyMask(raw) {
-  if (raw == null) return mask() === 'phone' ? '+7' : '';
+  if (raw == null) {
+    if (mask() !== 'phone') return '';
+    return phoneRegion() === 'BY' ? '+375' : '+7';
+  }
   const m = mask();
   if (m === 'phone') {
     const digits = String(raw).replace(/\D/g, '');
+    if (phoneRegion() === 'BY') {
+      if (digits.length === 0) return '+375';
+      let rest = digits;
+      if (rest.startsWith('375') && rest.length > 3) rest = rest.slice(3);
+      else if (rest.startsWith('375')) return '+375';
+      else if (rest.startsWith('80') && rest.length >= 2) rest = rest.slice(2);
+      else if (rest.startsWith('8') && rest.length > 1) rest = rest.slice(1);
+      else if (rest === '8') return '+375';
+      else if (rest === '3' || rest === '37') return '+375';
+      return '+375' + rest.slice(0, 9);
+    }
     if (digits.length === 0) return '+7';
     let rest = digits;
     if (rest.startsWith('7') && rest.length > 1) rest = rest.slice(1);
@@ -145,6 +162,16 @@ function getInitialValue() {
     if (mask() === 'phone' && s) {
       const digits = s.replace(/\D/g, '');
       if (digits.length > 0) {
+        if (phoneRegion() === 'BY') {
+          let rest = digits;
+          if (rest.startsWith('375') && rest.length > 3) rest = rest.slice(3);
+          else if (rest.startsWith('375')) return '+375';
+          else if (rest.startsWith('80') && rest.length >= 2) rest = rest.slice(2);
+          else if (rest.startsWith('8') && rest.length > 1) rest = rest.slice(1);
+          else if (rest === '8') return '+375';
+          else if (rest === '3' || rest === '37') return '+375';
+          return '+375' + rest.slice(0, 9);
+        }
         let rest = digits;
         if (rest.startsWith('7') && rest.length > 1) rest = rest.slice(1);
         else if (rest.startsWith('8') && rest.length > 1) rest = rest.slice(1);
@@ -154,12 +181,12 @@ function getInitialValue() {
     }
     return s;
   }
-  if (mask() === 'phone') return '+7';
+  if (mask() === 'phone') return phoneRegion() === 'BY' ? '+375' : '+7';
   return '';
 }
 
 watch(
-  () => [props.modelValue, props.config?.value, mask()],
+  () => [props.modelValue, props.config?.value, mask(), props.config?.phoneRegion],
   () => {
     localValue.value = getInitialValue();
     errorMessage.value = '';
@@ -193,6 +220,18 @@ function validate() {
 
   if (m === 'phone') {
     const digits = raw.replace(/\D/g, '');
+    if (phoneRegion() === 'BY') {
+      let nat = '';
+      if (digits.startsWith('375')) nat = digits.slice(3, 12);
+      else if (digits.startsWith('80')) nat = digits.slice(2, 11);
+      else nat = digits.slice(0, 9);
+      if (nat.length > 0 && nat.length < 9) {
+        errorMessage.value = 'Введите 9 цифр номера (после +375)';
+        return null;
+      }
+      if (nat.length < 9) return '';
+      return '+375' + nat;
+    }
     const rest = digits.startsWith('7') ? digits.slice(1) : digits.startsWith('8') ? digits.slice(1) : digits;
     if (rest.length > 0 && rest.length < 10) {
       errorMessage.value = 'Введите 10 цифр номера';

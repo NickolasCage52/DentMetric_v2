@@ -41,6 +41,10 @@ export function migrateSettings(raw) {
   if (!('discountDiffPartEnabled' in settings)) settings.discountDiffPartEnabled = false;
   if (!('discountDiffPartValue' in settings)) settings.discountDiffPartValue = 0;
 
+  /** Регион: Россия / Беларусь (телефон, поиск, новые записи истории). */
+  if (!('regionCountry' in settings)) settings.regionCountry = 'RU';
+  if (settings.regionCountry !== 'RU' && settings.regionCountry !== 'BY') settings.regionCountry = 'RU';
+
   return settings;
 }
 
@@ -70,8 +74,8 @@ export function getPriceMultiplier(dentType, settings = {}) {
 }
 
 /**
- * Average ratio (current user strip prices / catalog base) for stripe table scaling.
- * Used so «Регулятор цен» (mutates userSettings.prices) affects stripe/scratch path in Detail.
+ * Среднее отношение (текущие цены полосы / каталог) — для индикатора «Множитель» в настройках.
+ * Расчёт цены в pricingAdapter использует интерполяцию по размерам, не эту функцию.
  * @param {object} initialData
  * @param {object} userSettings
  * @returns {number}

@@ -78,12 +78,19 @@ export function useDetailSession() {
     };
   }
 
-  function setDentDimensions(dentId: string, dims: DentDimensions) {
+  function setDentDimensions(
+    dentId: string,
+    dims: DentDimensions,
+    shapeType?: 'circle' | 'strip' | null
+  ) {
     const dent = session.value.dents.find((d) => d.id === dentId);
     if (dent) {
       dent.dimensions = dims;
       dent.sizeLengthMm = dims.lengthMm;
       dent.sizeWidthMm = dims.widthMm;
+      if (shapeType === 'circle' || shapeType === 'strip') {
+        dent.shapeType = shapeType;
+      }
     }
   }
 

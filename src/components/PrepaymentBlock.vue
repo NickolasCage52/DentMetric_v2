@@ -10,14 +10,10 @@
         class="pb-amount-value"
         @click="openAmountInput"
       >
-        {{ (modelValue?.amount ?? 0) > 0
-          ? (modelValue.amount).toLocaleString('ru-RU') + ' ₽'
-          : '0 ₽' }}
+        {{ amountDisplay }}
       </button>
       <span v-else class="pb-amount-value pb-amount-value--readonly">
-        {{ (modelValue?.amount ?? 0) > 0
-          ? (modelValue.amount).toLocaleString('ru-RU') + ' ₽'
-          : '0 ₽' }}
+        {{ amountDisplay }}
       </span>
     </div>
 
@@ -47,7 +43,8 @@
 </template>
 
 <script setup>
-import { inject } from 'vue';
+import { inject, computed } from 'vue';
+import { formatMoneyWithCurrency } from '../utils/regionFormat';
 
 const props = defineProps({
   modelValue: {
@@ -55,10 +52,18 @@ const props = defineProps({
     default: () => ({ amount: 0, method: null }),
   },
   readonly: { type: Boolean, default: false },
+  /** RUB | BYN — отображение суммы (в данных по-прежнему рубли). */
+  displayCurrency: { type: String, default: 'RUB' },
 });
 const emit = defineEmits(['update:modelValue']);
 
 const openInputModal = inject('openInputModal');
+
+const currency = computed(() => (props.displayCurrency === 'BYN' ? 'BYN' : 'RUB'));
+
+const amountDisplay = computed(() =>
+  formatMoneyWithCurrency(Number(props.modelValue?.amount) || 0, currency.value)
+);
 
 const PAYMENT_METHODS = [
   { value: 'cash', label: 'Наличные' },
@@ -74,7 +79,7 @@ async function openAmountInput() {
   if (!openInputModal) return;
   const value = await openInputModal({
     title: 'Предоплата',
-    label: 'Сумма предоплаты (₽)',
+    label: currency.value === 'BYN' ? 'Сумма предоплаты (в рублях расчёта, ₽)' : 'Сумма предоплаты (₽)',
     value: props.modelValue?.amount > 0 ? String(props.modelValue.amount) : '',
     inputType: 'number',
     placeholder: '0',

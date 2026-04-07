@@ -46,7 +46,7 @@
       </div>
       <div class="pdc-row">
         <span class="pdc-row__label">Базовая стоимость:</span>
-        <span class="pdc-row__val pdc-row__val--price pdc-row__val--span2">{{ fmt(row.base) }} ₽</span>
+        <span class="pdc-row__val pdc-row__val--price pdc-row__val--span2">{{ fmt(row.base) }} {{ moneySuffix }}</span>
       </div>
 
       <div
@@ -64,7 +64,7 @@
         <div class="pdc-row__val pdc-row__val--span2 pdc-row__val--discount">
           <template v-if="readOnly">
             <template v-if="detailUxParity && row.discountPercent > 0">
-              <span class="pdc-static">{{ row.discountPercent }}% — −{{ fmt(discountAmountRub) }} ₽</span>
+              <span class="pdc-static">{{ row.discountPercent }}% — −{{ fmt(discountAmountRub) }} {{ moneySuffix }}</span>
             </template>
             <template v-else>
               <span class="pdc-static">{{ row.discountPercent ? row.discountPercent : '—' }}</span>
@@ -72,7 +72,7 @@
               <span
                 v-if="row.discountPercent > 0"
                 class="pdc-disc-amt"
-              >−{{ fmt(historyDiscountRub) }} ₽</span>
+              >−{{ fmt(historyDiscountRub) }} {{ moneySuffix }}</span>
             </template>
           </template>
           <template v-else-if="detailUxParity">
@@ -83,7 +83,7 @@
             >
               <span class="pdc-disc-main">{{ discountPctDisplay }}</span>
               <span class="pdc-pct">%</span>
-              <span v-if="discountPctNum > 0" class="pdc-disc-line">— −{{ fmt(discountAmountRub) }} ₽</span>
+              <span v-if="discountPctNum > 0" class="pdc-disc-line">— −{{ fmt(discountAmountRub) }} {{ moneySuffix }}</span>
               <span class="pdc-pen">✎</span>
             </button>
           </template>
@@ -101,15 +101,15 @@
           <span class="pdc-row__label pdc-row__label--total">Итого по вмятине по системе DentMetric:</span>
           <div class="pdc-row__val pdc-row__val--edit pdc-row__val--span2">
             <template v-if="readOnly">
-              <span class="pdc-grand" :class="{ 'dm-total-price': detailUxParity }">{{ fmt(row.displayTotal) }} ₽</span>
+              <span class="pdc-grand" :class="{ 'dm-total-price': detailUxParity }">{{ fmt(row.displayTotal) }} {{ moneySuffix }}</span>
             </template>
             <template v-else>
               <template v-if="row.hasManual">
-                <span class="pdc-strike">{{ fmt(row.dmTotal) }} ₽</span>
+                <span class="pdc-strike">{{ fmt(row.dmTotal) }} {{ moneySuffix }}</span>
               </template>
               <template v-if="editingPrice !== row.dent?.id">
                 <button type="button" class="pdc-edit-hit" :class="{ 'dm-total-price': detailUxParity }" @click="startPriceEdit(row)">
-                  {{ fmt(row.displayTotal) }} ₽ <span class="pdc-pen">✎</span>
+                  {{ fmt(row.displayTotal) }} {{ moneySuffix }} <span class="pdc-pen">✎</span>
                 </button>
               </template>
               <div v-else class="pdc-inline">
@@ -121,7 +121,7 @@
                   @blur="savePriceEdit(row)"
                   @keyup.enter="savePriceEdit(row)"
                 >
-                <span>₽</span>
+                <span>{{ moneySuffix }}</span>
               </div>
             </template>
           </div>
@@ -129,12 +129,12 @@
         <div v-if="!readOnly && row.hasManual" class="pdc-row">
           <span class="pdc-row__label">Индивидуальная корректировка стоимости:</span>
           <span class="pdc-row__val pdc-row__val--adj pdc-row__val--span2">
-            {{ row.displayTotal > row.dmTotal ? '+' : '' }}{{ fmt(row.displayTotal - row.dmTotal) }} ₽
+            {{ row.displayTotal > row.dmTotal ? '+' : '' }}{{ fmt(row.displayTotal - row.dmTotal) }} {{ moneySuffix }}
           </span>
         </div>
         <div class="pdc-row">
           <span class="pdc-row__label">Итоговая среднерыночная стоимость:</span>
-          <span class="pdc-row__val pdc-row__val--muted pdc-row__val--span2">{{ fmt(row.marketDisplay) }} ₽</span>
+          <span class="pdc-row__val pdc-row__val--muted pdc-row__val--span2">{{ fmt(row.marketDisplay) }} {{ moneySuffix }}</span>
         </div>
       </div>
     </div>
@@ -148,6 +148,7 @@ import { resolveDentShapeType } from '../../utils/resolveDentShapeType';
 import { formatBreakdownDelta, deltaClass as deltaClassFn } from '../../utils/buildDetailedBreakdown';
 import { formatRepairTime } from '../../utils/formatRepairTime';
 import { clampDiscount } from '../../utils/discount';
+import { formatRubForDisplay, currencySuffix } from '../../utils/regionFormat';
 
 const props = defineProps({
   index: { type: Number, required: true },
@@ -158,7 +159,9 @@ const props = defineProps({
   readOnly: { type: Boolean, default: false },
   /** Detail / History parity: длина, время, скидка в ₽, стиль итого, инлайн-скидка */
   detailUxParity: { type: Boolean, default: false },
-  estimateDraft: { type: Object, default: null }
+  estimateDraft: { type: Object, default: null },
+  /** RUB | BYN — просмотр записи истории (значения всё равно в рублях в данных) */
+  historyDisplayCurrency: { type: String, default: null },
 });
 
 defineEmits(['open-discount']);
@@ -184,6 +187,9 @@ const discountAmountRub = computed(() => {
   return Math.round(raw);
 });
 
+const displayCurrency = computed(() => (props.historyDisplayCurrency === 'BYN' ? 'BYN' : 'RUB'));
+const moneySuffix = computed(() => currencySuffix(displayCurrency.value));
+
 const discountPctNum = computed(() => clampDiscount(Number(props.row.discountPercent) || 0));
 
 const discountPctDisplay = computed(() => {
@@ -194,7 +200,7 @@ const discountPctDisplay = computed(() => {
 const roundStep = () => props.userSettings.priceRoundStep ?? 0;
 
 function fmt(n) {
-  return new Intl.NumberFormat('ru-RU').format(Math.round(Number(n) || 0));
+  return formatRubForDisplay(Number(n) || 0, displayCurrency.value);
 }
 
 function dim(mm) {
@@ -215,7 +221,7 @@ function dentLabel(dent) {
 }
 
 function formatDelta(d) {
-  return formatBreakdownDelta(d);
+  return formatBreakdownDelta(d, displayCurrency.value);
 }
 
 function deltaClass(delta) {

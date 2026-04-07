@@ -62,8 +62,8 @@
                   class="dim-field__input"
                   @input="localWidth = ($event.target.value && Number($event.target.value)) || ''"
                 />
-              </div>
             </div>
+          </div>
 
             <div
               v-if="dent.secondaryDeformation"
@@ -127,6 +127,7 @@
 
 <script setup>
 import { ref, watch, computed, nextTick } from 'vue';
+import { resolveDentShapeType } from '../../utils/resolveDentShapeType';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -143,6 +144,11 @@ const localSecWidth = ref('');
 const errorMessage = ref('');
 
 const hasSecondary = computed(() => !!props.dent?.secondaryDeformation);
+
+/** Тип для расчёта цены — только по геометрии (без ручного переключателя в модалке). */
+function shapeTypeFromDimensions(lengthMm, widthMm) {
+  return resolveDentShapeType(lengthMm, widthMm) === 'stripe' ? 'strip' : 'circle';
+}
 
 watch(
   () => [props.modelValue, props.dent?.id],
@@ -193,16 +199,18 @@ function validate() {
       errorMessage.value = 'Вторичная деформация: ширина 1–9999 мм';
       return null;
     }
-    return {
-      dentId: props.dent.id,
-      dims: { lengthMm: len, widthMm: wid },
-      secondaryDims: { lengthMm: sl, widthMm: sw },
-    };
+  return {
+    dentId: props.dent.id,
+    dims: { lengthMm: len, widthMm: wid },
+    secondaryDims: { lengthMm: sl, widthMm: sw },
+    shapeType: shapeTypeFromDimensions(len, wid),
+  };
   }
   return {
     dentId: props.dent.id,
     dims: { lengthMm: len, widthMm: wid },
     secondaryDims: null,
+    shapeType: shapeTypeFromDimensions(len, wid),
   };
 }
 

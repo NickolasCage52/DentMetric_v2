@@ -448,6 +448,7 @@
                 :build-detailed-breakdown="buildDetailedBreakdown"
                 :engine-dents-total="quickDmDentSubtotal"
                 :detail-ux-parity="true"
+                :session-display-currency="userSettings.regionCountry === 'BY' ? 'BYN' : 'RUB'"
                 @open-discount="openDiscountModal"
                 @open-comment="openCommentModal"
               />
@@ -511,7 +512,7 @@
             <span class="inline-flex items-center gap-1"><span aria-hidden="true">&lsaquo;</span> Назад</span>
           </button>
           <div class="quick-nav-price text-center overflow-hidden px-1 min-w-0 flex items-center justify-center">
-            <div class="quick-nav-price-value text-[17px] font-bold text-metric-green tabular-nums truncate">{{ animatedQuickPrice.toLocaleString('ru-RU') }} ₽</div>
+            <div class="quick-nav-price-value text-[17px] font-bold text-metric-green tabular-nums truncate">{{ formatMoneyWithCurrency(animatedQuickPrice, displayCurrencyForRegionCountry(userSettings.regionCountry)) }}</div>
           </div>
           <button
             data-testid="btn-next-step"
@@ -579,6 +580,7 @@
         :history-items="historyItems"
         :footer-height="'var(--app-footer-height, 64px)'"
         :client-phone-filter="historyClientPhoneFilter"
+        :phone-search-region="userSettings.regionCountry === 'BY' ? 'BY' : 'RU'"
         @back="goHome"
         @select="selectedHistoryId = $event"
         @update-status="handleHistoryStatusUpdate"
@@ -620,7 +622,7 @@
         v-if="!isEditingHistory && selectedHistory.isPriceManuallyAdjusted && selectedHistory.dmCalculatedPrice != null"
         class="text-[11px] text-amber-500/90 px-1 leading-snug"
       >
-        Итог изменён вручную: расчёт DentMetric {{ formatCurrency(selectedHistory.dmCalculatedPrice) }} ₽ → {{ formatCurrency(historyDisplayTotal) }} ₽
+        Итог изменён вручную: расчёт DentMetric {{ formatHistoryMoney(selectedHistory.dmCalculatedPrice) }} → {{ formatHistoryMoney(historyDisplayTotal) }}
       </div>
       <ResultFourTabs v-model="historyFinalTab" class="history-final-tabs">
         <div class="hist-final-panels space-y-3 pb-2">
@@ -657,11 +659,31 @@
               :engine-line-items="historyEngineLineItemsForDent(dentItem)"
               :read-only="!isEditingHistory"
               :detail-ux-parity="true"
+              :history-display-currency="getRecordDisplayCurrency(selectedHistory)"
               @open-discount="openDiscountModal"
             />
+            <div
+              v-if="historyDisplayLineItems.length > 0 || historyAdditionalWorksSum > 0"
+              class="card-metallic rounded-2xl p-4 space-y-2"
+            >
+              <div class="text-[10px] font-bold text-metric-green uppercase tracking-widest">Итого по заказу</div>
+              <div v-if="historyDentsLineSum > 0" class="flex justify-between text-xs gap-2 text-gray-400">
+                <span>Вмятины (расчёт)</span>
+                <span class="text-white font-semibold tabular-nums shrink-0">{{ formatHistoryMoney(historyDentsLineSum) }}</span>
+              </div>
+              <div v-if="historyAdditionalWorksSum > 0" class="flex justify-between text-xs gap-2 text-gray-400">
+                <span>Доп. работы</span>
+                <span class="text-white font-semibold tabular-nums shrink-0">{{ formatHistoryMoney(historyAdditionalWorksSum) }}</span>
+              </div>
+              <div class="flex justify-between items-baseline gap-2 pt-1 border-t border-white/10">
+                <span class="text-sm text-white font-bold">К оплате</span>
+                <span class="text-lg font-extrabold text-metric-green tabular-nums">{{ formatHistoryMoney(historyDisplayTotal) }}</span>
+              </div>
+            </div>
             <PrepaymentBlock
               :model-value="isEditingHistory ? historyEditDraft.prepayment : (selectedHistory.prepayment ?? { amount: 0, method: null })"
               :readonly="!isEditingHistory"
+              :display-currency="getRecordDisplayCurrency(selectedHistory)"
               @update:model-value="(v) => { if (isEditingHistory) historyEditDraft.prepayment = v; }"
             />
           </section>
@@ -781,6 +803,38 @@
         </div>
         <h1 class="settings-screen__title">Настройки</h1>
         <div class="settings-sections">
+        <!-- Регион: отдельная карточка -->
+        <div class="settings-section-card card-metallic rounded-2xl overflow-hidden border border-white/[0.07] shadow-[0_8px_32px_rgba(0,0,0,0.35)]">
+          <div class="p-4 space-y-3">
+            <div class="flex items-start gap-3">
+              <span class="text-2xl leading-none" aria-hidden="true">🌍</span>
+              <div class="min-w-0 flex-1">
+                <div class="text-[11px] font-bold text-metric-green uppercase tracking-widest">Страна и валюта</div>
+                <p class="text-[11px] text-gray-500 mt-1 leading-snug">
+                  Телефон и поиск клиента, валюта новых записей в истории. Суммы в данных хранятся в рублях; для Беларуси показ — BYN (÷{{ BYN_PER_RUB }}).
+                </p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <label
+                class="dm-region-card flex flex-col items-center justify-center gap-1 rounded-xl border min-h-[72px] cursor-pointer transition-colors touch-manipulation"
+                :class="userSettings.regionCountry === 'RU' ? 'border-metric-green/50 bg-metric-green/10' : 'border-white/10 bg-[#141414] hover:border-white/15'"
+              >
+                <input v-model="userSettings.regionCountry" type="radio" value="RU" class="sr-only">
+                <span class="text-lg" aria-hidden="true">🇷🇺</span>
+                <span class="text-xs font-bold text-white">Россия</span>
+              </label>
+              <label
+                class="dm-region-card flex flex-col items-center justify-center gap-1 rounded-xl border min-h-[72px] cursor-pointer transition-colors touch-manipulation"
+                :class="userSettings.regionCountry === 'BY' ? 'border-metric-green/50 bg-metric-green/10' : 'border-white/10 bg-[#141414] hover:border-white/15'"
+              >
+                <input v-model="userSettings.regionCountry" type="radio" value="BY" class="sr-only">
+                <span class="text-lg" aria-hidden="true">🇧🇾</span>
+                <span class="text-xs font-bold text-white">Беларусь</span>
+              </label>
+            </div>
+          </div>
+        </div>
         <!-- 1. Ценообразование -->
         <div ref="(el) => setSettingsSectionRef('pricing', el)" class="settings-section-card card-metallic rounded-2xl overflow-hidden">
           <div class="dm-section-header" :class="{ 'dm-section-header--open': settingsOpenSection === 'pricing' }" @click="toggleSettingsSection('pricing')">
@@ -1343,7 +1397,12 @@ import { CAR_PARTS } from './data/carParts';
 import { getPartsByClass } from './data/partsCatalog';
 import { circleSizesMm, stripSizesMm, circleSizesWithArea, stripSizesWithArea } from './data/dentSizes';
 import { calcBasePriceFromDents, calcTotalPrice, buildBreakdown } from './utils/priceCalc';
-import { calculateDentPrice as calcDentViaAdapter, normalizeGraphicsDentsForPricing, normalizeDimensions } from './features/pricing/pricingAdapter';
+import {
+  calculateDentPrice as calcDentViaAdapter,
+  normalizeGraphicsDentsForPricing,
+  normalizeDimensions,
+  isStripeCase,
+} from './features/pricing/pricingAdapter';
 import { resolveDentShapeType, getResolvedShapeDisplayLabel } from './utils/resolveDentShapeType';
 import { applyPriceRoundingCeil, PRICE_ROUND_OPTIONS } from './utils/priceRounding';
 import { applyDiscount, clampDiscount } from './utils/discount';
@@ -1351,7 +1410,7 @@ import { calculateEstimateTotals } from './utils/calculateEstimateTotals';
 import { formatRepairTime } from './utils/formatRepairTime';
 import { calculateSessionTotalWithMultiDentRule } from './utils/multiDentAggregation';
 import { buildQuickFinalBreakdown } from './utils/buildQuickFinalBreakdown';
-import { migrateSettings, validateSettings, getPriceMultiplier, getUserStripPriceScaleFactor, SETTINGS_KEY } from './utils/settingsUtils';
+import { migrateSettings, validateSettings, getPriceMultiplier, SETTINGS_KEY } from './utils/settingsUtils';
 import GraphicsWizard from './components/graphics/GraphicsWizard.vue';
 import StepDots from './components/graphics/StepDots.vue';
 import InfoIcon from './components/InfoIcon.vue';
@@ -1379,6 +1438,14 @@ import PerDentFinalCard from './components/result/PerDentFinalCard.vue';
 import ResultFourTabs from './components/result/ResultFourTabs.vue';
 import { useClientSearch } from './composables/useClientSearch';
 import { calcPostSaveAnalytics, applyClientFields, normalizePhone } from './utils/clientSearch';
+import {
+  getRecordDisplayCurrency,
+  formatMoneyWithCurrency,
+  displayCurrencyForRegionCountry,
+  BYN_PER_RUB,
+} from './utils/regionFormat';
+import { formatPhoneDisplayBelarus, normalizePhoneForInput } from './utils/phoneFormat';
+import { saveAttachment, generateAttachmentKey } from './utils/attachmentStorage';
 import ClientMoodPicker from './components/ClientMoodPicker.vue';
 import PrepaymentBlock from './components/PrepaymentBlock.vue';
 import { useAccount } from './modules/account/useAccount';
@@ -1506,7 +1573,9 @@ const { historyItems, loadHistory, saveEstimate, updateEstimate, deleteEstimate,
 const selectedHistoryId = ref(null);
 const historyFinalTab = ref('calculation');
 
-const { foundClient, searchByPhone, clearSearch } = useClientSearch(() => loadHistory());
+const { foundClient, searchByPhone, clearSearch } = useClientSearch(() => loadHistory(), () =>
+  userSettings.regionCountry === 'BY' ? 'BY' : 'RU'
+);
 const historyClientPhoneFilter = ref('');
 const postSaveAnalytics = ref(null);
 
@@ -1624,8 +1693,7 @@ const historyLineItems = computed(() => {
     stripSizesWithArea,
     prices: userSettings.prices,
     initialData,
-    roundStep: 0,
-    stripeTableScale: getUserStripPriceScaleFactor(initialData, userSettings)
+    roundStep: 0
   };
 
   const recomputed = [];
@@ -1636,7 +1704,9 @@ const historyLineItems = computed(() => {
     const hh = Number(bbox.height) || 0;
     if (w <= 0 || hh <= 0) break;
     const resolved = resolveDentShapeType(w, hh);
-    const shape = resolved === 'stripe' ? 'strip' : 'circle';
+    const dt = String(d?.type || d?.shape || '').toLowerCase();
+    const wantsStrip = ['strip', 'stripe', 'scratch'].some((k) => dt.includes(k));
+    const shape = wantsStrip || resolved === 'stripe' ? 'strip' : 'circle';
     const conditions = userSettings.showPaintMaterial !== false
       ? (d.conditions || {})
       : { ...(d.conditions || {}), paintMaterialCode: null };
@@ -1644,7 +1714,8 @@ const historyLineItems = computed(() => {
       { shape, widthMm: w, heightMm: hh, conditions, panelElement: d.panelElement || null },
       ctx
     );
-    const mult = getPriceMultiplier(shape, userSettings);
+    const multType = isStripeCase(shape, w, hh) ? 'strip' : 'circle';
+    const mult = getPriceMultiplier(multType, userSettings);
     recomputed.push({
       id: d.id ?? `d${i}`,
       dent: d,
@@ -1786,18 +1857,28 @@ function getHistoryDentSizeLabel(dentNum) {
 }
 /** Как на финальном экране детализации: учитываем legacy clientName / carBrand и т.д. */
 const historyClientForDisplay = computed(() => {
-  const c = selectedHistory.value?.client || {};
+  const rec = selectedHistory.value;
+  const c = rec?.client || {};
+  const rawPhone = String(c.phone ?? c.clientPhone ?? '').trim();
+  const phone =
+    getRecordDisplayCurrency(rec) === 'BYN' && rawPhone ? formatPhoneDisplayBelarus(rawPhone) : rawPhone;
   return {
     name: String(c.name ?? c.clientName ?? '').trim(),
-    phone: String(c.phone ?? c.clientPhone ?? '').trim(),
+    phone,
     brand: String(c.brand ?? c.carBrand ?? '').trim(),
     model: String(c.model ?? c.carModel ?? '').trim(),
     company: String(c.company ?? c.clientCompany ?? '').trim(),
   };
 });
 const historyDetailTelHref = computed(() => {
-  const raw = (historyClientForDisplay.value.phone || '').replace(/\D/g, '');
+  const rec = selectedHistory.value;
+  const p = String(rec?.client?.phone ?? rec?.clientPhone ?? '').trim();
+  const raw = p.replace(/\D/g, '');
   if (!raw) return '';
+  if (getRecordDisplayCurrency(rec) === 'BYN') {
+    const n = normalizePhone(p, 'BY');
+    return n.startsWith('375') ? `+${n}` : `+${raw}`;
+  }
   if (raw.length >= 10 && (raw[0] === '8' || raw[0] === '7')) return '+7' + raw.slice(1);
   return '+' + raw;
 });
@@ -1855,7 +1936,26 @@ const historyDisplayLineItems = computed(() => {
   return historyLineItems.value;
 });
 
-/** Итог по истории: manual override > sum of line items > saved total. */
+const historyAdditionalWorksSum = computed(() => {
+  const rec = selectedHistory.value;
+  const works = rec?.additionalWorks;
+  if (!Array.isArray(works)) return 0;
+  return works.reduce((s, w) => s + (Number(w.price) || 0), 0);
+});
+
+const historyDentsLineSum = computed(() => {
+  const items = historyDisplayLineItems.value;
+  if (!items?.length) return 0;
+  return items.reduce((s, i) => s + (Number(i.appliedTotal) || 0), 0);
+});
+
+const historyComputedOrderTotal = computed(() => historyDentsLineSum.value + historyAdditionalWorksSum.value);
+
+function formatHistoryMoney(amountRub) {
+  return formatMoneyWithCurrency(Number(amountRub) || 0, getRecordDisplayCurrency(selectedHistory.value));
+}
+
+/** Итог по истории: ручная правка > сумма вмятин + доп. работы > сохранённый total. */
 const historyDisplayTotal = computed(() => {
   const rec = selectedHistory.value;
   if (isEditingHistory.value && historyEditDraft.editManualPrice != null && Number(historyEditDraft.editManualPrice) > 0) {
@@ -1864,9 +1964,11 @@ const historyDisplayTotal = computed(() => {
   if (!isEditingHistory.value && rec?.isPriceManuallyAdjusted && rec.manualAdjustedPrice != null) {
     return Number(rec.manualAdjustedPrice) || 0;
   }
+  const fromParts = historyComputedOrderTotal.value;
+  if (fromParts > 0) return fromParts;
   const items = historyDisplayLineItems.value;
   if (items?.length > 0) {
-    const sum = items.reduce((s, i) => s + (i.appliedTotal ?? 0), 0);
+    const sum = items.reduce((s, i) => s + (Number(i.appliedTotal) || 0), 0);
     if (sum > 0) return sum;
   }
   return rec?.total ?? 0;
@@ -2207,6 +2309,8 @@ const userSettings = reactive({
   discountDiffPartValue: 0,
   priceAdjustmentRoundOval: 1.0,
   priceAdjustmentStripe: 1.0,
+  /** RU | BY — телефон, поиск, новые записи истории */
+  regionCountry: 'RU',
   useQuickUiInDetail: true,
   customArmatureWorks: [],
   armaturePriceOverrides: {}
@@ -2251,6 +2355,7 @@ function loadUserSettings() {
     userSettings.discountSamePartValue = migrated.discountSamePartValue ?? 50;
     userSettings.discountDiffPartEnabled = migrated.discountDiffPartEnabled ?? false;
     userSettings.discountDiffPartValue = migrated.discountDiffPartValue ?? 0;
+    userSettings.regionCountry = migrated.regionCountry === 'BY' ? 'BY' : 'RU';
     const validated = validateSettings({ ...userSettings });
     userSettings.priceAdjustmentRoundOval = validated.priceAdjustmentRoundOval;
     userSettings.priceAdjustmentStripe = validated.priceAdjustmentStripe;
@@ -2401,7 +2506,9 @@ const quickDentTotals = computed(() => estimateDraft.quickDents.map((dent) => {
   const w = Number(dent.sizeLengthMm) || 0;
   const h = Number(dent.sizeWidthMm) || 0;
   const resolved = resolveDentShapeType(w, h);
-  const shape = resolved === 'stripe' ? 'strip' : 'circle';
+  const st = String(dent.shape || '').toLowerCase();
+  const wantsStrip = ['strip', 'stripe', 'scratch'].some((k) => st.includes(k));
+  const shape = wantsStrip || resolved === 'stripe' ? 'strip' : 'circle';
   const ctx = {
     sizesWithArea: shape === 'circle' ? circleSizesWithArea : stripSizesWithArea,
     circleSizesWithArea,
@@ -2418,7 +2525,8 @@ const quickDentTotals = computed(() => estimateDraft.quickDents.map((dent) => {
     { shape, widthMm: w, heightMm: h, conditions: conditionsForCalc, panelElement: dent.panelElement },
     ctx
   );
-  const mult = getPriceMultiplier(shape, userSettings);
+  const multType = isStripeCase(shape, w, h) ? 'strip' : 'circle';
+  const mult = getPriceMultiplier(multType, userSettings);
   return {
     dent,
     sizeCode: result.sizeCode,
@@ -2522,12 +2630,19 @@ const graphicsDentsForPricing = computed(() => {
     stripSizes: stripSizesWithArea,
     prices: userSettings.prices,
     initialData,
-    conditions: graphicsConditions.value,
-    stripeTableScale: getUserStripPriceScaleFactor(initialData, userSettings)
+    conditions: graphicsConditions.value
   };
   const normalized = normalizeGraphicsDentsForPricing(graphicsState.dents || [], ctx);
   return normalized.map((d) => {
-    const mult = getPriceMultiplier(d.type || 'circle', userSettings);
+    const bbox = d?.bboxMm || {};
+    const w = Number(bbox.width) || 0;
+    const h = Number(bbox.height) || 0;
+    const resolved = w > 0 && h > 0 ? resolveDentShapeType(w, h) : null;
+    const t = String(d?.type || '').toLowerCase();
+    const wantsStrip = ['strip', 'stripe', 'scratch'].some((k) => t.includes(k));
+    const shape = d?.type === 'freeform' ? 'circle' : wantsStrip || resolved === 'stripe' ? 'strip' : 'circle';
+    const multType = isStripeCase(shape, w, h) ? 'strip' : 'circle';
+    const mult = getPriceMultiplier(multType, userSettings);
     return { ...d, price: (d.price || 0) * mult };
   });
 });
@@ -2923,8 +3038,14 @@ const formatDateTime = (iso) => {
 
 if (import.meta.env?.DEV) {
   window.__comparePricing = (shape, widthMm, heightMm, conditions) => {
-    const sizes = shape === 'circle' ? circleSizesWithArea : stripSizesWithArea;
-    const ctx = { sizesWithArea: sizes, prices: userSettings.prices, initialData, roundStep: 100 };
+    const ctx = {
+      sizesWithArea: shape === 'circle' ? circleSizesWithArea : stripSizesWithArea,
+      circleSizesWithArea,
+      stripSizesWithArea,
+      prices: userSettings.prices,
+      initialData,
+      roundStep: 100
+    };
     const r = calcDentViaAdapter({ shape, widthMm, heightMm, conditions }, ctx);
     console.log('[pricingAdapter] Same input => single result:', r.total, '₽', r.breakdown);
     return r.total;
@@ -2990,7 +3111,7 @@ function getEditablePriceKeys() {
   return keys;
 }
 
-function applyPriceRegulator(type, percentDelta) {
+function   applyPriceRegulator(type, percentDelta) {
   // +10% / −10%: добавляют/вычитают 10 п.п. от базы (100→110→120…). 0%: сброс к 100%.
   mergeMissingPricesFromDefaults();
   const sizes = type === 'roundOval' ? initialData.circleSizes : initialData.stripSizes;
@@ -3000,6 +3121,9 @@ function applyPriceRegulator(type, percentDelta) {
     if (v != null && Number.isFinite(Number(v))) snapshot[s.code] = Number(v);
   });
   if (Object.keys(snapshot).length === 0) return;
+
+  const prevRoundAdj = Number(userSettings.priceAdjustmentRoundOval) || 1;
+  const prevStripeAdj = Number(userSettings.priceAdjustmentStripe) || 1;
 
   let sumRatio = 0;
   let count = 0;
@@ -3022,12 +3146,20 @@ function applyPriceRegulator(type, percentDelta) {
       userSettings.prices[s.code] = Math.max(0, Math.round(base * factor));
     }
   });
+  /*
+   * Регулятор меняет цены в каталоге; расчёт полосы берёт их из userSettings.prices напрямую.
+   * Сбрасываем priceAdjustment*, иначе множитель в настройках дублирует эффект и расходится с «Множитель: N%».
+   */
+  if (type === 'roundOval') userSettings.priceAdjustmentRoundOval = 1;
+  else userSettings.priceAdjustmentStripe = 1;
   saveSettings();
   haptic('success');
   const label = percentDelta > 0 ? '+10%' : (percentDelta < 0 ? '−10%' : '0%');
   const section = type === 'roundOval' ? 'Круг/Овал' : 'Полоса/Царапина';
   showUndoToast(`${section}: цены ${label}`, () => {
     sizes.forEach((s) => { if (snapshot[s.code] != null) userSettings.prices[s.code] = snapshot[s.code]; });
+    userSettings.priceAdjustmentRoundOval = prevRoundAdj;
+    userSettings.priceAdjustmentStripe = prevStripeAdj;
     saveSettings();
     haptic('success');
   });
@@ -3233,6 +3365,10 @@ function buildEstimatePayload(mode, lineItemsOverride) {
       graphicsWizardRef.value?.getDetailSession?.()?.photoAssetKey ??
       null;
     const photoAssets = [...new Set([...dentPhotoKeys, ...(mainPhotoKey ? [mainPhotoKey] : [])])];
+    const additionalSumDetail = (estimateDraft.additionalWorks || []).reduce((s, w) => s + (Number(w.price) || 0), 0);
+    const dmDentOnlyDetail = (lineItemsSnapshot || []).reduce((s, i) => s + (Number(i.dmCalculatedLineTotal ?? i.appliedTotal) || 0), 0);
+    const recordCountry = userSettings.regionCountry === 'BY' ? 'BY' : 'RU';
+    const recordCurrency = recordCountry === 'BY' ? 'BYN' : 'RUB';
     return {
       id: estimateDraft.id,
       mode: 'detail',
@@ -3246,12 +3382,17 @@ function buildEstimatePayload(mode, lineItemsOverride) {
       calculatedAt: new Date().toISOString(),
       total: displayTotal.value,
       rawTotal: totalPrice.value,
-      dmCalculatedPrice: totalPrice.value,
+      dmCalculatedPrice: dmDentOnlyDetail + additionalSumDetail,
       discountPercent: discPct || 0,
       comment: estimateDraft.comment || '',
       attachments: estimateDraft.attachments || [],
       clientMood: estimateDraft.clientMood ?? null,
-      prepayment: estimateDraft.prepayment ?? { amount: 0, method: null }
+      prepayment: estimateDraft.prepayment ?? { amount: 0, method: null },
+      additionalWorks: JSON.parse(JSON.stringify(estimateDraft.additionalWorks || [])),
+      masterName: estimateDraft.masterName || '',
+      recordRepairTimeHours: estimateDraft.repairTimeHours ?? null,
+      recordCountry,
+      recordCurrency,
     };
   }
   const dentItems = (estimateDraft.quickDents || []).map((d) => {
@@ -3276,6 +3417,8 @@ function buildEstimatePayload(mode, lineItemsOverride) {
   });
   const additionalSumQuick = (estimateDraft.additionalWorks || []).reduce((s, w) => s + (Number(w.price) || 0), 0);
   const dmDentOnly = quickDmDentSubtotal.value;
+  const recordCountryQuick = userSettings.regionCountry === 'BY' ? 'BY' : 'RU';
+  const recordCurrencyQuick = recordCountryQuick === 'BY' ? 'BYN' : 'RUB';
   return {
     id: estimateDraft.id,
     mode: 'quick',
@@ -3296,8 +3439,29 @@ function buildEstimatePayload(mode, lineItemsOverride) {
     prepayment: estimateDraft.prepayment ?? { amount: 0, method: null },
     additionalWorks: JSON.parse(JSON.stringify(estimateDraft.additionalWorks || [])),
     masterName: estimateDraft.masterName || '',
-    recordRepairTimeHours: estimateDraft.repairTimeHours ?? null
+    recordRepairTimeHours: estimateDraft.repairTimeHours ?? null,
+    recordCountry: recordCountryQuick,
+    recordCurrency: recordCurrencyQuick,
   };
+}
+
+async function injectDetailAnnotatedMainPhoto(payload) {
+  if (!payload?.id || payload.mode !== 'detail') return;
+  const annotated =
+    graphicsWizardRef.value?.getDetailSession?.()?.annotatedPhotoDataUrl || null;
+  if (!annotated || typeof annotated !== 'string' || !annotated.startsWith('data:')) return;
+  try {
+    const blob = await (await fetch(annotated)).blob();
+    const key = generateAttachmentKey(payload.id, 0);
+    await saveAttachment(key, blob);
+    const list = [...(payload.attachments || [])];
+    const ix = list.findIndex((a) => a && Number(a.dentIndex) === 0);
+    if (ix >= 0) list[ix] = { ...list[ix], idbKey: key };
+    else list.unshift({ dentIndex: 0, idbKey: key });
+    payload.attachments = list;
+  } catch (_e) {
+    /* оставляем исходное вложение */
+  }
 }
 
 async function saveCurrentEstimate(modeOverride, lineItemsOverride) {
@@ -3309,6 +3473,7 @@ async function saveCurrentEstimate(modeOverride, lineItemsOverride) {
   isSavingHistory.value = true;
   try {
     const payload = buildEstimatePayload(mode, lineItemsOverride);
+    await injectDetailAnnotatedMainPhoto(payload);
     saveEstimate(payload);
     if (foundClient.value?.allRecords?.length) {
       postSaveAnalytics.value = calcPostSaveAnalytics(totalPrice.value, foundClient.value.allRecords);
@@ -3338,6 +3503,7 @@ async function saveAndBookEstimate(modeOverride, lineItemsOverride) {
   isSavingHistory.value = true;
   try {
     const payload = buildEstimatePayload(mode, lineItemsOverride);
+    await injectDetailAnnotatedMainPhoto(payload);
     payload.status = 'scheduled';
     payload.bookingAt = new Date().toISOString();
     saveEstimate(payload);
@@ -3605,7 +3771,8 @@ const saveSettings = () => {
     priceAdjustmentStripe: validated.priceAdjustmentStripe,
     useQuickUiInDetail: userSettings.useQuickUiInDetail,
     customArmatureWorks: userSettings.customArmatureWorks || [],
-    armaturePriceOverrides: userSettings.armaturePriceOverrides || {}
+    armaturePriceOverrides: userSettings.armaturePriceOverrides || {},
+    regionCountry: userSettings.regionCountry === 'BY' ? 'BY' : 'RU',
   };
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(dataToSave));
   const tg = window.Telegram?.WebApp;
@@ -3632,6 +3799,7 @@ const resetDefaults = () => {
     userSettings.sizeUnit = 'mm';
     userSettings.priceAdjustmentRoundOval = 1.0;
     userSettings.priceAdjustmentStripe = 1.0;
+    userSettings.regionCountry = 'RU';
     userSettings.discountSamePartEnabled = false;
     userSettings.discountSamePartValue = 50;
     userSettings.discountDiffPartEnabled = false;
@@ -3642,13 +3810,17 @@ const resetDefaults = () => {
 
 async function openClientField(field, label, inputType, placeholder) {
   const mask = field === 'clientPhone' ? 'phone' : field === 'clientName' ? 'name' : null;
+  const phoneReg = userSettings.regionCountry === 'BY' ? 'BY' : 'RU';
+  let fieldVal = estimateDraft[field] ?? '';
+  if (field === 'clientPhone') fieldVal = normalizePhoneForInput(fieldVal, phoneReg);
   const value = await openInputModal({
     title: 'Данные клиента',
     label,
-    value: estimateDraft[field] ?? '',
+    value: fieldVal,
     inputType,
     placeholder,
-    mask
+    mask,
+    phoneRegion: mask === 'phone' ? phoneReg : undefined
   });
   if (value !== undefined && value !== null) {
     estimateDraft[field] = typeof value === 'string' ? value : String(value);
@@ -3700,13 +3872,19 @@ async function openQuickDentSizeModal(dent, field, label) {
 
 async function openHistoryEditField(field, label, inputType) {
   const mask = field === 'clientPhone' ? 'phone' : field === 'clientName' ? 'name' : null;
+  const rec = selectedHistory.value;
+  const phoneReg =
+    rec && (rec.recordCountry === 'BY' || rec.recordCurrency === 'BYN') ? 'BY' : 'RU';
+  let fieldVal = historyEditDraft[field] ?? '';
+  if (field === 'clientPhone') fieldVal = normalizePhoneForInput(fieldVal, phoneReg);
   const value = await openInputModal({
     title: 'Редактирование',
     label,
-    value: historyEditDraft[field] ?? '',
+    value: fieldVal,
     inputType,
     placeholder: label,
-    mask
+    mask,
+    phoneRegion: mask === 'phone' ? phoneReg : undefined
   });
   if (value !== undefined && value !== null) {
     historyEditDraft[field] = typeof value === 'string' ? value : String(value);

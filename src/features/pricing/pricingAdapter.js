@@ -7,7 +7,7 @@ import { getBasePriceByMm, getSizeCodeForMatrix } from '../../utils/priceAdapter
 import { resolveDentShapeType } from '../../utils/resolveDentShapeType';
 import { applyConditionsToBase, buildBreakdown, roundPrice } from '../../utils/priceCalc';
 import { getArmaturnayaTotalPrice } from '../../data/armaturnayaWorks';
-import { calculateStripePrice, calculateStripePriceFromUserBase } from '../../utils/stripeCalc';
+import { calculateStripePriceFromUserBase } from '../../utils/stripeCalc';
 
 /** Округление размеров в мм до 1 знака для консистентности */
 const MM_ROUND = 1;
@@ -108,13 +108,16 @@ function getStripeCoeffClass(conditions, initialData) {
 
 /**
  * Вычисляет базовую цену одной вмятины по размерам в мм.
- * Для strip использует stripeCalc (таблица 2см); для circle — area interpolation.
+ * Для strip: интерполяция прайса из настроек (L*) × отношение сложности из stripe-таблицы
+ * (текущий класс / «лёгкая»). Так цена уровня L5 из настроек совпадает с базой при лёгкой сложности,
+ * без смешения с абсолютами таблицы (иначе 5000×4800/4000=6000 при каталоге L5=4000).
+ * Для circle — area interpolation по userSettings.prices.
  * @param {string} shape - 'circle' | 'strip' | 'freeform'
  * @param {number} widthMm
  * @param {number} heightMm
  * @param {Array} sizesWithArea - circleSizesWithArea или stripSizesWithArea
  * @param {Object} prices - userSettings.prices
- * @param {object} [options] - { conditions, initialData, stripeTableScale } для stripe (coeffClass + прайс-регулятор)
+ * @param {object} [options] - { conditions, initialData }
  * @returns {number} базовая цена
  */
 export function calculateDentBasePrice(shape, widthMm, heightMm, sizesWithArea, prices, options = {}) {
@@ -122,14 +125,20 @@ export function calculateDentBasePrice(shape, widthMm, heightMm, sizesWithArea, 
   if (w <= 0 || h <= 0) return 0;
   const type = shape === 'freeform' ? 'circle' : (shape === 'strip' ? 'strip' : 'circle');
   const useStripe = type === 'strip' && isStripeCase(shape, w, h);
-  const stripeScale = Number(options.stripeTableScale);
-  const scale = Number.isFinite(stripeScale) && stripeScale > 0 ? stripeScale : 1;
   if (useStripe) {
     const lengthCm = Math.max(w, h) / 10;
     const heightCm = Math.min(w, h) / 10;
     const coeffClass = getStripeCoeffClass(options.conditions, options.initialData);
-    const { price } = calculateStripePriceFromUserBase({ lengthCm, heightCm, coeffClass });
-    return Math.round(price * scale);
+    const { price: tablePrice } = calculateStripePriceFromUserBase({ lengthCm, heightCm, coeffClass });
+    const { price: refTablePrice } = calculateStripePriceFromUserBase({
+      lengthCm,
+      heightCm,
+      coeffClass: 'base'
+    });
+    const userInterp = getBasePriceByMm('strip', w, h, sizesWithArea, prices);
+    const refRatio = refTablePrice > 0 ? tablePrice / refTablePrice : 1;
+    const u = Number.isFinite(userInterp) && userInterp >= 0 ? userInterp : 0;
+    return Math.round(u * refRatio);
   }
   return getBasePriceByMm(type, w, h, sizesWithArea, prices);
 }
@@ -162,8 +171,7 @@ export function calculateDentPrice(input, context) {
     stripSizesWithArea,
     prices,
     initialData,
-    roundStep = 0,
-    stripeTableScale
+    roundStep = 0
   } = context;
   const circleSizes = circleSizesWithArea ?? sizesWithArea;
   const stripSizes = stripSizesWithArea ?? sizesWithArea;
@@ -182,7 +190,7 @@ export function calculateDentPrice(input, context) {
   const useStripe = type === 'strip' && isStripeCase(shape, w, h);
   const effectiveShape = useStripe ? 'strip' : 'circle';
   const sizesForCalc = useStripe ? stripSizes : circleSizes;
-  const baseOpts = { conditions, initialData, stripeTableScale };
+  const baseOpts = { conditions, initialData };
   const base = useStripe
     ? calculateDentBasePrice(type, w, h, stripSizes, prices, baseOpts)
     : getBasePriceByMm(effectiveShape, w, h, circleSizes, prices);
@@ -207,20 +215,25 @@ export function calculateDentPrice(input, context) {
  */
 export function normalizeGraphicsDentsForPricing(dents, context) {
   if (!dents || !Array.isArray(dents)) return [];
-  const { circleSizes, stripSizes, prices, initialData, conditions, stripeTableScale } = context;
+  const { circleSizes, stripSizes, prices, initialData, conditions } = context;
   return dents.map((d) => {
     const bbox = d.bboxMm || {};
     const w = Number(bbox.width) || 0;
     const h = Number(bbox.height) || 0;
     const resolved = w > 0 && h > 0 ? resolveDentShapeType(w, h) : null;
-    const shape = d.type === 'freeform' ? 'circle' : (resolved === 'stripe' ? 'strip' : 'circle');
+    // Должно совпадать с GraphicsWizard/App: явный выбор «Полоса» важнее геометрии
+    // (малые мм дают resolveDentShapeType=oval, иначе база шла бы по кругу — настройки L* не работали).
+    const t = String(d?.type || '').toLowerCase();
+    const wantsStrip =
+      d.type !== 'freeform' && ['strip', 'stripe', 'scratch'].some((k) => t.includes(k));
+    const shape =
+      d.type === 'freeform' ? 'circle' : wantsStrip || resolved === 'stripe' ? 'strip' : 'circle';
     const useStripe = shape === 'strip' && isStripeCase(shape, w, h);
     const sizes = useStripe ? stripSizes : circleSizes;
     if (w <= 0 || h <= 0) return d;
     const base = calculateDentBasePrice(shape, w, h, sizes, prices, {
       conditions,
-      initialData,
-      stripeTableScale
+      initialData
     });
     const effectiveShape = useStripe ? 'strip' : 'circle';
     const sizeCode = getSizeCodeForConditions(effectiveShape, w, h, sizes);

@@ -189,6 +189,7 @@ const activeDentForStep2 = computed(() => {
     id: d.id,
     sizeLengthMm: d.dimensions?.lengthMm ?? 0,
     sizeWidthMm: d.dimensions?.widthMm ?? 0,
+    shapeType: d.shapeType ?? null,
     panelSide: cond.panelSide ?? 'left',
     panelElement: cond.panelElement ?? null,
     conditions: { ...cond, disassemblyCodes },

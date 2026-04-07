@@ -35,7 +35,9 @@ export function openInputModal(options = {}) {
     step: options.step ?? null,
     allowDecimals: options.allowDecimals !== false,
     multiline: options.multiline === true,
-    mask: options.mask ?? null
+    mask: options.mask ?? null,
+    /** 'RU' | 'BY' — маска телефона в модалке (по умолчанию RU: +7) */
+    phoneRegion: options.phoneRegion ?? null
   };
   modalOpen.value = true;
   return new Promise((resolve) => {

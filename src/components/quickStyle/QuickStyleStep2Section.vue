@@ -243,6 +243,7 @@ import SegmentedControl from '../ui/SegmentedControl.vue';
 import PresetsModal from '../PresetsModal.vue';
 import { getElementIconPath } from '../../utils/elementIcons';
 import { getResolvedShapeDisplayLabel } from '../../utils/resolveDentShapeType';
+import { isStripeCase } from '../../features/pricing/pricingAdapter';
 import { formatArmaturnayaSummary, getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks';
 import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from '../../utils/armatureSelection';
 
@@ -280,6 +281,10 @@ function getElementsForSide(side) {
 function getShapeLabel(dent) {
   const w = Number(dent?.sizeLengthMm) || 0;
   const h = Number(dent?.sizeWidthMm) || 0;
+  const st = String(dent?.shapeType || '').toLowerCase();
+  if (['strip', 'stripe', 'scratch'].some((k) => st.includes(k)) && isStripeCase('strip', w, h)) {
+    return 'Полоса';
+  }
   return getResolvedShapeDisplayLabel(w, h);
 }
 

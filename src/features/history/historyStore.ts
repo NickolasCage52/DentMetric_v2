@@ -227,6 +227,16 @@ export function normalizeHistoryRecord(raw: any): any | null {
       (normalized as any).recordRepairTimeHours = raw.recordRepairTimeHours ?? null;
     }
 
+    let rc: 'RU' | 'BY' | null =
+      raw.recordCountry === 'BY' || raw.recordCountry === 'RU' ? raw.recordCountry : null;
+    const rcurRaw =
+      raw.recordCurrency === 'BYN' || raw.recordCurrency === 'RUB' ? raw.recordCurrency : null;
+    if (rc == null && rcurRaw === 'BYN') rc = 'BY';
+    (normalized as any).recordCountry = rc ?? 'RU';
+    const rcur =
+      rcurRaw ?? ((normalized as any).recordCountry === 'BY' ? 'BYN' : 'RUB');
+    (normalized as any).recordCurrency = rcur;
+
     return normalized as any;
   } catch (_e) {
     if (import.meta.env?.DEV) console.warn('[DentMetric] normalizeHistoryRecord threw', _e);
@@ -408,6 +418,13 @@ export function updateEstimate(id: string, partial: any) {
         v === null || v === ''
           ? null
           : (Number.isFinite(Number(v)) ? Number(v) : merged.recordRepairTimeHours);
+    }
+    if (partial.recordCountry === 'RU' || partial.recordCountry === 'BY') {
+      merged.recordCountry = partial.recordCountry;
+      merged.recordCurrency = partial.recordCountry === 'BY' ? 'BYN' : 'RUB';
+    }
+    if (partial.recordCurrency === 'RUB' || partial.recordCurrency === 'BYN') {
+      merged.recordCurrency = partial.recordCurrency;
     }
     if (merged.isPriceManuallyAdjusted && merged.manualAdjustedPrice != null) {
       merged.total = Number(merged.manualAdjustedPrice) || merged.total;

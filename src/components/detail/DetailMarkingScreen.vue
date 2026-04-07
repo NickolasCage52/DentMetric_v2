@@ -428,12 +428,131 @@ function layoutCenteredBadgeText(textNode, bx, by) {
   textNode.offsetY(textNode.height() / 2);
 }
 
-const DIM_OVERLAY_COLOR = '#FFD700';
+/** Золото + чуть теплее для лучшей видимости на тёмном фото */
+const DIM_OVERLAY_COLOR = '#FFE566';
+const DIM_OVERLAY_DIM = 'rgba(255, 229, 102, 0.92)';
 
 /**
- * Пунктирные линии размеров на фото.
- * Модалка: «Длина» = lengthMm, «Ширина» = widthMm.
- * По референсу Notes: горизонтальная линия — длина (мм справа), вертикальная — ширина (мм сверху).
+ * Центроид площади замкнутого контура (shoelace). Визуально стабильнее вершинного среднего на «грушах».
+ */
+function outlinePolygonAreaCentroid(outlinePoints) {
+  const pts = outlinePoints;
+  const n = Math.floor((pts?.length || 0) / 2);
+  if (n < 3) return null;
+  let a = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    const xi = pts[i * 2];
+    const yi = pts[i * 2 + 1];
+    const xj = pts[j * 2];
+    const yj = pts[j * 2 + 1];
+    const cross = xi * yj - xj * yi;
+    a += cross;
+    cx += (xi + xj) * cross;
+    cy += (yi + yj) * cross;
+  }
+  a *= 0.5;
+  if (Math.abs(a) < 1e-6) return null;
+  return { cx: cx / (6 * a), cy: cy / (6 * a) };
+}
+
+/**
+ * Главная ось контура (PCA): длина вдоль большей дисперсии, ширина перпендикулярно.
+ * Центр осей — центроид площади (если вычислился), иначе среднее по вершинам.
+ * Совпадает с сохранённым снимком разметки и корректно для наклонных полос / freeform.
+ */
+function outlinePrincipalAxes(outlinePoints) {
+  const pts = outlinePoints;
+  const n = Math.floor((pts?.length || 0) / 2);
+  if (n < 2) return null;
+  const areaC = outlinePolygonAreaCentroid(outlinePoints);
+  let cx;
+  let cy;
+  if (areaC) {
+    cx = areaC.cx;
+    cy = areaC.cy;
+  } else {
+    cx = 0;
+    cy = 0;
+    for (let i = 0; i < n; i++) {
+      cx += pts[i * 2];
+      cy += pts[i * 2 + 1];
+    }
+    cx /= n;
+    cy /= n;
+  }
+  let sxx = 0;
+  let syy = 0;
+  let sxy = 0;
+  for (let i = 0; i < n; i++) {
+    const dx = pts[i * 2] - cx;
+    const dy = pts[i * 2 + 1] - cy;
+    sxx += dx * dx;
+    syy += dy * dy;
+    sxy += dx * dy;
+  }
+  const trace = sxx + syy;
+  const det = sxx * syy - sxy * sxy;
+  const tmp = Math.sqrt(Math.max(0, trace * trace * 0.25 - det));
+  const lambda1 = trace * 0.5 + tmp;
+  let ux;
+  let uy;
+  if (Math.abs(sxy) > 1e-8) {
+    ux = lambda1 - syy;
+    uy = sxy;
+  } else if (sxx >= syy) {
+    ux = 1;
+    uy = 0;
+  } else {
+    ux = 0;
+    uy = 1;
+  }
+  const un = Math.hypot(ux, uy) || 1;
+  ux /= un;
+  uy /= un;
+  let vx = -uy;
+  let vy = ux;
+  let minU = Infinity;
+  let maxU = -Infinity;
+  let minV = Infinity;
+  let maxV = -Infinity;
+  for (let i = 0; i < n; i++) {
+    const dx = pts[i * 2] - cx;
+    const dy = pts[i * 2 + 1] - cy;
+    const pu = dx * ux + dy * uy;
+    const pv = dx * vx + dy * vy;
+    minU = Math.min(minU, pu);
+    maxU = Math.max(maxU, pu);
+    minV = Math.min(minV, pv);
+    maxV = Math.max(maxV, pv);
+  }
+  let extentU = maxU - minU;
+  let extentV = maxV - minV;
+  if (extentV > extentU) {
+    const tux = ux;
+    const tuy = uy;
+    ux = vx;
+    uy = vy;
+    vx = tux;
+    vy = tuy;
+    const tmin = minU;
+    const tmax = maxU;
+    minU = minV;
+    maxU = maxV;
+    minV = tmin;
+    maxV = tmax;
+    extentU = maxU - minU;
+    extentV = maxV - minV;
+  }
+  return { cx, cy, ux, uy, vx, vy, minU, maxU, minV, maxV, extentU, extentV };
+}
+
+/**
+ * Пунктирные размеры вдоль главной оси контура и перпендикулярно ей.
+ * «Длина» = lengthMm вдоль u, «Ширина» = widthMm вдоль v.
+ * Перекрестье в центроиде (cx, cy); линии с контрастным ореолом; подписи у середины лучей, не на пересечении.
  */
 function drawDimensionOverlayOnLayer(layer, overlayId, outlinePoints, lengthMm, widthMm) {
   if (!layer) return;
@@ -444,9 +563,37 @@ function drawDimensionOverlayOnLayer(layer, overlayId, outlinePoints, lengthMm, 
   const wid = Number(widthMm);
   if (!len || !wid || !outlinePoints?.length) return;
 
-  const { minX, maxX, minY, maxY } = outlineBBox(outlinePoints);
-  const cx = (minX + maxX) / 2;
-  const cy = (minY + maxY) / 2;
+  const axes = outlinePrincipalAxes(outlinePoints);
+  if (!axes) return;
+  const { cx, cy, ux, uy, vx, vy, extentU, extentV } = axes;
+
+  const minExt = Math.min(extentU, extentV);
+  const maxExt = Math.max(extentU, extentV);
+  /** Адаптивный внутренний отступ: не съедает мелкие вмятины */
+  const innerInset = Math.max(5, Math.min(14, minExt * 0.11));
+  const minHalfPx = 5;
+  const halfAlongU = Math.max(minHalfPx, extentU * 0.5 - innerInset);
+  const halfAlongV = Math.max(minHalfPx, extentV * 0.5 - innerInset);
+
+  /** Очень малый контур: две отдельные подписи неизбежно наезжают — одна строка «длина×ширина» */
+  const microContour =
+    minExt < 34 || Math.min(halfAlongU, halfAlongV) < 7 || maxExt < 26;
+
+  const fontSize = microContour
+    ? Math.round(Math.max(8, Math.min(11, minExt * 0.22 + 6)))
+    : Math.round(Math.max(10, Math.min(14, minExt * 0.13 + 9)));
+
+  /**
+   * Две подписи: разные квадранты (+u с перпендикуляром +v и −v с перпендикуляром −u),
+   * перпендикулярный сдвиг не привязываем к половине оси (на крошечных контурах иначе схлопываются).
+   */
+  const halfMin = Math.min(halfAlongU, halfAlongV);
+  let labelPerp = Math.max(11, fontSize * 1.85, halfMin * 0.55);
+  labelPerp = Math.min(26, labelPerp);
+  const alongFrac = microContour ? 0.28 : 0.62;
+
+  const dashPattern = [7, 5];
+  const lineCap = 'round';
 
   const group = new Konva.Group({
     id: overlayId,
@@ -454,52 +601,198 @@ function drawDimensionOverlayOnLayer(layer, overlayId, outlinePoints, lengthMm, 
     listening: false,
   });
 
-  const hLine = new Konva.Line({
-    points: [minX - 4, cy, maxX + 4, cy],
-    stroke: DIM_OVERLAY_COLOR,
-    strokeWidth: 2,
-    dash: [6, 4],
-    listening: false,
-  });
+  function addHaloDashedLine(points) {
+    group.add(
+      new Konva.Line({
+        points,
+        stroke: 'rgba(0,0,0,0.55)',
+        strokeWidth: 5,
+        lineCap,
+        lineJoin: 'round',
+        dash: dashPattern,
+        listening: false,
+      })
+    );
+    group.add(
+      new Konva.Line({
+        points,
+        stroke: DIM_OVERLAY_DIM,
+        strokeWidth: 2,
+        lineCap,
+        lineJoin: 'round',
+        dash: dashPattern,
+        listening: false,
+      })
+    );
+  }
 
-  const lengthLabel = new Konva.Text({
-    x: maxX + 6,
-    y: cy - 8,
-    text: `${len}мм`,
-    fontSize: 12,
-    fontStyle: 'bold',
-    fill: DIM_OVERLAY_COLOR,
-    shadowColor: 'rgba(0,0,0,0.85)',
-    shadowBlur: 3,
-    shadowOffset: { x: 1, y: 1 },
-    listening: false,
-  });
+  /** Короткая засечка перпендикулярно оси «вдоль» в точке конца размерной линии */
+  function addEndTick(px, py, alongUx, alongUy, perpUx, perpUy, tickHalf) {
+    group.add(
+      new Konva.Line({
+        points: [
+          px - perpUx * tickHalf,
+          py - perpUy * tickHalf,
+          px + perpUx * tickHalf,
+          py + perpUy * tickHalf,
+        ],
+        stroke: 'rgba(0,0,0,0.45)',
+        strokeWidth: 3,
+        lineCap,
+        listening: false,
+      })
+    );
+    group.add(
+      new Konva.Line({
+        points: [
+          px - perpUx * tickHalf,
+          py - perpUy * tickHalf,
+          px + perpUx * tickHalf,
+          py + perpUy * tickHalf,
+        ],
+        stroke: DIM_OVERLAY_COLOR,
+        strokeWidth: 1.5,
+        lineCap,
+        listening: false,
+      })
+    );
+  }
 
-  const vLine = new Konva.Line({
-    points: [cx, minY - 4, cx, maxY + 4],
-    stroke: DIM_OVERLAY_COLOR,
-    strokeWidth: 2,
-    dash: [6, 4],
-    listening: false,
-  });
+  const tickHalf = Math.max(3, Math.min(5, minExt * 0.06));
 
-  const widthLabel = new Konva.Text({
-    x: cx - 20,
-    y: minY - 20,
-    text: `${wid}мм`,
-    fontSize: 12,
-    fontStyle: 'bold',
-    fill: DIM_OVERLAY_COLOR,
-    shadowColor: 'rgba(0,0,0,0.85)',
-    shadowBlur: 3,
-    shadowOffset: { x: 1, y: 1 },
-    listening: false,
-  });
+  // Ось «длины» (u)
+  const x1 = cx - ux * halfAlongU;
+  const y1 = cy - uy * halfAlongU;
+  const x2 = cx + ux * halfAlongU;
+  const y2 = cy + uy * halfAlongU;
+  addHaloDashedLine([x1, y1, x2, y2]);
+  addEndTick(x1, y1, ux, uy, vx, vy, tickHalf);
+  addEndTick(x2, y2, ux, uy, vx, vy, tickHalf);
 
-  group.add(hLine);
+  // Ось «ширины» (v)
+  const x3 = cx - vx * halfAlongV;
+  const y3 = cy - vy * halfAlongV;
+  const x4 = cx + vx * halfAlongV;
+  const y4 = cy + vy * halfAlongV;
+  addHaloDashedLine([x3, y3, x4, y4]);
+  addEndTick(x3, y3, vx, vy, ux, uy, tickHalf);
+  addEndTick(x4, y4, vx, vy, ux, uy, tickHalf);
+
+  function createDimLabel(x, y, text) {
+    const t = new Konva.Text({
+      x,
+      y,
+      text,
+      fontSize,
+      fontStyle: 'bold',
+      fontFamily:
+        'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+      fill: DIM_OVERLAY_COLOR,
+      stroke: 'rgba(0,0,0,0.88)',
+      strokeWidth: Math.max(2, fontSize * 0.22),
+      fillAfterStrokeEnabled: true,
+      shadowColor: '#000',
+      shadowBlur: 4,
+      shadowOpacity: 0.85,
+      shadowOffset: { x: 0, y: 1 },
+      listening: false,
+    });
+    t.offsetX(t.width() / 2);
+    t.offsetY(t.height() / 2);
+    return t;
+  }
+
+  /** Грубая оценка половины диагонали bbox текста (для разведения подписей) */
+  function approxLabelRadiusPx(text) {
+    const w = text.length * fontSize * 0.58;
+    const h = fontSize * 1.25;
+    return 0.5 * Math.hypot(w, h);
+  }
+
+  let lengthLabel;
+  let widthLabel;
+
+  if (microContour) {
+    const du = ux + vx;
+    const dv = uy + vy;
+    const dn = Math.hypot(du, dv) || 1;
+    const ox = (du / dn) * (labelPerp + fontSize * 0.6);
+    const oy = (dv / dn) * (labelPerp + fontSize * 0.6);
+    lengthLabel = createDimLabel(cx + ox, cy + oy, `${len}×${wid} мм`);
+    widthLabel = null;
+  } else {
+    // Длина: вдоль +u от центра, перпендикуляр +v (не «оба в +u,+v»)
+    const lenAx = cx + ux * (halfAlongU * alongFrac);
+    const lenAy = cy + uy * (halfAlongU * alongFrac);
+    let lenLabelX = lenAx + vx * labelPerp;
+    let lenLabelY = lenAy + vy * labelPerp;
+
+    // Ширина: вдоль −v, перпендикуляр −u — максимально дальше от подписи длины
+    const widAx = cx - vx * (halfAlongV * alongFrac);
+    const widAy = cy - vy * (halfAlongV * alongFrac);
+    let widLabelX = widAx - ux * labelPerp;
+    let widLabelY = widAy - uy * labelPerp;
+
+    const tLen = `${len} мм`;
+    const tWid = `${wid} мм`;
+    const minDist = approxLabelRadiusPx(tLen) + approxLabelRadiusPx(tWid) + 6;
+    for (let bump = 0; bump < 4; bump++) {
+      const dx = lenLabelX - widLabelX;
+      const dy = lenLabelY - widLabelY;
+      if (Math.hypot(dx, dy) >= minDist) break;
+      const step = 5 + bump * 3;
+      lenLabelX = lenAx + vx * (labelPerp + step);
+      lenLabelY = lenAy + vy * (labelPerp + step);
+      widLabelX = widAx - ux * (labelPerp + step);
+      widLabelY = widAy - uy * (labelPerp + step);
+    }
+
+    lengthLabel = createDimLabel(lenLabelX, lenLabelY, tLen);
+    widthLabel = createDimLabel(widLabelX, widLabelY, tWid);
+  }
+
+  // Перекрестье: короткие перпендикулярные штрихи + ядро
+  const arm = microContour
+    ? Math.max(2.5, Math.min(4.5, minExt * 0.09))
+    : Math.max(3.5, Math.min(6, minExt * 0.07));
+  const crossW = 2;
+  const crossUnder = 'rgba(0,0,0,0.65)';
+  function addCrossArm(p0x, p0y, p1x, p1y) {
+    group.add(
+      new Konva.Line({
+        points: [p0x, p0y, p1x, p1y],
+        stroke: crossUnder,
+        strokeWidth: crossW + 2,
+        lineCap,
+        listening: false,
+      })
+    );
+    group.add(
+      new Konva.Line({
+        points: [p0x, p0y, p1x, p1y],
+        stroke: DIM_OVERLAY_COLOR,
+        strokeWidth: crossW,
+        lineCap,
+        listening: false,
+      })
+    );
+  }
+  addCrossArm(cx - ux * arm, cy - uy * arm, cx + ux * arm, cy + uy * arm);
+  addCrossArm(cx - vx * arm, cy - vy * arm, cx + vx * arm, cy + vy * arm);
+  group.add(
+    new Konva.Circle({
+      x: cx,
+      y: cy,
+      radius: 2,
+      fill: DIM_OVERLAY_COLOR,
+      stroke: 'rgba(0,0,0,0.8)',
+      strokeWidth: 1,
+      listening: false,
+    })
+  );
+
   group.add(lengthLabel);
-  group.add(vLine);
-  group.add(widthLabel);
+  if (widthLabel) group.add(widthLabel);
   layer.add(group);
 }
 
@@ -542,6 +835,8 @@ function captureAnnotatedPhoto() {
       return;
     }
     try {
+      dentLayer?.batchDraw();
+      drawingLayer?.batchDraw();
       stage.batchDraw();
       const w = stage.width();
       const h = stage.height();
@@ -633,8 +928,8 @@ function openDimModalForDent(dentId) {
   }
 }
 
-function handleDimModalSave({ dentId, dims, secondaryDims }) {
-  emit('dimensions-set', { dentId, dims });
+function handleDimModalSave({ dentId, dims, secondaryDims, shapeType }) {
+  emit('dimensions-set', { dentId, dims, shapeType });
   if (secondaryDims) {
     emit('secondary-dimensions-set', { dentId, dims: secondaryDims });
   }
@@ -647,6 +942,14 @@ function handleDimModalSave({ dentId, dims, secondaryDims }) {
       dimModalOpen.value = true;
     });
   }
+  /* Родитель обновит dents асинхронно — отложить, чтобы в кадр попали жёлтые размеры и СД. */
+  nextTick(() => {
+    setTimeout(async () => {
+      if (!props.allDimensionsFilled) return;
+      const annotated = await captureAnnotatedPhoto();
+      if (annotated) emit('annotated-photo', annotated);
+    }, 0);
+  });
 }
 
 function renumberCanvasBadges() {

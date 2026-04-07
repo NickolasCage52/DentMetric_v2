@@ -104,6 +104,29 @@ describe('pricingAdapter', () => {
       expect(quickResult.total).toBe(detailTotal);
     });
 
+    it('explicit strip 50×20 (geometry resolves oval) still uses stripe sizeCode so user strip prices apply', () => {
+      const ctxDetail = {
+        circleSizes: circleSizesWithArea,
+        stripSizes: stripSizesWithArea,
+        prices,
+        initialData,
+        conditions,
+      };
+      const stripDent = {
+        type: 'strip',
+        bboxMm: { width: 50, height: 20 },
+      };
+      const circleDent = {
+        type: 'circle',
+        bboxMm: { width: 50, height: 20 },
+      };
+      const normStrip = normalizeGraphicsDentsForPricing([stripDent], ctxDetail);
+      const normCircle = normalizeGraphicsDentsForPricing([circleDent], ctxDetail);
+      expect(normStrip[0].sizeCode).toMatch(/^STRIPE_/);
+      expect(normCircle[0].sizeCode).not.toMatch(/^STRIPE_/);
+      expect(normStrip[0].price).not.toBe(normCircle[0].price);
+    });
+
     it('strip 80×20 with identical coefficients produces same total (dimension-based shape)', () => {
       // 80×20 mm = 8×2 cm — в диапазоне stripe-таблиц. Тип определяется по размерам, не по preset.
       const widthMm = 80;
@@ -138,6 +161,27 @@ describe('pricingAdapter', () => {
       const detailTotal = calcTotalPrice(normalized, conditions, initialData, 100);
 
       expect(quickResult.total).toBe(detailTotal);
+    });
+
+    it('strip base doubles when user doubles all strip tier prices in settings', () => {
+      const customPrices = { ...prices };
+      initialData.stripSizes.forEach((s) => {
+        customPrices[s.code] = s.basePrice * 2;
+      });
+
+      const input = { shape: 'strip', widthMm: 180, heightMm: 20, conditions };
+      const ctxDefault = {
+        sizesWithArea: stripSizesWithArea,
+        circleSizesWithArea,
+        stripSizesWithArea,
+        prices,
+        initialData,
+        roundStep: 100,
+      };
+      const ctxDoubled = { ...ctxDefault, prices: customPrices };
+      const r1 = calculateDentPrice(input, ctxDefault);
+      const r2 = calculateDentPrice(input, ctxDoubled);
+      expect(r2.base).toBe(Math.round(r1.base * 2));
     });
 
     it('freeform bbox maps to circle pricing (oval path, no area-based price influence)', () => {
@@ -192,7 +236,7 @@ describe('pricingAdapter', () => {
       expect(circleResult.sizeCode).not.toMatch(/^STRIPE_/);
     });
 
-    it('stripe preset L18 (180×20) with shape strip uses stripe tables', () => {
+    it('stripe preset L18 (180×20) with shape strip uses user L18 × severity vs лёгкая из таблицы', () => {
       const preset = STRIPE_PRESETS.find((p) => p.widthMm === 180 && p.heightMm === 20);
       expect(preset).toBeDefined();
       expect(preset.group).toBe('stripe');
@@ -207,7 +251,24 @@ describe('pricingAdapter', () => {
         prices,
         { conditions, initialData }
       );
-      expect(base).toBe(15000);
+      // RK2 → средняя; опорная «лёгкая» 18 см = 11 000; средняя = 15 000; прайс L18 из каталога = 8 000
+      const refLight = 11000;
+      const sev = 15000;
+      expect(base).toBe(Math.round(8000 * (sev / refLight)));
+    });
+
+    it('полоса 50×20 мм при лёгкой сложности: база = цена L5 из настроек', () => {
+      const condLight = { ...conditions, riskCode: 'RK1' };
+      const custom = { ...prices, L5: 4800 };
+      const base = calculateDentBasePrice(
+        'strip',
+        50,
+        20,
+        stripSizesWithArea,
+        custom,
+        { conditions: condLight, initialData }
+      );
+      expect(base).toBe(4800);
     });
 
     it('strip 10×10 (ratio 1:1) uses circle/oval pricing, not stripe tables', () => {

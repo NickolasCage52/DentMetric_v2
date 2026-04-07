@@ -45,6 +45,8 @@ const props = defineProps({
   foundClient: { type: Object, default: null },
   onConfirm: { type: Function, default: null },
   searchByPhone: { type: Function, default: null },
+  /** RU | BY — маска телефона в модалке (+7 / +375) */
+  phoneRegion: { type: String, default: 'RU' },
 });
 
 const emit = defineEmits(['client-confirmed', 'back', 'open-history']);
@@ -138,9 +140,10 @@ if (import.meta.env.DEV) {
 
 async function onOpenField(field, label, inputType, placeholder) {
   if (!openInputModal) return;
+  const phoneReg = props.phoneRegion === 'BY' ? 'BY' : 'RU';
   let value = localModel.value[field] ?? '';
   if (field === 'clientPhone') {
-    value = normalizePhoneForInput(value);
+    value = normalizePhoneForInput(value, phoneReg);
   }
   const mask = field === 'clientPhone' ? 'phone' : field === 'clientName' ? 'name' : null;
   const result = await openInputModal({
@@ -150,6 +153,7 @@ async function onOpenField(field, label, inputType, placeholder) {
     inputType,
     placeholder: placeholder || label,
     mask,
+    phoneRegion: mask === 'phone' ? phoneReg : undefined,
   });
   if (result !== undefined && result !== null) {
     localModel.value[field] = typeof result === 'string' ? result : String(result);

@@ -35,7 +35,7 @@
       >
         <span class="hs-sum-badge">{{ summary.noBooking.count }}</span>
         <span class="hs-sum-label">Оценок без записи</span>
-        <span class="hs-sum-nums">{{ fmtK(summary.noBooking.sum) }} ₽</span>
+        <span class="hs-sum-nums">{{ formatSplitTotals(summary.noBooking) }}</span>
       </button>
       <button
         type="button"
@@ -45,7 +45,7 @@
       >
         <span class="hs-sum-badge">{{ summary.booked.count }}</span>
         <span class="hs-sum-label">Записаны на ремонт</span>
-        <span class="hs-sum-nums">{{ fmtK(summary.booked.sum) }} ₽</span>
+        <span class="hs-sum-nums">{{ formatSplitTotals(summary.booked) }}</span>
       </button>
       <button
         type="button"
@@ -55,12 +55,12 @@
       >
         <span class="hs-sum-badge">{{ summary.done.count }}</span>
         <span class="hs-sum-label">Выполнено</span>
-        <span class="hs-sum-nums">{{ fmtK(summary.done.sum) }} ₽</span>
+        <span class="hs-sum-nums">{{ formatSplitTotals(summary.done) }}</span>
       </button>
       <div class="hs-sum-row hs-sum-row--total">
         <span class="hs-sum-badge hs-sum-badge--total">{{ summary.all.count }}</span>
-        <span class="hs-sum-label" style="font-weight:700">Всего</span>
-        <span class="hs-sum-nums hs-sum-nums--green">{{ fmtK(summary.all.sum) }} ₽</span>
+        <span class="hs-sum-label" style="font-weight:700">Всего за период</span>
+        <span class="hs-sum-nums hs-sum-nums--green">{{ formatSplitTotals(summary.all) }}</span>
       </div>
     </div>
     </div>
@@ -95,10 +95,8 @@
         @click="$emit('select', item.id)"
       >
         <div class="hs-card-start">
-          <span class="hs-start-count" aria-hidden="true">{{ dentCount(item) }}</span>
           <div class="hs-start-total">
-            <span class="hs-start-total-val">{{ fmtPrice(item.total || 0) }}</span>
-            <span class="hs-start-total-cur">₽</span>
+            <span class="hs-start-total-val">{{ cardMoney(item) }}</span>
           </div>
           <span class="hs-badge hs-badge--start" :class="badgeClass(item)">{{ badgeText(item) }}</span>
         </div>
@@ -161,7 +159,7 @@
                 @click="searchOpen = false; $emit('select', r.id)"
               >
                 <span class="hs-search-item-name">{{ clientName(r) }}</span>
-                <span class="hs-search-item-price">{{ fmtPrice(r.total || 0) }} ₽</span>
+                <span class="hs-search-item-price">{{ cardMoney(r) }}</span>
               </button>
             </div>
             <button type="button" class="hs-search-close" @click="searchOpen = false">Закрыть</button>
@@ -199,14 +197,18 @@
 
 <script setup>
 import { ref, computed, watch, nextTick, onMounted } from 'vue';
-import { normalizePhone } from '../utils/clientSearch';
+import { normalizePhone, normalizeHistoryRecordPhone } from '../utils/clientSearch';
+import { formatMoneyWithCurrency, getRecordDisplayCurrency } from '../utils/regionFormat';
+import { formatPhoneDisplayBelarus } from '../utils/phoneFormat';
 import { useSwipeNavigation } from '../composables/useSwipeNavigation';
 
 const props = defineProps({
   historyItems: { type: Array, default: () => [] },
   footerHeight: { type: String, default: '64px' },
   /** Нормализованный телефон (только цифры, 7…) — фильтр списка */
-  clientPhoneFilter: { type: String, default: '' }
+  clientPhoneFilter: { type: String, default: '' },
+  /** RU | BY — нормализация фильтра по телефону */
+  phoneSearchRegion: { type: String, default: 'RU' },
 });
 
 /** Активный фильтр по статусу: null = все, 'estimate' | 'scheduled' | 'done' */
@@ -227,7 +229,8 @@ const listWrapRef = ref(null);
 const historySwipeRootRef = ref(null);
 
 const normalizedPhoneFilter = computed(() => {
-  const n = normalizePhone(String(props.clientPhoneFilter || ''));
+  const reg = props.phoneSearchRegion === 'BY' ? 'BY' : 'RU';
+  const n = normalizePhone(String(props.clientPhoneFilter || ''), reg);
   return n.length >= 5 ? n : '';
 });
 
@@ -357,7 +360,7 @@ const recordsInPeriod = computed(() => {
 });
 
 function recordPhoneMatches(item, filterNorm) {
-  const recNorm = normalizePhone(String(item.client?.phone || ''));
+  const recNorm = normalizeHistoryRecordPhone(String(item.client?.phone || ''), item);
   if (!recNorm) return false;
   return (
     recNorm === filterNorm ||
@@ -399,19 +402,42 @@ function itemStatus(item) {
   return 'no_booking';
 }
 
+function addToSplit(bucket, item) {
+  const t = Number(item?.total) || 0;
+  if (!Number.isFinite(t)) return;
+  bucket.count++;
+  if (getRecordDisplayCurrency(item) === 'BYN') bucket.bySum += t;
+  else bucket.ruSum += t;
+}
+
+const emptySplit = () => ({ count: 0, ruSum: 0, bySum: 0 });
+
 const summary = computed(() => {
-  const s = { noBooking: { count: 0, sum: 0 }, booked: { count: 0, sum: 0 }, done: { count: 0, sum: 0 }, all: { count: 0, sum: 0 } };
+  const s = {
+    noBooking: emptySplit(),
+    booked: emptySplit(),
+    done: emptySplit(),
+    all: emptySplit(),
+  };
   for (const item of recordsAfterPhone.value) {
     const st = itemStatus(item);
-    const t = Number(item?.total) || 0;
-    if (!Number.isFinite(t)) continue;
-    s.all.count++; s.all.sum += t;
-    if (st === 'booked') { s.booked.count++; s.booked.sum += t; }
-    else if (st === 'done') { s.done.count++; s.done.sum += t; }
-    else { s.noBooking.count++; s.noBooking.sum += t; }
+    addToSplit(s.all, item);
+    if (st === 'booked') addToSplit(s.booked, item);
+    else if (st === 'done') addToSplit(s.done, item);
+    else addToSplit(s.noBooking, item);
   }
   return s;
 });
+
+function formatSplitTotals(bucket) {
+  const ru = Number(bucket?.ruSum) || 0;
+  const by = Number(bucket?.bySum) || 0;
+  const parts = [];
+  if (ru > 0) parts.push(formatMoneyWithCurrency(ru, 'RUB'));
+  if (by > 0) parts.push(formatMoneyWithCurrency(by, 'BYN'));
+  if (parts.length === 0) return formatMoneyWithCurrency(0, 'RUB');
+  return parts.join(' · ');
+}
 
 const searchResults = computed(() => {
   const q = searchQuery.value.toLowerCase().trim();
@@ -460,12 +486,19 @@ function avatarInitial(item) {
 
 function displayPhone(item) {
   const p = (item.client?.phone || '').trim();
-  return p || '—';
+  if (!p) return '—';
+  if (getRecordDisplayCurrency(item) === 'BYN') return formatPhoneDisplayBelarus(p);
+  return p;
 }
 
 function telHref(item) {
-  const raw = (item.client?.phone || '').replace(/\D/g, '');
+  const p = String(item.client?.phone || '').trim();
+  const raw = p.replace(/\D/g, '');
   if (!raw) return '';
+  if (getRecordDisplayCurrency(item) === 'BYN') {
+    const n = normalizePhone(p, 'BY');
+    return n.startsWith('375') ? `+${n}` : `+${raw}`;
+  }
   if (raw.length >= 10 && (raw[0] === '8' || raw[0] === '7')) {
     return '+7' + raw.slice(1);
   }
@@ -496,17 +529,6 @@ function carLine(item) {
   const el = extractElement(item);
   if (car && el) return `${car} · ${el}`;
   return car || el || '—';
-}
-
-function dentCount(item) {
-  try {
-    const n = item?.dents?.count;
-    if (typeof n === 'number' && n >= 1) return n;
-    const items = Array.isArray(item?.dents?.items) ? item.dents.items : (Array.isArray(item?.quickDents) ? item.quickDents : []);
-    return Math.max(1, items.length || 1);
-  } catch (_e) {
-    return 1;
-  }
 }
 
 function extractElement(item) {
@@ -542,16 +564,9 @@ function badgeClass(item) {
   return 'hs-badge--none';
 }
 
-function fmtPrice(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '0';
-  return new Intl.NumberFormat('ru-RU').format(Math.round(n));
-}
-function fmtK(v) {
-  const n = Number(v);
-  if (!Number.isFinite(n)) return '0';
-  if (n >= 1000) return new Intl.NumberFormat('ru-RU').format(Math.round(n));
-  return String(Math.round(n));
+function cardMoney(record) {
+  const n = Number(record?.total) || 0;
+  return formatMoneyWithCurrency(n, getRecordDisplayCurrency(record));
 }
 </script>
 
@@ -672,8 +687,9 @@ function fmtK(v) {
   justify-content: center;
   font-size: 12px;
   font-weight: 800;
-  background: var(--dm-accent, #a0e040);
-  color: #0a0a0a;
+  background: #2a2a2a;
+  color: #d1d5db;
+  border: 1px solid rgba(255, 255, 255, 0.08);
   font-variant-numeric: tabular-nums;
 }
 .hs-sum-badge--total {
@@ -734,20 +750,6 @@ function fmtK(v) {
   gap: 5px;
   min-width: 56px;
 }
-.hs-start-count {
-  min-width: 26px;
-  height: 26px;
-  padding: 0 8px;
-  border-radius: 13px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 12px;
-  font-weight: 800;
-  background: var(--dm-accent, #a0e040);
-  color: #0a0a0a;
-  font-variant-numeric: tabular-nums;
-}
 .hs-start-total {
   display: inline-flex;
   flex-direction: row;
@@ -762,11 +764,6 @@ function fmtK(v) {
   font-weight: 800;
   color: var(--dm-accent, #a0e040);
   font-variant-numeric: tabular-nums;
-}
-.hs-start-total-cur {
-  font-size: 11px;
-  font-weight: 800;
-  color: var(--dm-accent, #a0e040);
 }
 .hs-badge--start {
   font-size: 9px;

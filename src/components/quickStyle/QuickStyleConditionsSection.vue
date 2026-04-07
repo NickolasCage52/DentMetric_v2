@@ -123,7 +123,7 @@
 
       <!-- Price block -->
       <div class="qc-price-block">
-        <div class="qc-price-value">{{ formatPrice(totalPrice) }} ₽</div>
+        <div class="qc-price-value">{{ totalPriceFormatted }}</div>
       </div>
     </div>
     <div v-if="!hideActionBar" class="graphics-action-bar shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
@@ -139,6 +139,7 @@
 
 <script setup>
 import { computed } from 'vue';
+import { formatMoneyWithCurrency } from '../../utils/regionFormat';
 
 const props = defineProps({
   model: { type: Object, required: true },
@@ -148,7 +149,9 @@ const props = defineProps({
   showPaintMaterial: { type: Boolean, default: true },
   showSoundInsulation: { type: Boolean, default: true },
   armatureSummary: { type: String, default: '' },
-  hideActionBar: { type: Boolean, default: false }
+  hideActionBar: { type: Boolean, default: false },
+  /** RUB | BYN — отображение итога (сумма в рублях в расчёте). */
+  displayCurrency: { type: String, default: 'RUB' },
 });
 
 defineEmits(['back', 'calculate', 'pick', 'pick-armature']);
@@ -173,5 +176,7 @@ function getCarClassLabel(c) { return (props.initialData?.carClasses || []).find
 function getPaintLabel(c) { return (props.initialData?.paintMaterials || []).find((p) => p.code === c)?.name || ''; }
 function getSoundLabel(c) { return (props.initialData?.soundInsulation || []).find((s) => s.code === c)?.name || ''; }
 
-const formatPrice = (v) => new Intl.NumberFormat('ru-RU').format(v ?? 0);
+const totalPriceFormatted = computed(() =>
+  formatMoneyWithCurrency(Number(props.totalPrice) || 0, props.displayCurrency === 'BYN' ? 'BYN' : 'RUB')
+);
 </script>

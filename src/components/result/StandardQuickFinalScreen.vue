@@ -64,7 +64,7 @@
             <div class="sqf-block-title">Список работ</div>
             <div class="sqf-row">
               <span class="sqf-row__label">Удаление вмятин:</span>
-              <span class="sqf-row__val sqf-row__val--price">{{ fmt(dentRemovalTotal) }} ₽</span>
+              <span class="sqf-row__val sqf-row__val--price">{{ fmtMoney(dentRemovalTotal) }}</span>
             </div>
             <div v-if="(draft.additionalWorks || []).length" class="sqf-extra">
               <div class="sqf-extra-label">Доп. работы:</div>
@@ -75,7 +75,7 @@
               >
                 <span class="sqf-row__label">{{ w.title }}:</span>
                 <span class="sqf-row__val sqf-row__val--row">
-                  <span class="sqf-row__val--price">{{ fmt(w.price || 0) }} ₽</span>
+                  <span class="sqf-row__val--price">{{ fmtMoney(w.price || 0) }}</span>
                   <button type="button" class="sqf-x" aria-label="Удалить" @click="removeWork(w.id)">×</button>
                 </span>
               </div>
@@ -97,7 +97,7 @@
                 class="sqf-row__val sqf-row__val--grand"
                 :class="{ 'dm-total-price': detailUxParity }"
                 data-testid="total-price-graphics"
-              >{{ fmt(worksheetGrandTotal) }} ₽</span>
+              >{{ fmtMoney(worksheetGrandTotal) }}</span>
             </div>
           </div>
 
@@ -112,10 +112,11 @@
             :read-only="false"
             :detail-ux-parity="detailUxParity"
             :estimate-draft="detailUxParity ? draft : null"
+            :history-display-currency="sessionMoneyCurrency"
             @open-discount="$emit('open-discount', $event)"
           />
 
-          <PrepaymentBlock v-model="prepaymentProxy" />
+          <PrepaymentBlock v-model="prepaymentProxy" :display-currency="sessionMoneyCurrency" />
         </div>
 
         <!-- Клиент -->
@@ -251,6 +252,7 @@ import PerDentFinalCard from './PerDentFinalCard.vue';
 import AttachmentPicker from '../AttachmentPicker.vue';
 import ClientMoodPicker from '../ClientMoodPicker.vue';
 import PrepaymentBlock from '../PrepaymentBlock.vue';
+import { formatMoneyWithCurrency } from '../../utils/regionFormat';
 
 const props = defineProps({
   draft: { type: Object, required: true },
@@ -265,7 +267,9 @@ const props = defineProps({
   /** Родитель скроллит блок целиком (клиент + вкладки + контент) — экран результата детализации */
   unifiedParentScroll: { type: Boolean, default: false },
   /** Единый UX с историей: время, длина, скидка, итого, клиент, адекватность */
-  detailUxParity: { type: Boolean, default: false }
+  detailUxParity: { type: Boolean, default: false },
+  /** RUB | BYN — отображение сумм в этом экране (настройки региона для нового расчёта). */
+  sessionDisplayCurrency: { type: String, default: 'RUB' },
 });
 
 const emit = defineEmits(['open-discount', 'open-comment', 'sync-detail-client']);
@@ -275,8 +279,14 @@ const detailPhotoOpen = ref(false);
 
 const roundStep = computed(() => props.userSettings.priceRoundStep ?? 0);
 
+const sessionMoneyCurrency = computed(() => (props.sessionDisplayCurrency === 'BYN' ? 'BYN' : 'RUB'));
+
 function fmt(n) {
   return new Intl.NumberFormat('ru-RU').format(Math.round(Number(n) || 0));
+}
+
+function fmtMoney(n) {
+  return formatMoneyWithCurrency(Number(n) || 0, sessionMoneyCurrency.value);
 }
 
 const metaDate = computed(() => {

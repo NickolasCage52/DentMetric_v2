@@ -4,22 +4,27 @@ import {
   aggregateClientData,
   isPhoneSearchable,
   type HistoryRecord,
-  type ClientAggregation
+  type ClientAggregation,
+  type PhoneRegion
 } from '../utils/clientSearch';
 
-export function useClientSearch(getHistory: () => HistoryRecord[]) {
+export function useClientSearch(
+  getHistory: () => HistoryRecord[],
+  getRegion?: () => PhoneRegion
+) {
   const foundClient = ref<ClientAggregation | null>(null);
   const isSearching = ref(false);
 
   function searchByPhone(phone: string) {
-    if (!phone || !isPhoneSearchable(phone)) {
+    const region = getRegion?.() ?? 'RU';
+    if (!phone || !isPhoneSearchable(phone, region)) {
       foundClient.value = null;
       return;
     }
     isSearching.value = true;
     try {
       const allRecords = getHistory();
-      const { exact, partial } = searchClientByPhone(phone, allRecords);
+      const { exact, partial } = searchClientByPhone(phone, allRecords, region);
       const matches = exact.length > 0 ? exact : partial;
       foundClient.value = matches.length > 0 ? aggregateClientData(matches) : null;
     } catch {

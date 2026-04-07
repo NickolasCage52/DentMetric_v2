@@ -14,7 +14,7 @@
       <ClientInfoBlock :client="clientForDisplay" />
       <div class="price-grand-total card-metallic rounded-xl flex justify-between items-center px-5 py-4 mb-2">
         <span class="pgt-label text-[14px] text-gray-500">Итого по всем повреждениям</span>
-        <span class="pgt-amount text-[24px] font-bold text-metric-green tabular-nums" data-testid="grand-total-price">{{ formatPrice(grandTotal) }} ₽</span>
+        <span class="pgt-amount text-[24px] font-bold text-metric-green tabular-nums" data-testid="grand-total-price">{{ fmtMoney(grandTotal) }}</span>
       </div>
       <template v-for="(dentItem, idx) in lineItems" :key="dentItem.dent?.id ?? idx">
         <div class="px-1">
@@ -30,7 +30,7 @@
         <div class="card-metallic rounded-xl qc-breakdown-card">
           <div class="qc-bk-row qc-bk-row--base">
             <span class="qc-bk-label font-semibold text-white">Базовая стоимость:</span>
-            <span class="qc-bk-delta text-metric-green font-bold">{{ formatPrice(dentItem.base) }} ₽</span>
+            <span class="qc-bk-delta text-metric-green font-bold">{{ fmtMoney(dentItem.base) }}</span>
           </div>
           <div class="qc-bk-sep"></div>
           <div v-for="(row, ri) in getDetailedRows(dentItem)" :key="ri" class="qc-bk-row">
@@ -45,18 +45,22 @@
               <span>{{ dentItem.discountPercent ?? '—' }}</span>
             </button>
             <span class="text-gray-500 text-[11px]">%</span>
-            <span v-if="dentItem.discountPercent > 0" class="qc-bk-delta text-amber-400 text-[11px]">−{{ formatPrice(dentItem.discountAmount ?? ((dentItem.preDiscountTotal || 0) - (dentItem.appliedTotal || 0))) }} ₽</span>
+            <span v-if="dentItem.discountPercent > 0" class="qc-bk-delta text-amber-400 text-[11px]">−{{ fmtMoney(dentItem.discountAmount ?? ((dentItem.preDiscountTotal || 0) - (dentItem.appliedTotal || 0))) }}</span>
           </div>
           <div class="qc-bk-sep qc-bk-sep--strong"></div>
           <div class="qc-bk-row qc-bk-row--total">
             <span class="font-bold text-white text-[13px]">Итог по вмятине:</span>
-            <span :data-testid="idx === 0 ? 'total-price-graphics' : undefined" class="text-metric-green font-bold text-[18px] tabular-nums">{{ formatPrice(dentItem.appliedTotal) }} ₽</span>
+            <span :data-testid="idx === 0 ? 'total-price-graphics' : undefined" class="text-metric-green font-bold text-[18px] tabular-nums">{{ fmtMoney(dentItem.appliedTotal) }}</span>
           </div>
         </div>
       </template>
 
       <!-- ПРЕДОПЛАТА (PDF стр. 5) -->
-      <PrepaymentBlock :model-value="prepayment" @update:model-value="$emit('update:prepayment', $event)" />
+      <PrepaymentBlock
+        :model-value="prepayment"
+        :display-currency="moneyCurrency"
+        @update:model-value="$emit('update:prepayment', $event)"
+      />
 
       <div class="card-metallic rounded-xl" style="padding:10px 12px">
         <div class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Комментарий</div>
@@ -99,6 +103,7 @@ import AttachmentPicker from '../AttachmentPicker.vue';
 import ClientInfoBlock from '../ClientInfoBlock.vue';
 import ClientMoodPicker from '../ClientMoodPicker.vue';
 import PrepaymentBlock from '../PrepaymentBlock.vue';
+import { formatMoneyWithCurrency } from '../../utils/regionFormat';
 
 const props = defineProps({
   lineItems: { type: Array, default: () => [] },
@@ -114,7 +119,8 @@ const props = defineProps({
   estimatedRepairTime: { type: String, default: '—' },
   client: { type: Object, default: () => ({}) },
   clientMood: { type: String, default: null },
-  prepayment: { type: Object, default: () => ({ amount: 0, method: null }) }
+  prepayment: { type: Object, default: () => ({ amount: 0, method: null }) },
+  displayCurrency: { type: String, default: 'RUB' },
 });
 
 defineEmits(['back', 'save', 'book', 'open-discount', 'open-comment', 'update:attachments', 'update:clientMood', 'update:prepayment']);
@@ -126,6 +132,8 @@ const clientForDisplay = computed(() => ({
   model: props.client?.model ?? props.client?.carModel ?? '',
   company: props.client?.company ?? props.client?.clientCompany ?? ''
 }));
+
+const moneyCurrency = computed(() => (props.displayCurrency === 'BYN' ? 'BYN' : 'RUB'));
 
 const grandTotal = computed(() =>
   (props.lineItems || []).reduce((sum, item) => sum + (item.appliedTotal ?? 0), 0)
@@ -148,11 +156,11 @@ function formatDim(v) {
   return n > 0 ? n.toFixed(0) + 'мм' : '—';
 }
 
-function formatPrice(v) {
-  return new Intl.NumberFormat('ru-RU').format(v ?? 0);
+function fmtMoney(v) {
+  return formatMoneyWithCurrency(Number(v) || 0, moneyCurrency.value);
 }
 
 function formatDelta(d) {
-  return formatBreakdownDelta(d);
+  return formatBreakdownDelta(d, moneyCurrency.value);
 }
 </script>

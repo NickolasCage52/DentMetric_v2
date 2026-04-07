@@ -137,26 +137,42 @@ function getRecordTotal(r: HistoryRecord): number | null {
   }
 }
 
+export type PhoneRegion = 'RU' | 'BY';
+
 /**
- * Нормализация телефона:
- * - убрать пробелы, скобки, дефисы, плюс
- * - привести 8XXX и +7XXX к формату 7XXX
+ * Нормализация телефона для сравнения в поиске.
+ * RU: 8XXXXXXXXXX / +7 → 7 + 10 цифр.
+ * BY: +375 / 80 / 9 цифр национального номера → 375 + 9 цифр (12 всего).
  */
-export function normalizePhone(phone: string): string {
+export function normalizePhone(phone: string, region: PhoneRegion = 'RU'): string {
   const digits = String(phone || '').replace(/[\s()\-+]/g, '').replace(/\D/g, '');
+  if (region === 'BY') {
+    if (digits.startsWith('375') && digits.length >= 12) return digits.slice(0, 12);
+    if (digits.startsWith('80') && digits.length >= 11) return `375${digits.slice(2, 11)}`;
+    if (digits.length === 9 && /^[23456789]/.test(digits)) return `375${digits}`;
+    if (digits.length === 10 && digits.startsWith('8')) return `375${digits.slice(1)}`;
+    return digits;
+  }
   if (digits.startsWith('8') && digits.length === 11) {
     return '7' + digits.slice(1);
   }
-  if (digits.startsWith('7') && digits.length >= 11) return digits;
+  if (digits.startsWith('7') && digits.length >= 11) return digits.slice(0, 12);
   return digits;
+}
+
+/** Нормализация телефона записи с учётом страны записи (для матчинга). */
+export function normalizeHistoryRecordPhone(phone: string, record: HistoryRecord): string {
+  const reg: PhoneRegion =
+    (record as { recordCountry?: string }).recordCountry === 'BY' ? 'BY' : 'RU';
+  return normalizePhone(phone, reg);
 }
 
 /**
  * Проверить что телефон содержит достаточно цифр для поиска
  * (минимум 5 значимых цифр после нормализации)
  */
-export function isPhoneSearchable(phone: string): boolean {
-  return normalizePhone(phone).length >= 5;
+export function isPhoneSearchable(phone: string, region: PhoneRegion = 'RU'): boolean {
+  return normalizePhone(phone, region).length >= 5;
 }
 
 /**
@@ -165,9 +181,10 @@ export function isPhoneSearchable(phone: string): boolean {
  */
 export function searchClientByPhone(
   phone: string,
-  allRecords: HistoryRecord[]
+  allRecords: HistoryRecord[],
+  region: PhoneRegion = 'RU'
 ): { exact: HistoryRecord[]; partial: HistoryRecord[] } {
-  const normalized = normalizePhone(phone);
+  const normalized = normalizePhone(phone, region);
   if (normalized.length < 5) return { exact: [], partial: [] };
 
   const exact: HistoryRecord[] = [];
@@ -177,7 +194,7 @@ export function searchClientByPhone(
     try {
       const recPhone = getRecordPhone(record);
       if (!recPhone) continue;
-      const recNorm = normalizePhone(recPhone);
+      const recNorm = normalizeHistoryRecordPhone(recPhone, record);
       if (recNorm === normalized) {
         exact.push(record);
       } else if (recNorm.length >= normalized.length && recNorm.slice(0, normalized.length) === normalized) {

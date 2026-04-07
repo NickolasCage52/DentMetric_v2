@@ -15,6 +15,7 @@
         :engine-dents-total="engineDentsTotal"
         :detail-photo-data-url="session.annotatedPhotoDataUrl || session.photoDataUrl || null"
         :detail-ux-parity="true"
+        :session-display-currency="userSettings.regionCountry === 'BY' ? 'BYN' : 'RUB'"
         @open-discount="$emit('open-discount', $event)"
         @open-comment="$emit('open-comment')"
         @sync-detail-client="$emit('sync-detail-client', $event)"
