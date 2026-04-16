@@ -28,12 +28,16 @@ export async function trackEvent(
   }
 
   try {
-    await fetch(`${TRACKING_BASE_URL}/track/event`, {
+    localStorage.setItem(LAST_TRACK_ATTEMPT_KEY, new Date().toISOString())
+    const response = await fetch(`${TRACKING_BASE_URL}/track/event`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
       keepalive: true,
     })
+    if (response.ok) {
+      localStorage.setItem(LAST_TRACK_SUCCESS_KEY, new Date().toISOString())
+    }
   } catch {
     console.warn('[DentMetric tracking] Event failed to send:', event)
   }

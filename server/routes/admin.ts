@@ -1,9 +1,10 @@
 import { Router, type Request, type Response } from 'express'
 import { getTotalUserCount, getMeta } from '../db/storage'
+import { requireAdmin } from '../middleware/requireAdmin'
 
 const router = Router()
 
-router.get('/stats', (_req: Request, res: Response) => {
+router.get('/stats', requireAdmin, (_req: Request, res: Response) => {
   const meta = getMeta()
   const totalUsers = getTotalUserCount()
 

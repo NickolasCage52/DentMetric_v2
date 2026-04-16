@@ -81,6 +81,7 @@ img {
   --dm-text-secondary: #888888;
   --dm-accent: var(--metric-green);
   --dm-danger: #e53935;
+  --dm-warn: #f59e0b;
 }
 
 /* Part C: Background gradient animation */

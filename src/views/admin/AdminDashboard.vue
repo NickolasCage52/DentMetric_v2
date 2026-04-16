@@ -3,19 +3,33 @@
     <div class="admin__header">
       <div class="admin__header-left">
         <span class="admin__logo">DM</span>
-        <div>
+        <div class="admin__header-text">
           <div class="admin__title">Admin Panel</div>
           <div class="admin__subtitle">DentMetric Analytics</div>
+          <div v-if="stats?.lastStatsSyncAt && !error" class="admin__sync-line">
+            Синхронизация: {{ formatTime(stats.lastStatsSyncAt) }}
+          </div>
         </div>
       </div>
-      <button
-        class="admin__refresh-btn"
-        type="button"
-        @click="loadStats"
-        :disabled="isLoading"
-      >
-        <span :class="{ spin: isLoading }">&#8635;</span>
-      </button>
+      <div class="admin__header-actions">
+        <button
+          class="admin__refresh-btn"
+          type="button"
+          title="Обновить"
+          :disabled="isLoading"
+          @click="loadStats"
+        >
+          <span :class="{ spin: isLoading }">&#8635;</span>
+        </button>
+        <button
+          class="admin__logout-btn"
+          type="button"
+          title="Выйти"
+          @click="logout"
+        >
+          Выйти
+        </button>
+      </div>
     </div>
 
     <div v-if="isLoading && !stats" class="admin__state admin__state--loading">
@@ -43,6 +57,14 @@
     </div>
 
     <div v-else class="admin__content">
+      <div
+        v-if="stats && stats.totalUsers === 0 && !error"
+        class="admin__empty-banner"
+        role="status"
+      >
+        Нет данных. Дождитесь первых пользователей.
+      </div>
+
       <div class="admin__primary-card">
         <div class="admin__primary-label">Всего пользователей</div>
         <div class="admin__primary-value">
@@ -58,7 +80,7 @@
 
       <div class="admin__grid">
         <div class="admin__card">
-          <div class="admin__card-label">Последний новый пользователь</div>
+          <div class="admin__card-label">Последний зарегистрированный</div>
           <div class="admin__card-value admin__card-value--time">
             {{ formatLastRegistered }}
           </div>
@@ -68,7 +90,7 @@
         </div>
 
         <div class="admin__card">
-          <div class="admin__card-label">Последнее обновление</div>
+          <div class="admin__card-label">Последняя синхронизация</div>
           <div class="admin__card-value admin__card-value--time">
             {{ formatSyncTime }}
           </div>
@@ -119,7 +141,7 @@
               {{
                 diagnostics?.isRegistrationConfirmed
                   ? '\u2713 Да'
-                  : '\u26A0 Нет / ожидает'
+                  : '\u26A0 Нет'
               }}
             </span>
           </div>
@@ -151,6 +173,7 @@
             </span>
           </div>
           <div class="admin__diag-hint">
+            <span class="admin__diag-hint-icon" aria-hidden="true">&#128161;</span>
             Для проверки: откройте приложение в режиме инкогнито — счётчик
             должен вырасти на 1. Перезагрузка той же вкладки счётчик не меняет.
           </div>
@@ -162,10 +185,12 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { useRouter } from 'vue-router'
 import {
   getTrackingDiagnostics,
   type TrackingDiagnostics,
 } from '@/services/trackingDiagnostics'
+import { adminFetch, clearAdminToken } from '@/services/adminApi'
 
 interface AdminStats {
   totalUsers: number
@@ -175,11 +200,7 @@ interface AdminStats {
   storageStatus: string
 }
 
-const apiBase = String(import.meta.env.VITE_TRACKING_URL || '/api').replace(
-  /\/$/,
-  ''
-)
-
+const router = useRouter()
 const isDev = import.meta.env.DEV
 
 const isLoading = ref(true)
@@ -254,11 +275,21 @@ function stopPolling() {
   }
 }
 
+function logout() {
+  clearAdminToken()
+  void router.replace({ name: 'admin-login' })
+}
+
 async function loadStats() {
   isLoading.value = true
   error.value = false
   try {
-    const response = await fetch(`${apiBase}/admin/stats`)
+    const response = await adminFetch('/admin/stats')
+    if (response.status === 401) {
+      clearAdminToken()
+      await router.replace({ name: 'admin-login' })
+      return
+    }
     if (!response.ok) throw new Error('Server error')
     stats.value = await response.json()
     ensurePolling()
@@ -300,16 +331,21 @@ onUnmounted(() => {
 
 .admin__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   padding: 20px 16px 14px;
   border-bottom: 1px solid var(--dm-border, #2a2a2a);
   flex-shrink: 0;
+  gap: 12px;
 }
 .admin__header-left {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
+  min-width: 0;
+}
+.admin__header-text {
+  min-width: 0;
 }
 .admin__logo {
   font-size: 20px;
@@ -317,6 +353,7 @@ onUnmounted(() => {
   color: var(--dm-accent, #a0e040);
   letter-spacing: -1px;
   line-height: 1;
+  flex-shrink: 0;
 }
 .admin__title {
   font-size: 16px;
@@ -327,6 +364,17 @@ onUnmounted(() => {
   font-size: 11px;
   color: var(--dm-text-secondary, #888888);
   margin-top: 1px;
+}
+.admin__sync-line {
+  font-size: 10px;
+  color: var(--dm-text-secondary, #888888);
+  margin-top: 6px;
+}
+.admin__header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 .admin__refresh-btn {
   width: 44px;
@@ -344,6 +392,24 @@ onUnmounted(() => {
 }
 .admin__refresh-btn:not(:disabled):hover {
   color: var(--dm-accent, #a0e040);
+}
+.admin__logout-btn {
+  min-height: 44px;
+  padding: 0 14px;
+  background: transparent;
+  border: 1px solid var(--dm-border, #2a2a2a);
+  border-radius: 10px;
+  color: var(--dm-text-secondary, #888888);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    color 0.2s,
+    border-color 0.2s;
+}
+.admin__logout-btn:hover {
+  color: var(--dm-accent, #a0e040);
+  border-color: var(--dm-accent, #a0e040);
 }
 .spin {
   display: inline-block;
@@ -426,6 +492,17 @@ onUnmounted(() => {
   -webkit-overflow-scrolling: touch;
 }
 
+.admin__empty-banner {
+  font-size: 13px;
+  color: var(--dm-text-secondary, #888888);
+  text-align: center;
+  padding: 12px 14px;
+  background: var(--dm-surface-2, #1e1e1e);
+  border: 1px solid var(--dm-border, #2a2a2a);
+  border-radius: 12px;
+  line-height: 1.4;
+}
+
 .admin__primary-card {
   background: var(--dm-surface, #161616);
   border: 1px solid var(--dm-border, #2a2a2a);
@@ -470,7 +547,7 @@ onUnmounted(() => {
 }
 .admin__status-pill--error {
   background: rgba(229, 57, 53, 0.12);
-  color: #e53935;
+  color: var(--dm-danger, #e53935);
   border: 1px solid rgba(229, 57, 53, 0.3);
 }
 .admin__status-pill--neutral {
@@ -574,7 +651,7 @@ onUnmounted(() => {
   color: var(--dm-accent, #a0e040);
 }
 .admin__diag-value--warn {
-  color: #f59e0b;
+  color: var(--dm-warn, #f59e0b);
 }
 .admin__diag-hint {
   margin-top: 4px;
@@ -584,6 +661,9 @@ onUnmounted(() => {
   background: var(--dm-surface-2, #1e1e1e);
   border-radius: 8px;
   padding: 10px 12px;
+}
+.admin__diag-hint-icon {
+  margin-right: 4px;
 }
 
 @media (min-width: 640px) {
