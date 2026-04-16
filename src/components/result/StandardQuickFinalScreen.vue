@@ -117,6 +117,15 @@
           />
 
           <PrepaymentBlock v-model="prepaymentProxy" :display-currency="sessionMoneyCurrency" />
+
+          <div v-if="detailUxParity" class="card-metallic rounded-xl p-3">
+            <AttachmentPicker
+              :record-id="draft.id || ''"
+              :dent-index="0"
+              :model-value="draft.attachments || []"
+              @update:model-value="onAttachments"
+            />
+          </div>
         </div>
 
         <!-- Клиент -->
@@ -212,7 +221,7 @@
               {{ draft.comment || '—' }}
             </button>
           </div>
-          <div class="card-metallic rounded-xl p-3">
+          <div v-if="!detailUxParity" class="card-metallic rounded-xl p-3">
             <AttachmentPicker
               :record-id="draft.id || ''"
               :dent-index="0"

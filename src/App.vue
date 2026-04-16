@@ -947,24 +947,7 @@
                 <span class="dm-number-input__edit">✎</span>
               </button>
             </div>
-            <div class="dm-settings-subsection-label">1.2 Базовый прайс</div>
-            <p class="settings-helper-text mb-2">Для правильного формирования стоимости работ, задайте свой прайс на удаление ПЛАВНОЙ вмятины в ЛЁГКОМ доступе. На данный момент средние рыночные значения уже установлены. Всё остальное матричная система расчёта DentMetric посчитает сама.</p>
-            <div class="dm-settings-subsection-label">Круг/Овал</div>
-            <div v-for="size in initialData.circleSizes" :key="size.code" class="dm-settings-row">
-              <div class="dm-settings-row__label-area">
-                <span class="dm-settings-row__label">{{ size.code }}</span>
-                <span class="dm-settings-row__description">{{ size.name }}</span>
-              </div>
-              <input type="number" v-model.number="userSettings.prices[size.code]" inputmode="numeric" class="dm-number-input dm-number-input--wide">
-            </div>
-            <div class="dm-settings-subsection-label">Полоса / Царапина</div>
-            <div v-for="size in initialData.stripSizes" :key="size.code" class="dm-settings-row">
-              <div class="dm-settings-row__label-area">
-                <span class="dm-settings-row__label">{{ size.code }}</span>
-                <span class="dm-settings-row__description">{{ size.name }}</span>
-              </div>
-              <input type="number" v-model.number="userSettings.prices[size.code]" inputmode="numeric" class="dm-number-input dm-number-input--wide">
-            </div>
+
           </div>
         </div>
 

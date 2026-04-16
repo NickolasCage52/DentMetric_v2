@@ -444,6 +444,7 @@ import { resolveDentShapeType } from '../../utils/resolveDentShapeType';
 import { formatArmaturnayaSummary, getArmaturnayaWorksForElement } from '../../data/armaturnayaWorks';
 import { normalizeArmatureWorkIds, toggleArmatureWorkIds } from '../../utils/armatureSelection';
 import { generateRecordId, loadHistory } from '../../features/history/historyStore';
+import { circleSizesWithArea, stripSizesWithArea } from '../../data/dentSizes';
 import { applyClientFields } from '../../utils/clientSearch';
 import { useClientSearch } from '../../composables/useClientSearch';
 import { getAttachment, saveAttachment, generateMatrixAttachmentKey } from '../../utils/attachmentStorage';
@@ -800,10 +801,11 @@ const detailLineItems = computed(() => {
   const dents = dentsForPricing.value;
   const cond = conditionsForCalc.value;
   if (!dents?.length || !cond) return [];
+  // FIX: Detail итог брали initialData.circleSizes без areaMm2 → интерполяция уходила в экстраполяцию и раздувала суммы. Те же таблицы мм², что в Quick (dentSizes).
   const ctx = {
-    sizesWithArea: props.circleSizes,
-    circleSizesWithArea: props.circleSizes,
-    stripSizesWithArea: props.stripSizes,
+    sizesWithArea: circleSizesWithArea,
+    circleSizesWithArea,
+    stripSizesWithArea,
     prices: props.userSettings?.prices ?? {},
     initialData: props.initialData,
     roundStep: props.userSettings?.priceRoundStep ?? 0
@@ -819,16 +821,17 @@ const detailLineItems = computed(() => {
     const shape = dent?.type === 'freeform' ? 'circle' : wantsStrip || resolved === 'stripe' ? 'strip' : 'circle';
     const perDent = condMap[dent?.id] ? { ...cond, ...condMap[dent.id] } : cond;
     const conditions = props.userSettings?.showPaintMaterial !== false ? perDent : { ...perDent, paintMaterialCode: null };
+    const pe = perDent.panelElement ?? props.selectedPart?.name ?? null;
     const result = calcDentViaAdapter(
-      { shape, widthMm: w, heightMm: h, conditions, panelElement: props.selectedPart?.name },
+      { shape, widthMm: w, heightMm: h, conditions, panelElement: pe },
       ctx
     );
     const multType = isStripeCase(shape, w, h) ? 'strip' : 'circle';
     const mult = getPriceMultiplier(multType, props.userSettings || {});
     const dentDisplay = {
       ...dent,
-      conditions,
-      panelElement: perDent.panelElement ?? props.selectedPart?.name,
+      conditions: { ...conditions, panelElement: conditions.panelElement ?? pe },
+      panelElement: pe,
       bboxMm: dent.bboxMm,
       sizeLengthMm: w,
       sizeWidthMm: h
@@ -1332,10 +1335,11 @@ async function onDetailBook() {
 const detailLineItemsForNewFlow = computed(() => {
   const dents = detailSession.value.dents;
   if (!dents?.length) return [];
+  // FIX: см. detailLineItems — единые таблицы с areaMm2 как в Quick, иначе завышение базы.
   const ctx = {
-    sizesWithArea: props.circleSizes,
-    circleSizesWithArea: props.circleSizes,
-    stripSizesWithArea: props.stripSizes,
+    sizesWithArea: circleSizesWithArea,
+    circleSizesWithArea,
+    stripSizesWithArea,
     prices: props.userSettings?.prices ?? {},
     initialData: props.initialData,
     roundStep: props.userSettings?.priceRoundStep ?? 0
@@ -1357,7 +1361,15 @@ const detailLineItemsForNewFlow = computed(() => {
     );
     const multType = isStripeCase(shape, w, h) ? 'strip' : 'circle';
     const mult = getPriceMultiplier(multType, props.userSettings || {});
-    return { dent, sizeCode: result.sizeCode, base: result.base * mult, total: result.total * mult, breakdown: result.breakdown };
+    const dentForRow = {
+      ...dent,
+      panelElement: panelEl,
+      conditions: { ...conditions, panelElement: conditions.panelElement ?? panelEl },
+      sizeLengthMm: dent.sizeLengthMm ?? w,
+      sizeWidthMm: dent.sizeWidthMm ?? h,
+      bboxMm: { width: w, height: h }
+    };
+    return { dent: dentForRow, sizeCode: result.sizeCode, base: result.base * mult, total: result.total * mult, breakdown: result.breakdown };
   });
   const filtered = list.filter((d) => d.total > 0).sort((a, b) => b.total - a.total);
   if (filtered.length === 0) return [];

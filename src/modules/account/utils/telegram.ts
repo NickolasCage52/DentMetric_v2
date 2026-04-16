@@ -26,10 +26,10 @@ export function getTelegramUser(): TelegramUser | null {
 }
 
 export function expandTelegramWebApp(): void {
-  if (typeof window !== 'undefined' && window.Telegram?.WebApp) {
-    window.Telegram.WebApp.expand?.()
-    window.Telegram.WebApp.enableClosingConfirmation?.()
-  }
+  if (typeof window === 'undefined') return
+  const w = window.Telegram?.WebApp
+  w?.expand?.()
+  w?.enableClosingConfirmation?.()
 }
 
 export function getTelegramColorScheme(): 'dark' | 'light' {

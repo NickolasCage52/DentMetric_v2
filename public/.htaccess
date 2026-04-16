@@ -1,0 +1,11 @@
+# Apache / ispmanager: SPA fallback so deep links serve index.html (copy into site root with dist contents).
+# Enable mod_rewrite on the host if requests return 404 for non-file paths.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteRule ^index\.html$ - [L]
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . /index.html [L]
+</IfModule>

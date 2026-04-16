@@ -522,8 +522,8 @@ function getImageOpaqueBbox(img, alphaThreshold = 10) {
 }
 
 /**
- * Загрузить изображение по src (Vite dev: /parts/..., PROD: /DentMetric/parts/...).
- * Абсолютный URL для надёжной загрузки на GitHub Pages. Только после onload строим сетку и вмятины.
+ * Загрузить изображение по src (public parts: /parts/... относительно import.meta.env.BASE_URL).
+ * Абсолютный URL для надёжной загрузки с любым Vite base. Только после onload строим сетку и вмятины.
  */
 function loadPartImage(src) {
   const path = (src || '').replace(/^\/+/, '');

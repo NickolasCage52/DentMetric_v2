@@ -1,10 +1,34 @@
 import { createApp } from 'vue'
-import App from './App.vue'
+import AppShell from './AppShell.vue'
 import './styles.css'
+import { router } from './router/index.js'
+import {
+  isFirstVisit,
+  markUserAsRegistered,
+  isRegistrationConfirmed,
+} from './services/userIdentity'
+import { trackUserRegistration } from './services/trackingService'
 import { runDevAudit } from './utils/devAudit'
 import { runDevAuditSettings } from './utils/devAuditSettings'
 
-const app = createApp(App)
+function initTracking() {
+  void (async () => {
+    if (isFirstVisit()) {
+      try {
+        await trackUserRegistration()
+      } finally {
+        markUserAsRegistered()
+      }
+    } else if (!isRegistrationConfirmed()) {
+      await trackUserRegistration()
+    }
+  })()
+}
+
+initTracking()
+
+const app = createApp(AppShell)
+app.use(router)
 
 app.config.errorHandler = (err, instance, info) => {
   console.error('[Vue error]', err, info)

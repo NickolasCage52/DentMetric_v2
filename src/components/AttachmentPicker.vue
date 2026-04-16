@@ -5,6 +5,7 @@
       ref="fileInputRef"
       type="file"
       accept="image/*"
+      multiple
       capture="environment"
       class="sr-only"
       @change="onFileSelect"
@@ -78,14 +79,17 @@ onUnmounted(() => {
 });
 
 async function onFileSelect(e) {
-  const file = e.target?.files?.[0];
-  if (!file || !file.type.startsWith('image/')) return;
+  const files = Array.from(e.target?.files || []).filter((f) => f?.type?.startsWith('image/'));
   e.target.value = '';
+  if (files.length === 0) return;
   const recordId = effectiveRecordId();
-  const key = generateAttachmentKey(recordId, props.dentIndex);
+  let next = [...(props.modelValue || [])];
   try {
-    await saveAttachment(key, file);
-    const next = [...(props.modelValue || []), { dentIndex: props.dentIndex, idbKey: key }];
+    for (const file of files) {
+      const key = generateAttachmentKey(recordId, props.dentIndex);
+      await saveAttachment(key, file);
+      next = [...next, { dentIndex: props.dentIndex, idbKey: key }];
+    }
     emit('update:modelValue', next);
     await loadThumbnails();
   } catch (err) {

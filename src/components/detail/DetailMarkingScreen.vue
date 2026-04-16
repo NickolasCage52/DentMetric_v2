@@ -1575,9 +1575,7 @@ onMounted(() => {
   document.body.style.overscrollBehavior = 'none';
   document.documentElement.style.overflow = 'hidden';
   document.documentElement.style.overscrollBehavior = 'none';
-  if (typeof window !== 'undefined' && window.Telegram?.WebApp?.expand) {
-    window.Telegram.WebApp.expand();
-  }
+  window.Telegram?.WebApp?.expand?.();
   const area = canvasArea.value;
   if (area) {
     const onTouchStart = (e) => { e.preventDefault(); handlePinchTouchStart(e); };
