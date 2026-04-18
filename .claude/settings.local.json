@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(ls -la playwright.*)",
-      "Bash(find src/components -name \"*.vue\" -type f -exec wc -l {} +)"
+      "Bash(find src/components -name \"*.vue\" -type f -exec wc -l {} +)",
+      "Bash(grep -l \"whatsapp\\\\|WhatsApp\\\\|pdf\\\\|PDF\\\\|share\\\\|Share\\\\|export\\\\|Export\" src/**/*.vue src/**/*.ts src/**/*.js)"
     ]
   }
 }

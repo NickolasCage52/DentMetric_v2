@@ -8,6 +8,7 @@ import type { UserProfile, Subscription, PlanId, FeatureGates, PaymentFlowStatus
 import { canUse, getLimit, TRIAL_DAYS, TARIFF_BYPASS_ENABLED } from './planFeatures'
 import type { FeatureKey } from './planFeatures'
 import { getEffectiveTelegramUser } from './utils/telegram'
+import type { AuthUserProfile } from '../../services/authService'
 
 const profile = ref<UserProfile | null>(null)
 const subscription = ref<Subscription | null>(null)
@@ -97,7 +98,7 @@ async function initialize(): Promise<void> {
 
     if (tgUser && apiBase) {
       const initData =
-        (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) ??
+        (typeof window !== 'undefined' ? window.Telegram?.WebApp?.initData : undefined) ??
         `mock_${tgUser.id}`
 
       try {
@@ -314,6 +315,36 @@ function logout(): void {
   }
 }
 
+function mapAuthPlanToSubscriptionPlan(planId?: string): PlanId {
+  const p = (planId || 'free').toLowerCase()
+  if (p === 'demo' || p === 'master' || p === 'pro' || p === 'corporate') return p as PlanId
+  return 'free'
+}
+
+/** Синхронизация после входа через LoginView / authService (телефон, email). */
+function applyAuthLogin(token: string, authUser: AuthUserProfile): void {
+  sessionToken.value = token
+  const phoneDigits = (authUser.phone || '').replace(/\D/g, '')
+  profile.value = {
+    id: authUser.id,
+    telegramUserId: 0,
+    telegramUsername: undefined,
+    name: (authUser.name || authUser.phone || authUser.email || 'Мастер').trim(),
+    phone: phoneDigits.length >= 10 ? phoneDigits : authUser.phone || '',
+    phoneVerified: phoneDigits.length >= 10,
+    createdAt: authUser.createdAt,
+    updatedAt: new Date().toISOString(),
+  }
+  subscription.value = {
+    id: '',
+    userId: authUser.id,
+    plan: mapAuthPlanToSubscriptionPlan(authUser.planId),
+    status: 'inactive',
+    autoRenew: false,
+  }
+  saveTokenToStorage()
+}
+
 export function useAccount() {
   return {
     profile: readonly(profile),
@@ -340,5 +371,6 @@ export function useAccount() {
     checkPaymentStatus,
     resetPaymentFlow,
     logout,
+    applyAuthLogin,
   }
 }

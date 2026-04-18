@@ -1,5 +1,8 @@
 <template>
   <header class="top-brand-bar">
+    <div class="top-brand-bar__leading">
+      <slot name="leading" />
+    </div>
     <div class="top-brand-bar__logo-wrap">
       <img
         v-show="!logoFailed"
@@ -15,11 +18,13 @@
     <button
       v-if="showProfileButton"
       type="button"
-      class="top-brand-bar__profile-btn"
+      class="top-brand-bar__profile-btn top-brand-bar__hamburger"
       :aria-label="profileAriaLabel"
       @click="onProfileClick"
     >
-      👤
+      <span class="top-brand-bar__hamburger-line" aria-hidden="true" />
+      <span class="top-brand-bar__hamburger-line" aria-hidden="true" />
+      <span class="top-brand-bar__hamburger-line" aria-hidden="true" />
     </button>
     <div
       v-else
@@ -55,7 +60,7 @@ function onBrandLogoError() {
 
 const props = defineProps({
   showProfileButton: { type: Boolean, default: true },
-  profileAriaLabel: { type: String, default: 'Профиль' }
+  profileAriaLabel: { type: String, default: 'Меню' }
 });
 
 const emit = defineEmits(['profile-click']);
@@ -75,6 +80,17 @@ function onProfileClick() {
   padding: max(var(--topbar-padding-top), var(--safe-top)) var(--screen-padding-x) var(--topbar-padding-bottom);
   padding-left: max(var(--screen-padding-x), env(safe-area-inset-left, 0px));
   padding-right: max(var(--screen-padding-x), env(safe-area-inset-right, 0px));
+}
+
+.top-brand-bar__leading {
+  width: var(--profile-btn-size);
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  z-index: 2;
 }
 
 .top-brand-bar__logo-wrap {
@@ -149,5 +165,20 @@ function onProfileClick() {
 
 .top-brand-bar__profile-btn:active {
   transform: scale(0.96);
+}
+
+.top-brand-bar__hamburger {
+  flex-direction: column;
+  gap: 5px;
+  padding: 0;
+  border-radius: 12px;
+}
+
+.top-brand-bar__hamburger-line {
+  display: block;
+  width: 22px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--dm-text-primary, #fff);
 }
 </style>

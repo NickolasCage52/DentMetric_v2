@@ -1,11 +1,24 @@
 <template>
   <div ref="historySwipeRootRef" class="hs-root">
+    <StorageWarningBanner
+      :storage-info="storageInfo"
+      @export="$emit('request-backup-export')"
+    />
     <div v-if="normalizedPhoneFilter" class="hs-client-filter">
       <div class="hs-client-filter__text-block">
         <span class="hs-client-filter__text">История по этому клиенту</span>
         <span class="hs-client-filter__hint">Все записи, как в поиске. Вкладки сужают период.</span>
       </div>
-      <button type="button" class="hs-client-filter__clear" @click="$emit('clear-client-filter')">Сбросить</button>
+      <div class="hs-client-filter__actions">
+        <button
+          type="button"
+          class="hs-client-filter__profile"
+          @click="$emit('open-client-profile', normalizedPhoneFilter)"
+        >
+          Профиль
+        </button>
+        <button type="button" class="hs-client-filter__clear" @click="$emit('clear-client-filter')">Сбросить</button>
+      </div>
     </div>
     <!-- Date range tabs (header with logo is in App.vue for identical position with Settings/Info) -->
     <div class="hs-swipe-area">
@@ -118,6 +131,15 @@
           </div>
           <div class="hs-card-car">{{ carLine(item) }}</div>
         </div>
+        <button
+          v-if="isOldEstimate(item)"
+          type="button"
+          class="hs-card-followup"
+          :title="'Напомнить в WhatsApp'"
+          @click.stop="sendEstimateFollowUp(item)"
+        >
+          <span aria-hidden="true">{{ '\u{1F4E9}' }}</span>
+        </button>
         <div v-if="itemStatus(item) === 'no_booking'" class="hs-card-right">
           <button
             type="button"
@@ -201,6 +223,8 @@ import { normalizePhone, normalizeHistoryRecordPhone } from '../utils/clientSear
 import { formatMoneyWithCurrency, getRecordDisplayCurrency } from '../utils/regionFormat';
 import { formatPhoneDisplayBelarus } from '../utils/phoneFormat';
 import { useSwipeNavigation } from '../composables/useSwipeNavigation';
+import StorageWarningBanner from './StorageWarningBanner.vue';
+import { getHistoryStorageInfo } from '../utils/storageUtils';
 
 const props = defineProps({
   historyItems: { type: Array, default: () => [] },
@@ -214,7 +238,12 @@ const props = defineProps({
 /** Активный фильтр по статусу: null = все, 'estimate' | 'scheduled' | 'done' */
 const activeStatusFilter = ref(null);
 
-const emit = defineEmits(['back', 'select', 'update-status', 'clear-client-filter']);
+const emit = defineEmits(['back', 'select', 'update-status', 'clear-client-filter', 'open-client-profile', 'request-backup-export']);
+
+const storageInfo = ref(getHistoryStorageInfo());
+function refreshStorageInfo() {
+  storageInfo.value = getHistoryStorageInfo();
+}
 
 const activeRange = ref('today');
 const customRange = ref(null);
@@ -284,7 +313,15 @@ watch(
 
 watch(searchOpen, (v) => { if (v) nextTick(() => searchInputRef.value?.focus()); });
 
+watch(
+  () => props.historyItems?.length,
+  () => {
+    refreshStorageInfo();
+  }
+);
+
 onMounted(() => {
+  refreshStorageInfo();
   nextTick(() => {
     if (listWrapRef.value?.scrollTo) listWrapRef.value.scrollTo({ top: 0, behavior: 'auto' });
   });
@@ -475,6 +512,33 @@ function bookItem(item) {
   emit('update-status', { id: item.id, status: 'scheduled', bookingAt: new Date().toISOString() });
 }
 
+function isOldEstimate(item) {
+  const s = item.status || 'estimate';
+  if (s !== 'estimate') return false;
+  const created = new Date(item.createdAt);
+  if (!Number.isFinite(created.getTime())) return false;
+  const daysSince = (Date.now() - created.getTime()) / (1000 * 60 * 60 * 24);
+  return daysSince >= 3;
+}
+
+function sendEstimateFollowUp(item) {
+  const phone = String(item.client?.phone || '').replace(/\D/g, '');
+  if (!phone || phone.length < 10) return;
+  const name = String(item.client?.name || '').split(' ')[0] || '';
+  const greeting = name ? `${name}, ` : '';
+  const car = [item.client?.brand, item.client?.model].filter(Boolean).join(' ');
+  const price = Number(item.manualAdjustedPrice ?? item.total) || 0;
+  const text = [
+    `${greeting}добрый день!`,
+    '',
+    `По вашему автомобилю${car ? ` ${car}` : ''} готова оценка: ${price.toLocaleString('ru-RU')}\u00a0\u20bd`,
+    'Удобно записаться на ремонт?',
+    '',
+    'DentMetric',
+  ].join('\n');
+  window.open(`https://wa.me/${phone}?text=${encodeURIComponent(text)}`, '_blank', 'noopener');
+}
+
 function clientName(item) {
   return item.client?.name || 'Клиент без имени';
 }
@@ -610,6 +674,24 @@ function cardMoney(record) {
   line-height: 1.3;
   font-weight: 500;
 }
+.hs-client-filter__actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 8px;
+  align-items: center;
+}
+.hs-client-filter__profile {
+  padding: 8px 12px;
+  min-height: 44px;
+  border-radius: 8px;
+  border: 1px solid rgba(136, 229, 35, 0.35);
+  background: transparent;
+  color: #88e523;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+}
 .hs-client-filter__clear {
   flex-shrink: 0;
   padding: 8px 12px;
@@ -740,6 +822,24 @@ function cardMoney(record) {
   min-width: 0;
 }
 .hs-card:active { border-color: rgba(136,229,35,0.3); }
+
+.hs-card-followup {
+  flex: 0 0 auto;
+  align-self: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid hsl(142deg 70% 49%);
+  background: transparent;
+  color: hsl(142deg 70% 49%);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
 
 .hs-card-start {
   flex: 0 0 auto;

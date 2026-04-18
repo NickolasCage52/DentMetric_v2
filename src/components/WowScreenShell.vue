@@ -6,6 +6,9 @@
       :profile-aria-label="profileAriaLabel"
       @profile-click="$emit('profile-click')"
     >
+      <template v-if="$slots['top-leading']" #leading>
+        <slot name="top-leading" />
+      </template>
       <template v-if="$slots.subtitle" #subtitle>
         <slot name="subtitle" />
       </template>
@@ -25,7 +28,7 @@ defineOptions({ name: 'WowScreenShell' });
 defineProps({
   showBackground: { type: Boolean, default: true },
   showProfileButton: { type: Boolean, default: true },
-  profileAriaLabel: { type: String, default: 'Профиль' },
+  profileAriaLabel: { type: String, default: 'Меню' },
   hasSubtitle: { type: Boolean, default: false }
 });
 

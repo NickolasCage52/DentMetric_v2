@@ -1,12 +1,100 @@
 <template>
   <div ref="appRootRef" class="app-root max-w-md mx-auto relative min-h-[100dvh] h-screen flex flex-col text-white overflow-x-hidden pb-[env(safe-area-inset-bottom)]" :class="{ 'app-root--gradient': currentSection === 'home', 'app-root--solid': currentSection !== 'home' }">
+    <div v-if="!isOnlineState" class="offline-banner" role="status">
+      Офлайн — данные сохраняются локально
+    </div>
+    <div v-if="pwaNeedRefresh" class="sw-update-toast">
+      <span>Доступно обновление</span>
+      <button type="button" class="sw-update-toast__btn" @click="pwaReload">Обновить</button>
+    </div>
+    <ProfileView
+      v-if="currentSection === 'profile'"
+      @back="closeProfileScreen"
+      @navigate="handleSettingsNavigate"
+    />
+    <SyncSettingsView
+      v-else-if="currentSection === 'sync-settings'"
+      @back="closeSyncSettings"
+    />
+    <SettingsHubView
+      v-else-if="currentSection === 'settings-hub'"
+      @back="closeSettingsHub"
+      @navigate="handleSettingsNavigate"
+    />
+    <SettingsPlaceholder
+      v-else-if="currentSection === 'hub-placeholder'"
+      :title="hubPlaceholderTitle"
+      :message="hubPlaceholderMessage"
+      @back="closeHubPlaceholder"
+    />
+    <EmployeesListView
+      v-else-if="currentSection === 'employees'"
+      @back="closeEmployeesList"
+      @navigate="handleSettingsNavigate"
+      @open-employee="openEmployeeCard"
+      @create-employee="openEmployeeCreate"
+    />
+    <EmployeeCardView
+      v-else-if="currentSection === 'employee-card' || currentSection === 'employee-create'"
+      :employee-id="currentSection === 'employee-create' ? undefined : employeeViewId"
+      @back="closeEmployeeCard"
+      @saved="onEmployeeSaved"
+    />
+    <JournalView
+      v-else-if="currentSection === 'journal'"
+      @back="closeJournal"
+      @open-booking="openJournalBooking"
+      @create-booking="openJournalCreate"
+    />
+    <BookingDetailView
+      v-else-if="currentSection === 'booking-detail' && journalBookingId"
+      :booking-id="journalBookingId"
+      @back="onBookingDetailBack"
+      @open-estimate="openEstimateFromJournal"
+      @open-order-document="handleOpenOrderDocument"
+    />
+    <CreateBookingView
+      v-else-if="currentSection === 'booking-create' && journalCreateParams"
+      :date="journalCreateParams.date"
+      :start-time="journalCreateParams.time"
+      :master-id="journalCreateParams.masterId"
+      @back="onCreateBookingBack"
+      @saved="onJournalCreateSaved"
+    />
+    <AggregatorFeedView
+      v-else-if="currentSection === 'aggregator'"
+      @back="closeAggregatorFeed"
+      @navigate="handleDrawerNavigate"
+    />
     <!-- Home: shared shell for identical layout with Mode selection -->
     <WowScreenShell
-      v-if="currentSection === 'home'"
+      v-else-if="currentSection === 'home'"
       :show-background="true"
       :show-profile-button="true"
-      @profile-click="onProfileClick"
+      @profile-click="openAppDrawer"
     >
+      <template #top-leading>
+        <div class="top-leading-cluster">
+          <SyncStatusBadge @open-sync="openSyncSettings" />
+          <button
+            type="button"
+            class="notif-bell-btn"
+            aria-label="Уведомления"
+            @click="openNotificationsCenter"
+          >
+            <span class="notif-bell-icon" aria-hidden="true">{{ '\u{1F514}' }}</span>
+            <span v-if="notificationsStore.unreadCount > 0" class="notif-bell-badge">
+              {{ notificationsStore.unreadCount > 9 ? '9+' : notificationsStore.unreadCount }}
+            </span>
+          </button>
+        </div>
+      </template>
+      <p
+        v-if="authUserGreeting"
+        class="text-center text-[11px] text-gray-500 font-medium mb-2 w-full max-w-sm px-2 shrink-0"
+      >
+        {{ authUserGreeting }}
+      </p>
       <div class="wow-tile-grid wow-screen-shell__tiles">
           <button
             data-testid="btn-open-metric"
@@ -21,16 +109,16 @@
           </button>
           <button
             type="button"
-            class="wow-tile home-btn home-btn-disabled"
-            disabled
-            aria-disabled="true"
-            aria-label="Аналитика — в разработке"
+            data-testid="btn-open-analytics"
+            class="wow-tile home-btn home-btn-primary"
+            aria-label="Аналитика"
+            @click="openAnalytics"
           >
-            <svg class="home-btn-icon w-8 h-8 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg class="home-btn-icon w-8 h-8 text-metric-green shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            <span class="text-sm font-bold uppercase tracking-wider text-gray-500">Аналитика</span>
-            <span class="text-[10px] text-gray-600 flex items-center gap-1 justify-center"><span>Доступно в Pro</span><svg class="w-3.5 h-3.5 shrink-0 text-[#C9A227]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
+            <span class="text-sm font-bold uppercase tracking-wider">Аналитика</span>
+            <span class="text-[10px] text-gray-500">PRO: выручка и конверсия</span>
           </button>
           <button
             data-testid="btn-history"
@@ -45,16 +133,20 @@
           </button>
           <button
             type="button"
-            class="wow-tile home-btn home-btn-disabled"
-            disabled
-            aria-disabled="true"
-            aria-label="Журнал записи — в разработке"
+            data-testid="btn-journal"
+            class="wow-tile home-btn home-btn-primary relative"
+            aria-label="Журнал записи"
+            @click="openJournal"
           >
-            <svg class="home-btn-icon w-8 h-8 shrink-0 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <svg class="home-btn-icon w-8 h-8 text-metric-green shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
-            <span class="text-sm font-bold uppercase tracking-wider text-gray-500">Журнал записи</span>
-            <span class="text-[10px] text-gray-600 flex items-center gap-1 justify-center"><span>Доступно в Pro</span><svg class="w-3.5 h-3.5 shrink-0 text-[#C9A227]" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></span>
+            <span class="text-sm font-bold uppercase tracking-wider">Журнал записи</span>
+            <span class="text-[10px] text-gray-500">Записи на ремонт</span>
+            <span
+              v-if="todayBookingsCount > 0"
+              class="absolute top-2 right-2 min-w-[22px] min-h-[22px] px-1 rounded-full bg-metric-green text-black text-[10px] font-bold flex items-center justify-center leading-none"
+            >{{ todayBookingsCount }}</span>
           </button>
         </div>
     </WowScreenShell>
@@ -67,11 +159,33 @@
         :show-background="true"
         :show-profile-button="true"
         :has-subtitle="true"
-        @profile-click="onProfileClick"
+        @profile-click="openAppDrawer"
       >
+        <template #top-leading>
+          <div class="top-leading-cluster">
+            <SyncStatusBadge @open-sync="openSyncSettings" />
+            <button
+              type="button"
+              class="notif-bell-btn"
+              aria-label="Уведомления"
+              @click="openNotificationsCenter"
+            >
+              <span class="notif-bell-icon" aria-hidden="true">{{ '\u{1F514}' }}</span>
+              <span v-if="notificationsStore.unreadCount > 0" class="notif-bell-badge">
+                {{ notificationsStore.unreadCount > 9 ? '9+' : notificationsStore.unreadCount }}
+              </span>
+            </button>
+          </div>
+        </template>
         <template #subtitle>
           <h2 class="text-metric-green text-xs font-bold uppercase tracking-[0.2em]">ВЫБОР РЕЖИМА РАСЧЁТА</h2>
         </template>
+        <p
+          v-if="authUserGreeting"
+          class="text-center text-[11px] text-gray-500 font-medium mb-2 w-full max-w-sm px-2 shrink-0"
+        >
+          {{ authUserGreeting }}
+        </p>
         <div class="wow-tile-grid wow-screen-shell__tiles">
             <button
               data-testid="btn-quick-mode"
@@ -162,7 +276,9 @@
                   <ClientFoundCard
                     v-if="requireFeature('historyEnabled')"
                     :client="foundClient"
+                    :phone-search-region="userSettings.regionCountry === 'BY' ? 'BY' : 'RU'"
                     @open-history="openClientHistory"
+                    @open-client-profile="openClientProfileFromQuick"
                     @autofill-client="handleAutofillClient"
                   />
                   <button type="button" class="client-input-row flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 bg-[#151515] border border-white/10 text-left touch-manipulation" @click="openClientField('clientCompany', 'Компания (необязательно)', 'text', 'Компания')">
@@ -202,6 +318,15 @@
               <div class="mb-2 flex items-start justify-between gap-2">
                 <div class="flex-1 min-w-0">
                   <div class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">ПОВРЕЖДЕНИЯ</div>
+                  <div
+                    v-if="activeQuickDent?._paramsAutoCopied && !quickAutoCopyDismissed"
+                    class="autocopy-pill"
+                  >
+                    <span>Параметры скопированы с предыдущей вмятины</span>
+                    <button type="button" class="autocopy-pill__dismiss" @click="dismissQuickAutoCopyPill">
+                      Изменить ✕
+                    </button>
+                  </div>
                   <div class="flex gap-1.5 flex-wrap items-center">
                     <button
                       v-for="(d, i) in estimateDraft.quickDents"
@@ -227,6 +352,15 @@
                 </div>
                 <div class="flex flex-col items-center gap-2 shrink-0 self-start">
                   <button
+                    v-if="estimateDraft.quickDents.length >= 2"
+                    type="button"
+                    class="apply-all-btn"
+                    :class="{ 'apply-all-btn--applied': quickApplyAllSuccess }"
+                    @click="applyQuickParamsToAllDents"
+                  >
+                    {{ quickApplyAllSuccess ? '✓ Применено' : 'Скопировать на все ↪' }}
+                  </button>
+                  <button
                     type="button"
                     class="client-reset-btn qc-reset-btn"
                     data-testid="quick-reset-dents"
@@ -238,7 +372,7 @@
                   <button
                     type="button"
                     data-testid="quick-add-dent"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-metric-green/20 text-metric-green border border-metric-green/40 hover:bg-metric-green/30 transition-all touch-manipulation"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold bg-metric-green/20 text-metric-green border border-metric-green/40 hover:bg-metric-green/30 transition-all touch-manipulation min-h-[44px] min-w-[44px]"
                     aria-label="Добавить повреждение"
                     @click="addQuickDent(); nextTick(() => metricScrollRef?.value?.scrollTo?.({ top: 0, behavior: 'smooth' }))"
                   >
@@ -494,6 +628,7 @@
         :history-enabled="requireFeature('historyEnabled')"
         @open-record="openRecordFromSheet"
         @open-client-history="navigateToHistoryByClientPhone"
+        @open-order-document="handleOpenOrderDocument"
         />
       </div>
 
@@ -524,11 +659,26 @@
             <span class="inline-flex items-center gap-1">Вперёд <span aria-hidden="true">&rsaquo;</span></span>
           </button>
         </div>
-        <div v-else class="qc-step3-actions flex gap-0">
+        <div v-else class="qc-step3-actions flex flex-nowrap gap-0 min-w-0 items-stretch">
+          <ShareButton compact class="shrink-0 mr-1 self-auto" :record="quickShareableRecord" />
+          <PortalShareButton
+            compact
+            class="shrink-0 mr-1 self-auto"
+            :record="quickShareableRecord"
+            :estimate-id="estimateDraft.id"
+          />
+          <button
+            type="button"
+            class="shrink-0 self-auto min-w-[48px] min-h-[44px] py-2.5 px-1 text-[16px] leading-none border border-white/10 rounded-xl text-gray-200 touch-manipulation"
+            aria-label="Заказ-наряд"
+            @click="openQuickOrderDocument"
+          >
+            📋
+          </button>
           <button
             type="button"
             @click="goQuickBack"
-            class="qc-s3-btn qc-s3-btn--left flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[40px]"
+            class="qc-s3-btn qc-s3-btn--left flex-1 min-w-0 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[44px]"
           >
             Назад
           </button>
@@ -536,7 +686,7 @@
             data-testid="btn-save-estimate"
             type="button"
             @click="saveCurrentEstimate('quick')"
-            class="qc-s3-btn qc-s3-btn--mid flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white border border-white/15 min-h-[40px] transition-colors hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="qc-s3-btn qc-s3-btn--mid flex-1 min-w-0 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white border border-white/15 min-h-[44px] transition-colors hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="isSavingHistory || !quickStep3Ready"
           >
             {{ isSavingHistory ? '...' : 'Сохранить' }}
@@ -544,7 +694,7 @@
           <button
             type="button"
             @click="saveAndBookEstimate('quick')"
-            class="qc-s3-btn qc-s3-btn--right flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 min-h-[40px] transition-colors hover:bg-metric-green/10 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="qc-s3-btn qc-s3-btn--right flex-1 min-w-0 py-2.5 text-[11px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 min-h-[44px] transition-colors hover:bg-metric-green/10 disabled:opacity-50 disabled:cursor-not-allowed"
             :disabled="isSavingHistory || !quickStep3Ready"
           >
             {{ isSavingHistory ? '...' : 'Записать' }}
@@ -585,6 +735,8 @@
         @select="selectedHistoryId = $event"
         @update-status="handleHistoryStatusUpdate"
         @clear-client-filter="historyClientPhoneFilter = ''"
+        @open-client-profile="openClientProfileFromHistoryFilter"
+        @request-backup-export="handleExportHistory"
       />
     </div>
     <!-- DEV-only: QA history generator -->
@@ -712,11 +864,18 @@
               </div>
               <div
                 v-if="(historyClientForDisplay.phone || '').trim()"
-                class="flex justify-end card-metallic rounded-xl px-4 py-3"
+                class="flex flex-col gap-2 card-metallic rounded-xl px-4 py-3"
               >
+                <button
+                  type="button"
+                  class="w-full py-2.5 text-xs font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 rounded-xl min-h-[44px]"
+                  @click="openClientProfileFromHistoryDetail"
+                >
+                  Профиль клиента
+                </button>
                 <a
                   :href="`tel:${historyDetailTelHref}`"
-                  class="px-4 py-2.5 rounded-lg text-xs font-bold bg-metric-green text-black border border-metric-green/40 touch-manipulation min-h-[44px] flex items-center"
+                  class="px-4 py-2.5 rounded-lg text-xs font-bold bg-metric-green text-black border border-metric-green/40 touch-manipulation min-h-[44px] flex items-center justify-center"
                 >Позвонить</a>
               </div>
             </template>
@@ -768,9 +927,9 @@
           <section
             v-show="historyFinalTab === 'demo'"
             class="hist-final-page hist-final-page--demo card-metallic rounded-2xl p-6 text-center text-gray-500 text-sm"
-            aria-label="Демонстрация"
+            aria-label="Клиенту"
           >
-            <p class="m-0 text-white/90 font-medium">Демонстрация для клиента</p>
+            <p class="m-0 text-white/90 font-medium">Экран для клиента</p>
             <p class="text-xs mt-3 opacity-70 m-0 leading-relaxed">Раздел в разработке — здесь будет сценарий показа оценки клиенту.</p>
           </section>
         </div>
@@ -1161,6 +1320,64 @@
           </div>
         </div>
 
+        <!-- 6b. Данные и резервная копия -->
+        <div ref="(el) => setSettingsSectionRef('data-backup', el)" class="settings-section-card card-metallic rounded-2xl overflow-hidden">
+          <div class="dm-section-header" :class="{ 'dm-section-header--open': settingsOpenSection === 'data-backup' }" @click="toggleSettingsSection('data-backup')">
+            <div class="dm-section-header__left">
+              <span class="dm-section-header__icon">💾</span>
+              <span class="dm-section-header__title">Данные и резервная копия</span>
+            </div>
+            <span class="dm-section-header__chevron" :class="{ open: settingsOpenSection === 'data-backup' }">›</span>
+          </div>
+          <div v-show="settingsOpenSection === 'data-backup'" class="settings-section-content">
+            <div class="dm-settings-row dm-settings-row--storage-bar">
+              <span class="dm-settings-row__label">Использовано</span>
+              <div class="storage-bar-wrap">
+                <div
+                  class="storage-bar-fill"
+                  :style="{
+                    width: backupStorageInfo.percent + '%',
+                    background:
+                      backupStorageInfo.status === 'critical'
+                        ? 'var(--dm-danger, #e53935)'
+                        : backupStorageInfo.status === 'warning'
+                          ? '#fbbf24'
+                          : 'var(--dm-accent, #a0e040)',
+                  }"
+                />
+              </div>
+              <span class="storage-bar-label">
+                {{ backupStorageInfo.formattedUsed }} / {{ backupStorageInfo.formattedMax }}
+              </span>
+            </div>
+            <div class="dm-settings-row">
+              <span class="dm-settings-row__label">Записей в истории</span>
+              <span class="dm-settings-row__value">{{ historyPinia.recordCount }}</span>
+            </div>
+            <button type="button" class="dm-btn dm-btn--secondary dm-btn--full mb-2" @click="handleExportHistory">
+              Выгрузить историю (JSON)
+            </button>
+            <input
+              ref="importFileRef"
+              type="file"
+              accept=".json,application/json"
+              class="sr-only"
+              aria-hidden="true"
+              @change="handleImportFile"
+            />
+            <button type="button" class="dm-btn dm-btn--secondary dm-btn--full mb-2" @click="importFileRef?.click()">
+              Загрузить из файла
+            </button>
+            <div
+              v-if="importResultMessage"
+              class="settings-import-result"
+              :class="importResultIsError ? 'settings-import-result--error' : 'settings-import-result--ok'"
+            >
+              {{ importResultMessage }}
+            </div>
+          </div>
+        </div>
+
         <!-- 7. Мастера -->
         <div ref="(el) => setSettingsSectionRef('masters', el)" class="settings-section-card card-metallic rounded-2xl overflow-hidden">
           <div class="dm-section-header" :class="{ 'dm-section-header--open': settingsOpenSection === 'masters' }" @click="toggleSettingsSection('masters')">
@@ -1238,29 +1455,7 @@
       </AccountScreen>
     </div>
 
-    <!-- Locked sections (analytics, journal) -->
-    <div v-if="currentSection === 'analytics' || currentSection === 'journal'" class="p-4 flex flex-col h-full pb-24">
-      <div class="app-header-logo-bar">
-        <div class="app-header-logo-bar__left">
-          <button
-            type="button"
-            @click="goHome"
-            class="text-xs text-gray-400 hover:text-white border border-white/10 rounded-lg px-2.5 py-2 min-h-[40px] flex items-center gap-1"
-          >
-            <span>←</span>
-            <span>Домой</span>
-          </button>
-        </div>
-        <img src="/dm-small.png" alt="DentMetric" class="app-header-logo-bar__logo" onerror="this.style.display='none'">
-        <div class="app-header-logo-bar__right"></div>
-      </div>
-      <div class="card-metallic rounded-2xl p-6 text-center text-gray-400 mt-6">
-        <div class="text-2xl mb-2">🔒</div>
-        <div class="text-sm">Раздел в разработке</div>
-      </div>
-    </div>
-
-    <!-- Bottom nav: fixed, safe-area aware, unified selected state -->
+       <!-- Bottom nav: fixed, safe-area aware, unified selected state -->
     <nav
       ref="bottomNavRef"
       class="bottom-nav fixed bottom-0 left-0 right-0 w-full max-w-md mx-auto bg-[#080808] border-t border-white/10 flex justify-around items-stretch gap-0 py-2 pl-[max(0.5rem,env(safe-area-inset-left))] pr-[max(0.5rem,env(safe-area-inset-right))] pb-[max(0.5rem,env(safe-area-inset-bottom))] z-[200] shadow-[0_-4px_16px_rgba(0,0,0,0.6)]"
@@ -1287,11 +1482,11 @@
       <button
         type="button"
         data-testid="nav-settings"
-        @click="switchSection('settings')"
+        @click="openSettingsHub"
         class="bottom-nav-btn flex-1 min-w-0 py-1 flex flex-col items-center justify-center gap-0.5 rounded-lg transition-all duration-200 min-h-[56px] touch-manipulation"
-        :class="currentSection === 'settings' ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
-        :aria-current="currentSection === 'settings' ? 'page' : undefined"
-        :aria-label="currentSection === 'settings' ? 'Настройки (текущий раздел)' : 'Настройки'"
+        :class="(currentSection === 'settings' || currentSection === 'settings-hub') ? 'bottom-nav-btn--active' : 'bottom-nav-btn--idle'"
+        :aria-current="(currentSection === 'settings' || currentSection === 'settings-hub') ? 'page' : undefined"
+        :aria-label="(currentSection === 'settings' || currentSection === 'settings-hub') ? 'Настройки (текущий раздел)' : 'Настройки'"
       >
         <svg class="bottom-nav-ico" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
         <span class="text-[9px] font-bold uppercase tracking-widest">Настройки</span>
@@ -1354,17 +1549,68 @@
         </button>
       </div>
     </Transition>
+    <AppDrawer
+      v-model="drawerOpen"
+      :current-section="currentSection"
+      @navigate="handleDrawerNavigate"
+    />
+    <NotificationsSettingsView
+      v-if="currentSection === 'notifications-settings'"
+      @back="closeNotificationsSettings"
+    />
+    <NotificationCenterView
+      v-if="currentSection === 'notifications'"
+      @back="closeNotificationsCenter"
+      @open-booking="onNotificationOpenBooking"
+    />
+    <ServiceDataView
+      v-if="currentSection === 'service-data'"
+      @back="handleServiceDataBack"
+    />
+    <MarketPricesSettingsView
+      v-if="currentSection === 'market-prices'"
+      @back="closeMarketPricesSettings"
+      @apply-prices="handleApplyMarketPricesFromMarket"
+    />
+    <OrderDocumentView
+      v-if="currentSection === 'order-document' && currentOrderDoc"
+      :key="currentOrderDoc.id"
+      :doc="currentOrderDoc"
+      @back="closeOrderDocument"
+      @signed="handleDocumentSigned"
+    />
+    <MasterStatsDashboard
+      v-if="currentSection === 'analytics'"
+      @back="closeAnalyticsDashboard"
+      @navigate="onMasterStatsNavigate"
+    />
+    <ClientProfileView
+      v-if="currentSection === 'client-profile' && clientProfilePhone"
+      :key="clientProfilePhone"
+      :phone="clientProfilePhone"
+      @back="closeClientProfile"
+      @open-record="onClientProfileOpenRecord"
+      @new-estimate="onClientProfileNewEstimate"
+    />
+    <MarketPricesConsentDialog
+      :visible="showMarketConsentDialog"
+      @accept="handleMarketConsentAccept"
+      @decline="handleMarketConsentDecline"
+      @dismiss="showMarketConsentDialog = false"
+    />
     <PaywallModal :visible="paywallVisible" :min-plan="paywallMinPlan" @close="closePaywall" @go-plans="switchSection('plans'); closePaywall();" />
     <NotificationStack />
     <InputModal :model-value="inputModalOpen" :config="inputModalConfig" @confirm="inputModalConfirm" @cancel="inputModalCancel" />
     <SelectModal :model-value="selectModalOpen" :config="selectModalConfig" @confirm="selectModalConfirm" @cancel="selectModalCancel" />
     <PresetsModal v-model="presetsModalOpen" @select="onPresetSelected" />
     <component :is="QAOverlayComp" v-if="qaEnabled && QAOverlayComp" />
+    <PwaInstallPrompt />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, watch, onMounted, nextTick, onBeforeUnmount, provide, defineAsyncComponent } from 'vue';
+import { storeToRefs } from 'pinia';
 import { deleteSelected } from './graphics/konvaEditor';
 import { initialData } from './data/initialData';
 import {
@@ -1401,7 +1647,17 @@ import AppWowBackground from './components/AppWowBackground.vue';
 import TopBrandBar from './components/TopBrandBar.vue';
 import WowScreenShell from './components/WowScreenShell.vue';
 import { getElementIconPath } from './utils/elementIcons';
-import { useHistoryStore, generateRecordId } from './features/history/historyStore';
+import { generateRecordId, StorageFullError } from './features/history/historyStore';
+import { useHistoryPiniaStore } from './stores/history';
+import { migrateLegacyPhotosToIdb } from './utils/migratePhotosToIdb';
+import {
+  exportHistoryToJSON,
+  importHistoryFromJSON,
+  cleanupImportBackups,
+  STORAGE_KEY as HISTORY_LOCAL_STORAGE_KEY,
+} from './utils/historyIO';
+import { getHistoryStorageInfo } from './utils/storageUtils';
+import PwaInstallPrompt from './components/PwaInstallPrompt.vue';
 import InputModal from './components/InputModal.vue';
 import { useInputModal } from './composables/useInputModal';
 import SelectModal from './components/SelectModal.vue';
@@ -1416,7 +1672,12 @@ import InfoScreen from './components/info/InfoScreen.vue';
 import AttachmentPicker from './components/AttachmentPicker.vue';
 import HistoryAttachmentsView from './components/HistoryAttachmentsView.vue';
 import ClientFoundCard from './components/ClientFoundCard.vue';
+import MasterStatsDashboard from './views/analytics/MasterStatsDashboard.vue';
+import ClientProfileView from './views/crm/ClientProfileView.vue';
 import StandardQuickFinalScreen from './components/result/StandardQuickFinalScreen.vue';
+import ShareButton from './components/ShareButton.vue';
+import PortalShareButton from './components/PortalShareButton.vue';
+import AggregatorFeedView from './views/aggregator/AggregatorFeedView.vue';
 import PerDentFinalCard from './components/result/PerDentFinalCard.vue';
 import ResultFourTabs from './components/result/ResultFourTabs.vue';
 import { useClientSearch } from './composables/useClientSearch';
@@ -1432,6 +1693,7 @@ import { saveAttachment, generateAttachmentKey } from './utils/attachmentStorage
 import ClientMoodPicker from './components/ClientMoodPicker.vue';
 import PrepaymentBlock from './components/PrepaymentBlock.vue';
 import { useAccount } from './modules/account/useAccount';
+import { useAuthStore } from './stores/auth';
 import { useFeatureGate } from './modules/account/useFeatureGate';
 import { expandTelegramWebApp } from './modules/account/utils/telegram';
 import AccountScreen from './modules/account/components/AccountScreen.vue';
@@ -1443,9 +1705,70 @@ import ReferralSection from './modules/account/components/ReferralSection.vue';
 import PaymentsSection from './modules/account/components/PaymentsSection.vue';
 import MasterStatsSection from './modules/account/components/MasterStatsSection.vue';
 import NotificationStack from './modules/account/components/NotificationStack.vue';
+import AppDrawer from './components/AppDrawer.vue';
+import ProfileView from './views/profile/ProfileView.vue';
+import SettingsHubView from './views/settings/SettingsHubView.vue';
+import SettingsPlaceholder from './views/settings/SettingsPlaceholder.vue';
+import EmployeesListView from './views/employees/EmployeesListView.vue';
+import EmployeeCardView from './views/employees/EmployeeCardView.vue';
+import JournalView from './views/journal/JournalView.vue';
+import BookingDetailView from './views/journal/BookingDetailView.vue';
+import CreateBookingView from './views/journal/CreateBookingView.vue';
+import NotificationsSettingsView from './views/settings/NotificationsSettingsView.vue';
+import NotificationCenterView from './views/notifications/NotificationCenterView.vue';
+import ServiceDataView from './views/settings/ServiceDataView.vue';
+import MarketPricesSettingsView from './views/settings/MarketPricesSettingsView.vue';
+import MarketPricesConsentDialog from './components/MarketPricesConsentDialog.vue';
+import { useMarketPricesStore } from './stores/marketPrices';
+import { isSupabaseConfigured } from './services/supabase';
+import SyncSettingsView from './views/settings/SyncSettingsView.vue';
+import SyncStatusBadge from './components/sync/SyncStatusBadge.vue';
+import OrderDocumentView from './views/document/OrderDocumentView.vue';
+import { useBookingsStore } from './stores/bookings';
+import { useServiceDataStore } from './stores/serviceData';
+import { useNotificationsStore } from './stores/notifications';
+import { useSyncStore } from './stores/sync';
+import { buildOrderDocument } from './utils/buildOrderDocument';
+import {
+  checkAndFireDueNotifications,
+  tryFireDailyDigest,
+  rescheduleAllActiveBookings,
+  loadNotificationSettings,
+} from './services/notificationEngine';
 
 const account = useAccount();
+const authStore = useAuthStore();
+const authUserGreeting = computed(() => authStore.user?.name?.trim() || '');
 const { requireFeature, checkHistoryLimit, paywallVisible, paywallMinPlan, closePaywall } = useFeatureGate();
+
+const bookingsStore = useBookingsStore();
+const serviceDataStore = useServiceDataStore();
+const notificationsStore = useNotificationsStore();
+const syncStore = useSyncStore();
+const marketPricesStore = useMarketPricesStore();
+const showMarketConsentDialog = ref(false);
+const SAVE_COUNT_KEY = 'dm_market_save_count';
+const notificationsPreviousSection = ref(null);
+const isOnlineState = ref(typeof navigator !== 'undefined' && navigator.onLine);
+
+function onAppOnline() {
+  isOnlineState.value = true;
+  syncStore.updatePendingCount();
+}
+
+function onAppOffline() {
+  isOnlineState.value = false;
+}
+
+const clientProfilePhone = ref('');
+const clientProfileReturn = ref({ section: 'home', historyId: null });
+let notifPollIntervalId = null;
+let marketPricesPollId = null;
+const todayBookingsCount = computed(() => bookingsStore.todayBookings.length);
+const journalBookingId = ref(null);
+const journalCreateParams = ref(null);
+const currentOrderDoc = ref(null);
+const orderDocPreviousSection = ref(null);
 
 const isDev = import.meta.env?.DEV === true;
 // DEV-only QA overlay (?qa=1). Must not ship in production bundles.
@@ -1463,6 +1786,19 @@ const QAOverlayComp = import.meta.env?.DEV
 const currentSection = ref('home');
 const calcMode = ref('');
 const quickStep = ref(1);
+const drawerOpen = ref(false);
+const sectionBeforeProfile = ref('home');
+const syncSettingsReturnSection = ref('settings-hub');
+const hubPlaceholderTitle = ref('');
+const hubPlaceholderMessage = ref('');
+const hubPlaceholderReturnSection = ref('settings-hub');
+const employeeViewId = ref(null);
+
+const HUB_PLACEHOLDER_TITLES = {
+  'online-booking': 'Онлайн-запись',
+  security: 'Безопасность',
+  help: 'Помощь',
+};
 
 const quickTotalSteps = computed(() => userSettings.showClientQuick ? 3 : 2);
 const quickLogicalStep = computed(() => userSettings.showClientQuick ? quickStep.value : Math.max(1, quickStep.value - 1));
@@ -1480,14 +1816,18 @@ const settingsSectionRefs = {};
 function setSettingsSectionRef(id, el) {
   settingsSectionRefs[id] = el;
 }
+function openSettingsSection(id) {
+  settingsOpenSection.value = id;
+  nextTick(() => {
+    const el = settingsSectionRefs[id];
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+}
 function toggleSettingsSection(id) {
-  const wasOpen = settingsOpenSection.value === id;
-  settingsOpenSection.value = wasOpen ? null : id;
-  if (!wasOpen && id) {
-    nextTick(() => {
-      const el = settingsSectionRefs[id];
-      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
+  if (settingsOpenSection.value === id) {
+    settingsOpenSection.value = null;
+  } else {
+    openSettingsSection(id);
   }
 }
 
@@ -1552,7 +1892,9 @@ const estimateDraft = reactive({
   masterName: ''
 });
 
-const { historyItems, loadHistory, saveEstimate, updateEstimate, deleteEstimate, clearHistory } = useHistoryStore();
+const historyPinia = useHistoryPiniaStore();
+const { records: historyItems } = storeToRefs(historyPinia);
+const { loadHistory, saveEstimate, updateEstimate, deleteEstimate, clearHistory } = historyPinia;
 const selectedHistoryId = ref(null);
 const historyFinalTab = ref('calculation');
 
@@ -1561,6 +1903,69 @@ const { foundClient, searchByPhone, clearSearch } = useClientSearch(() => loadHi
 );
 const historyClientPhoneFilter = ref('');
 const postSaveAnalytics = ref(null);
+
+const importFileRef = ref(null);
+const importResultMessage = ref('');
+const importResultIsError = ref(false);
+const backupStorageInfo = ref(getHistoryStorageInfo());
+function refreshBackupStorageInfo() {
+  backupStorageInfo.value = getHistoryStorageInfo();
+}
+const pwaNeedRefresh = ref(false);
+const pwaUpdateSW = ref(null);
+function pwaReload() {
+  if (pwaUpdateSW.value) void pwaUpdateSW.value(true);
+}
+
+async function handleExportHistory() {
+  try {
+    const list = [...(historyItems.value || [])];
+    await exportHistoryToJSON(list);
+    showToast('Экспортировано ' + list.length + ' записей', 'success', 2200);
+    refreshBackupStorageInfo();
+  } catch (err) {
+    console.error('[Export] Failed:', err);
+    showToast('Ошибка экспорта', 'error');
+  }
+}
+
+async function handleImportFile(event) {
+  const file = event.target?.files?.[0];
+  if (!file) return;
+  const confirmed = confirm(
+    `Импортировать историю из файла "${file.name}"?\n` +
+      'Режим: добавить к существующим (дубли пропускаются)'
+  );
+  if (!confirmed) {
+    if (importFileRef.value) importFileRef.value.value = '';
+    return;
+  }
+  importResultMessage.value = '';
+  importResultIsError.value = false;
+  try {
+    const { records: merged, result } = await importHistoryFromJSON(
+      file,
+      'merge',
+      [...(historyItems.value || [])],
+      HISTORY_LOCAL_STORAGE_KEY
+    );
+    historyPinia.safeSaveHistory(merged, { allowEviction: true });
+    loadHistory(true);
+    refreshBackupStorageInfo();
+    importResultMessage.value =
+      `Импортировано: ${result.imported}, пропущено: ${result.skipped}` +
+      (result.errors > 0 ? `, ошибок: ${result.errors}` : '');
+    importResultIsError.value = result.errors > 0 && result.imported === 0;
+    showToast(`Импортировано ${result.imported} записей`, 'success', 2200);
+  } catch (err) {
+    importResultMessage.value = 'Ошибка импорта файла';
+    importResultIsError.value = true;
+    showToast('Ошибка импорта', 'error');
+    console.error('[Import] Failed:', err);
+  } finally {
+    if (importFileRef.value) importFileRef.value.value = '';
+  }
+}
 
 watch(() => estimateDraft.clientPhone, (phone) => {
   searchByPhone(phone ?? '');
@@ -1590,6 +1995,71 @@ function openClientHistory(payload) {
     return;
   }
   navigateToHistoryByClientPhone({ phone: estimateDraft.clientPhone });
+}
+
+function openAnalytics() {
+  currentSection.value = 'analytics';
+  haptic('selection');
+}
+
+function closeAnalyticsDashboard() {
+  currentSection.value = 'home';
+}
+
+function onMasterStatsNavigate(section) {
+  if (section === 'tariffs') switchSection('plans');
+}
+
+function openClientProfileFromQuick(phone) {
+  clientProfileReturn.value = { section: currentSection.value, historyId: null };
+  clientProfilePhone.value = phone;
+  currentSection.value = 'client-profile';
+}
+
+function openClientProfileFromHistoryFilter(phoneDigits) {
+  clientProfileReturn.value = { section: 'history', historyId: selectedHistoryId.value };
+  clientProfilePhone.value = phoneDigits;
+  currentSection.value = 'client-profile';
+}
+
+function openClientProfileFromHistoryDetail() {
+  const rec = selectedHistory.value;
+  if (!rec) return;
+  const raw = String(rec.client?.phone ?? rec.clientPhone ?? '').trim();
+  const reg = userSettings.regionCountry === 'BY' ? 'BY' : 'RU';
+  const n = normalizePhone(raw, reg);
+  if (n.length < 10) return;
+  clientProfileReturn.value = { section: 'history', historyId: selectedHistoryId.value };
+  clientProfilePhone.value = n;
+  currentSection.value = 'client-profile';
+}
+
+function closeClientProfile() {
+  const ret = clientProfileReturn.value;
+  const back = ret.section && ret.section !== 'client-profile' ? ret.section : 'history';
+  currentSection.value = back;
+  if (ret.historyId) selectedHistoryId.value = ret.historyId;
+  clientProfilePhone.value = '';
+  clientProfileReturn.value = { section: 'home', historyId: null };
+}
+
+function onClientProfileOpenRecord(id) {
+  clientProfilePhone.value = '';
+  clientProfileReturn.value = { section: 'home', historyId: null };
+  selectedHistoryId.value = id;
+  currentSection.value = 'history';
+}
+
+function onClientProfileNewEstimate(phone) {
+  estimateDraft.clientPhone = phone;
+  clearSearch();
+  calcMode.value = 'standard';
+  quickStep.value = 1;
+  clientProfilePhone.value = '';
+  clientProfileReturn.value = { section: 'home', historyId: null };
+  currentSection.value = 'metric';
+  ensureInspectDateTime();
+  haptic('selection');
 }
 
 function handleAutofillClient(fields) {
@@ -2037,6 +2507,43 @@ const activeQuickDent = computed(() => {
   return found || list[list.length - 1] || null;
 });
 
+const quickAutoCopyDismissed = ref(false);
+const quickApplyAllSuccess = ref(false);
+
+watch(activeQuickDentId, () => {
+  quickAutoCopyDismissed.value = false;
+});
+
+function dismissQuickAutoCopyPill() {
+  quickAutoCopyDismissed.value = true;
+  const d = activeQuickDent.value;
+  if (d) d._paramsAutoCopied = false;
+}
+
+function applyQuickParamsToAllDents() {
+  const source = activeQuickDent.value;
+  if (!source?.conditions || estimateDraft.quickDents.length < 2) return;
+  const c = source.conditions;
+  estimateDraft.quickDents.forEach((dent) => {
+    if (dent.id === source.id) return;
+    if (!dent.conditions) dent.conditions = {};
+    dent.conditions.repairCode = c.repairCode;
+    dent.conditions.riskCode = c.riskCode;
+    dent.conditions.materialCode = c.materialCode;
+    dent.conditions.carClassCode = c.carClassCode;
+    dent.conditions.paintMaterialCode = c.paintMaterialCode;
+    dent.conditions.soundInsulationCode = c.soundInsulationCode;
+    dent.conditions.disassemblyCodes = Array.isArray(c.disassemblyCodes)
+      ? [...c.disassemblyCodes]
+      : ['Z0'];
+  });
+  quickApplyAllSuccess.value = true;
+  setTimeout(() => {
+    quickApplyAllSuccess.value = false;
+  }, 2000);
+  haptic('selection');
+}
+
 function setActiveQuickDent(id) {
   if (!id) return;
   activeQuickDentId.value = id;
@@ -2100,9 +2607,31 @@ function createQuickDent(panelElement = null) {
 }
 
 function addQuickDent() {
-  // New dent should be a clean card (no copied values).
+  const list = estimateDraft.quickDents;
+  const prev = list.length ? list[list.length - 1] : null;
   const next = createQuickDent(null);
-  next.panelSide = getQuickDefaultSide();
+  next.panelSide = 'left';
+  next.panelElement = null;
+  next.shape = 'circle';
+  next.sizeInputMode = 'preset';
+  next.sizeCode = null;
+  next.sizeLengthMm = null;
+  next.sizeWidthMm = null;
+  if (prev?.conditions) {
+    const p = prev.conditions;
+    next.conditions = {
+      repairCode: p.repairCode,
+      riskCode: p.riskCode,
+      materialCode: p.materialCode,
+      carClassCode: p.carClassCode,
+      disassemblyCodes: Array.isArray(p.disassemblyCodes) ? [...p.disassemblyCodes] : ['Z0'],
+      paintMaterialCode: p.paintMaterialCode,
+      soundInsulationCode: p.soundInsulationCode,
+    };
+    next._paramsAutoCopied = true;
+  } else {
+    next._paramsAutoCopied = false;
+  }
   estimateDraft.quickDents.push(next);
   activeQuickDentId.value = next.id;
   haptic('selection');
@@ -2596,6 +3125,50 @@ const quickWorksheetGrandTotal = computed(() => {
   }
   return s;
 });
+
+const quickDefaultRepairHours = computed(() => {
+  const total = quickDmDentSubtotal.value;
+  const rate = userSettings.hourlyRate > 0 ? userSettings.hourlyRate : 4000;
+  if (total <= 0 || rate <= 0) return 0;
+  return Math.round((total / rate) * 100) / 100;
+});
+
+const quickDisplayRepairHours = computed(() => {
+  const m = estimateDraft.repairTimeHours;
+  if (m != null && m !== '' && Number.isFinite(Number(m))) return Number(m);
+  return quickDefaultRepairHours.value;
+});
+
+const quickShareableRecord = computed(() => ({
+  client: {
+    name: estimateDraft.clientName || '',
+    phone: estimateDraft.clientPhone || '',
+    brand: estimateDraft.carBrand || '',
+    model: estimateDraft.carModel || '',
+    plate: estimateDraft.carPlate || '',
+  },
+  total: quickWorksheetGrandTotal.value,
+  currency: displayCurrencyForRegionCountry(userSettings.regionCountry),
+  dents: quickLineItems.value.map((item) => {
+    const dent = item.dent;
+    return {
+      panelElement: dent?.panelElement ?? undefined,
+      length:
+        dent?.sizeLengthMm != null && Number.isFinite(Number(dent.sizeLengthMm))
+          ? Number(dent.sizeLengthMm)
+          : undefined,
+      width:
+        dent?.sizeWidthMm != null && Number.isFinite(Number(dent.sizeWidthMm))
+          ? Number(dent.sizeWidthMm)
+          : undefined,
+      total: quickEffectiveDentLineTotal(item),
+    };
+  }),
+  repairTimeHours:
+    quickDisplayRepairHours.value > 0 ? quickDisplayRepairHours.value : undefined,
+  masterName: estimateDraft.masterName,
+  comment: estimateDraft.comment,
+}));
 
 /** Клиент для итогового экрана (вкладка «Клиент») в быстром расчёте. */
 const quickClientForDisplay = computed(() => ({
@@ -3454,16 +4027,29 @@ async function saveCurrentEstimate(modeOverride, lineItemsOverride) {
   const mode = modeOverride || (calcMode.value === 'graphics' ? 'detail' : 'quick');
   if (totalPrice.value <= 0) return;
   isSavingHistory.value = true;
-  try {
+   try {
     const payload = buildEstimatePayload(mode, lineItemsOverride);
     await injectDetailAnnotatedMainPhoto(payload);
-    saveEstimate(payload);
+    let saved;
+    try {
+      saved = await saveEstimate(payload, { allowEviction: false });
+    } catch (e) {
+      if (e instanceof StorageFullError) {
+        console.warn('[App] Storage full, saving with eviction');
+        saved = await saveEstimate(payload, { allowEviction: true });
+        showToast('Хранилище заполнено — удалены старые записи', 'error', 2600);
+      } else {
+        throw e;
+      }
+    }
+    onEstimateSavedForMarketPrices(saved);
     if (foundClient.value?.allRecords?.length) {
       postSaveAnalytics.value = calcPostSaveAnalytics(totalPrice.value, foundClient.value.allRecords);
     } else {
       postSaveAnalytics.value = null;
     }
     showToast('Сохранено', 'success', 1800);
+    refreshBackupStorageInfo();
     resetDraftState();
     if (calcMode.value === 'graphics') closeEditor();
     setTimeout(() => {
@@ -3475,6 +4061,35 @@ async function saveCurrentEstimate(modeOverride, lineItemsOverride) {
   } finally {
     isSavingHistory.value = false;
   }
+}
+
+function localYmdFromDate(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function normalizeBookingTimeString(t) {
+  if (t == null || String(t).trim() === '') return null;
+  const s = String(t).trim();
+  const match = s.match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const h = Number(match[1]);
+  const min = Number(match[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(min)) return null;
+  const hh = Math.min(23, Math.max(0, h));
+  const mm = Math.min(59, Math.max(0, min));
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+}
+
+function addMinutesToTimeString(startTime, durationMinutes) {
+  const [h, m] = startTime.split(':').map(Number);
+  let total = h * 60 + m + durationMinutes;
+  total = Math.min(total, 23 * 60 + 59);
+  const eh = Math.floor(total / 60);
+  const em = total % 60;
+  return `${String(eh).padStart(2, '0')}:${String(em).padStart(2, '0')}`;
 }
 
 async function saveAndBookEstimate(modeOverride, lineItemsOverride) {
@@ -3489,13 +4104,63 @@ async function saveAndBookEstimate(modeOverride, lineItemsOverride) {
     await injectDetailAnnotatedMainPhoto(payload);
     payload.status = 'scheduled';
     payload.bookingAt = new Date().toISOString();
-    saveEstimate(payload);
+    let saved;
+    try {
+      saved = await saveEstimate(payload, { allowEviction: false });
+    } catch (e) {
+      if (e instanceof StorageFullError) {
+        console.warn('[App] Storage full, saving with eviction');
+        saved = await saveEstimate(payload, { allowEviction: true });
+        showToast('Хранилище заполнено — удалены старые записи', 'error', 2600);
+      } else {
+        throw e;
+      }
+    }
+    onEstimateSavedForMarketPrices(saved);
+    if (saved?.id && !bookingsStore.getByEstimateId(saved.id)) {
+      const client = payload.client || {};
+      const today = localYmdFromDate();
+      const dateRaw = client.date != null ? String(client.date).trim() : '';
+      const date =
+        dateRaw.length >= 10 ? dateRaw.slice(0, 10) : today;
+      const startTime =
+        normalizeBookingTimeString(client.time) ||
+        `${String(new Date().getHours()).padStart(2, '0')}:00`;
+      const hoursRaw = Number(payload.recordRepairTimeHours);
+      const hours =
+        Number.isFinite(hoursRaw) && hoursRaw > 0 ? hoursRaw : 1;
+      const durationMinutes = Math.max(30, Math.ceil(hours * 60));
+      const endTime = addMinutesToTimeString(startTime, durationMinutes);
+      const prep = Number(payload.prepayment?.amount) || 0;
+      const total = Number(payload.total) || 0;
+      bookingsStore.addBooking({
+        date,
+        startTime,
+        endTime,
+        durationMinutes,
+        masterName: payload.masterName || undefined,
+        client: {
+          name: client.name,
+          phone: client.phone,
+          brand: client.brand,
+          model: client.model,
+          plate: client.plate,
+        },
+        serviceName: 'Удаление вмятин без покраски',
+        status: 'scheduled',
+        estimateId: saved.id,
+        estimateTotal: total,
+        payment: { total, paid: prep },
+        comment: payload.comment,
+      });
+    }
     if (foundClient.value?.allRecords?.length) {
       postSaveAnalytics.value = calcPostSaveAnalytics(totalPrice.value, foundClient.value.allRecords);
     } else {
       postSaveAnalytics.value = null;
     }
     showToast('Записан на ремонт', 'success', 1800);
+    refreshBackupStorageInfo();
     resetDraftState();
     if (calcMode.value === 'graphics') closeEditor();
     setTimeout(() => {
@@ -3514,7 +4179,7 @@ function clearHistoryConfirm() {
   if (confirm('Очистить всю историю?')) clearHistory();
 }
 
-function generateQaHistoryRecords() {
+async function generateQaHistoryRecords() {
   if (!import.meta.env?.DEV) return;
   const statuses = ['estimate', 'estimate', 'scheduled', 'done'];
   const names = ['Иван', '', 'Мария Петрова', 'Алексей', 'ООО Рога'];
@@ -3539,7 +4204,7 @@ function generateQaHistoryRecords() {
       element: 'Капот',
       comment: i % 3 === 0 ? 'Тест' : ''
     };
-    saveEstimate(draft);
+    await saveEstimate(draft, { allowEviction: true });
   }
   loadHistory(true);
 }
@@ -3547,7 +4212,7 @@ function generateQaHistoryRecords() {
 function deleteHistoryConfirm(id) {
   if (!id) return;
   if (confirm('Удалить оценку из истории?')) {
-    deleteEstimate(id);
+    void deleteEstimate(id).then(() => refreshBackupStorageInfo());
     if (selectedHistoryId.value === id) selectedHistoryId.value = null;
   }
 }
@@ -3623,21 +4288,296 @@ const goToHistory = () => {
   }
 };
 
-const onProfileClick = async () => {
-  await account.initialize();
-  if (!account.isAuthenticated.value || !account.isProfileComplete.value) {
-    switchSection('onboarding');
-  } else {
-    switchSection('account');
-  }
-};
+function openAppDrawer() {
+  drawerOpen.value = true;
+}
 
-const switchSection = (section) => {
-  if (section === 'analytics' || section === 'journal') {
-    currentSection.value = section;
-    showLockedStub('Раздел в разработке 🔒');
+function handleDrawerNavigate(section) {
+  if (section === 'notifications') {
+    notificationsPreviousSection.value = currentSection.value;
+    currentSection.value = 'notifications';
     return;
   }
+  if (section === 'settings') {
+    switchSection('settings-hub');
+    return;
+  }
+  if (section === 'profile') {
+    sectionBeforeProfile.value = currentSection.value;
+    switchSection('profile');
+    return;
+  }
+  if (section === 'tariffs') {
+    switchSection('plans');
+    return;
+  }
+  if (section === 'aggregator') {
+    drawerOpen.value = false;
+    switchSection('aggregator');
+    return;
+  }
+  switchSection(section);
+}
+
+function closeProfileScreen() {
+  currentSection.value = sectionBeforeProfile.value || 'home';
+}
+
+function closeSyncSettings() {
+  currentSection.value = syncSettingsReturnSection.value || 'settings-hub';
+}
+
+function openSyncSettings() {
+  if (!syncStore.isConfigured) return;
+  syncSettingsReturnSection.value = currentSection.value;
+  currentSection.value = 'sync-settings';
+}
+
+function closeSettingsHub() {
+  currentSection.value = 'home';
+}
+
+function closeMarketPricesSettings() {
+  currentSection.value = 'settings-hub';
+}
+
+function closeHubPlaceholder() {
+  hubPlaceholderMessage.value = '';
+  currentSection.value = hubPlaceholderReturnSection.value || 'settings-hub';
+}
+
+function closeAggregatorFeed() {
+  currentSection.value = 'home';
+}
+
+function openSettingsHub() {
+  switchSection('settings-hub');
+}
+
+function closeEmployeesList() {
+  currentSection.value = 'settings-hub';
+}
+
+function openEmployeeCard(id) {
+  employeeViewId.value = id;
+  currentSection.value = 'employee-card';
+}
+
+function openEmployeeCreate() {
+  employeeViewId.value = null;
+  currentSection.value = 'employee-create';
+}
+
+function closeEmployeeCard() {
+  currentSection.value = 'employees';
+}
+
+function onEmployeeSaved(id) {
+  employeeViewId.value = id;
+  currentSection.value = 'employee-card';
+}
+
+function openJournal() {
+  drawerOpen.value = false;
+  journalBookingId.value = null;
+  journalCreateParams.value = null;
+  currentSection.value = 'journal';
+}
+
+function closeJournal() {
+  journalBookingId.value = null;
+  journalCreateParams.value = null;
+  currentSection.value = 'home';
+}
+
+function openJournalBooking(id) {
+  journalBookingId.value = id;
+  currentSection.value = 'booking-detail';
+}
+
+function openJournalCreate(date, time, masterId) {
+  journalCreateParams.value = { date, time, masterId };
+  currentSection.value = 'booking-create';
+}
+
+function onJournalCreateSaved(id) {
+  journalBookingId.value = id;
+  journalCreateParams.value = null;
+  currentSection.value = 'booking-detail';
+}
+
+function onBookingDetailBack() {
+  journalBookingId.value = null;
+  currentSection.value = 'journal';
+}
+
+function onCreateBookingBack() {
+  journalCreateParams.value = null;
+  currentSection.value = 'journal';
+}
+
+function openEstimateFromJournal(id) {
+  selectedHistoryId.value = id;
+  currentSection.value = 'history';
+}
+
+function handleServiceDataBack() {
+  currentSection.value = 'settings-hub';
+}
+
+function handleOpenOrderDocument(doc) {
+  currentOrderDoc.value = doc;
+  orderDocPreviousSection.value = currentSection.value;
+  currentSection.value = 'order-document';
+}
+
+function closeOrderDocument() {
+  const back = orderDocPreviousSection.value || 'home';
+  orderDocPreviousSection.value = null;
+  currentOrderDoc.value = null;
+  currentSection.value = back;
+}
+
+function handleDocumentSigned(signatureBase64) {
+  const cur = currentOrderDoc.value;
+  if (!cur) return;
+  currentOrderDoc.value = {
+    ...cur,
+    clientSignatureBase64: signatureBase64,
+    signedAt: new Date().toISOString(),
+  };
+}
+
+function openQuickOrderDocument() {
+  const doc = buildOrderDocument({
+    serviceData: serviceDataStore.data,
+    record: {
+      ...quickShareableRecord.value,
+      id: estimateDraft.id,
+      discountPercent: estimateDraft.discountPercent,
+      additionalWorks: estimateDraft.additionalWorks,
+      prepayment: estimateDraft.prepayment,
+    },
+  });
+  handleOpenOrderDocument(doc);
+}
+
+function openNotificationsCenter() {
+  notificationsPreviousSection.value = currentSection.value;
+  currentSection.value = 'notifications';
+}
+
+function closeNotificationsCenter() {
+  currentSection.value = notificationsPreviousSection.value || 'home';
+  notificationsPreviousSection.value = null;
+}
+
+function closeNotificationsSettings() {
+  currentSection.value = 'settings-hub';
+}
+
+function onNotificationOpenBooking(id) {
+  journalBookingId.value = id;
+  notificationsPreviousSection.value = null;
+  currentSection.value = 'booking-detail';
+}
+
+async function initNotificationsRuntime() {
+  await checkAndFireDueNotifications();
+  rescheduleAllActiveBookings(bookingsStore.bookings);
+  const tick = async () => {
+    await checkAndFireDueNotifications();
+    tryFireDailyDigest(bookingsStore.bookings, loadNotificationSettings());
+  };
+  await tick();
+  if (notifPollIntervalId) clearInterval(notifPollIntervalId);
+  notifPollIntervalId = setInterval(tick, 60_000);
+}
+
+function handleSettingsNavigate(section) {
+  if (section === 'client-portal') {
+    hubPlaceholderTitle.value = 'Портал для клиентов';
+    hubPlaceholderMessage.value =
+      'Создавайте ссылки на оценку с экрана результата (кнопка «Ссылка») или из карточки записи, если к ней привязан расчёт. Клиент откроет страницу без входа в приложение.';
+    hubPlaceholderReturnSection.value = 'settings-hub';
+    currentSection.value = 'hub-placeholder';
+    return;
+  }
+  if (section === 'market-prices') {
+    if (!requireFeature('marketPrices')) return;
+    currentSection.value = 'market-prices';
+    void marketPricesStore.fetchForCurrentCity();
+    return;
+  }
+  if (section === 'sync-settings' || section === 'security') {
+    syncSettingsReturnSection.value = currentSection.value;
+    currentSection.value = 'sync-settings';
+    return;
+  }
+  if (section === 'analytics') {
+    currentSection.value = 'analytics';
+    return;
+  }
+  if (section === 'notifications' || section === 'alerts') {
+    currentSection.value = 'notifications-settings';
+    return;
+  }
+  if (section === 'service-data') {
+    currentSection.value = 'service-data';
+    return;
+  }
+  if (section === 'employees') {
+    currentSection.value = 'employees';
+    return;
+  }
+  if (section === 'profile') {
+    sectionBeforeProfile.value =
+      currentSection.value === 'settings-hub' ? 'settings-hub' : currentSection.value;
+    currentSection.value = 'profile';
+    return;
+  }
+  if (section === 'tariffs') {
+    switchSection('plans');
+    return;
+  }
+  if (section === 'onboarding') {
+    switchSection('onboarding');
+    return;
+  }
+  if (section === 'privacy') {
+    hubPlaceholderTitle.value = 'Политика конфиденциальности';
+    hubPlaceholderMessage.value = '';
+    hubPlaceholderReturnSection.value =
+      currentSection.value === 'profile' ? 'profile' : 'settings-hub';
+    currentSection.value = 'hub-placeholder';
+    return;
+  }
+  if (section === 'system') {
+    currentSection.value = 'settings';
+    openSettingsSection('interface');
+    return;
+  }
+  const settingsIds = ['pricing', 'armature', 'client', 'required', 'history', 'data-backup', 'masters'];
+  if (settingsIds.includes(section)) {
+    currentSection.value = 'settings';
+    openSettingsSection(section);
+    return;
+  }
+  const ph = HUB_PLACEHOLDER_TITLES[section];
+  if (ph) {
+    hubPlaceholderTitle.value = ph;
+    hubPlaceholderMessage.value = '';
+    hubPlaceholderReturnSection.value = 'settings-hub';
+    currentSection.value = 'hub-placeholder';
+    return;
+  }
+  hubPlaceholderTitle.value = String(section);
+  hubPlaceholderMessage.value = '';
+  hubPlaceholderReturnSection.value = 'settings-hub';
+  currentSection.value = 'hub-placeholder';
+}
+
+const switchSection = (section) => {
   if (section !== 'metric' && calcMode.value === 'graphics') closeEditor();
   currentSection.value = section;
   if (section === 'history') {
@@ -3726,9 +4666,9 @@ function removeCustomArmatureWork(idx) {
   userSettings.customArmatureWorks?.splice(idx, 1);
 }
 
-const saveSettings = () => {
+function getPersistableSettingsSnapshot() {
   const validated = validateSettings({ ...userSettings });
-  const dataToSave = {
+  return {
     prices: userSettings.prices,
     masters: userSettings.masters,
     clientRequired: userSettings.clientRequired,
@@ -3757,7 +4697,66 @@ const saveSettings = () => {
     armaturePriceOverrides: userSettings.armaturePriceOverrides || {},
     regionCountry: userSettings.regionCountry === 'BY' ? 'BY' : 'RU',
   };
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(dataToSave));
+}
+
+function persistUserSettingsSilently() {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(getPersistableSettingsSnapshot()));
+}
+
+function bumpMarketConsentSaveCounterAndMaybePrompt() {
+  if (!isSupabaseConfigured()) return;
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('dm_market_prices_consent')) return;
+  const n = (parseInt(localStorage.getItem(SAVE_COUNT_KEY) || '0', 10) || 0) + 1;
+  localStorage.setItem(SAVE_COUNT_KEY, String(n));
+  if (n >= 3) showMarketConsentDialog.value = true;
+}
+
+function onEstimateSavedForMarketPrices(savedRecord) {
+  if (!savedRecord) return;
+  marketPricesStore.contributeRecord(savedRecord);
+  void marketPricesStore.flush();
+  bumpMarketConsentSaveCounterAndMaybePrompt();
+}
+
+function handleMarketConsentAccept() {
+  marketPricesStore.grantConsent();
+  showMarketConsentDialog.value = false;
+  void marketPricesStore.fetchForCurrentCity();
+}
+
+function handleMarketConsentDecline() {
+  marketPricesStore.revokeConsent();
+  showMarketConsentDialog.value = false;
+}
+
+function handleApplyMarketPricesFromMarket() {
+  const list = marketPricesStore.benchmarks;
+  if (!list.length) {
+    showToast('Нет данных для применения', 'error', 2000);
+    return;
+  }
+  const medAvg = list.reduce((s, b) => s + b.medianPrice, 0) / list.length;
+  const vals = Object.values(userSettings.prices)
+    .map((n) => Number(n))
+    .filter((n) => n > 0);
+  if (!vals.length) return;
+  const curAvg = vals.reduce((a, b) => a + b, 0) / vals.length;
+  if (curAvg <= 0) return;
+  const factor = medAvg / curAvg;
+  if (!Number.isFinite(factor) || factor <= 0) return;
+  for (const k of Object.keys(userSettings.prices)) {
+    const v = Number(userSettings.prices[k]) || 0;
+    if (v <= 0) continue;
+    const next = Math.round((v * factor) / 100) * 100;
+    userSettings.prices[k] = Math.min(500000, Math.max(500, next));
+  }
+  persistUserSettingsSilently();
+  showToast('Базовые цены обновлены по рынку', 'success', 2000);
+  haptic('success');
+}
+
+const saveSettings = () => {
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(getPersistableSettingsSnapshot()));
   const tg = window.Telegram?.WebApp;
   if (tg?.showPopup && tg?.isVersionAtLeast && tg.isVersionAtLeast('6.2')) {
     tg.showPopup({ title: 'Готово', message: 'Настройки сохранены', buttons: [{ type: 'ok' }] });
@@ -4042,12 +5041,57 @@ onMounted(async () => {
   hideTelegramButtons();
   await account.initialize();
   window.addEventListener('keydown', handleKeyDown);
+  window.addEventListener('online', onAppOnline);
+  window.addEventListener('offline', onAppOffline);
   updateFooterHeight();
   footerResizeObserver = new ResizeObserver(() => updateFooterHeight());
   if (bottomNavRef.value) footerResizeObserver.observe(bottomNavRef.value);
   window.addEventListener('resize', updateFooterHeight);
   ensureInspectDateTime();
+  cleanupImportBackups();
+  refreshBackupStorageInfo();
+  try {
+    const { useRegisterSW } = await import('virtual:pwa-register/vue');
+    const sw = useRegisterSW({
+      onRegistered(r) {
+        if (import.meta.env?.DEV) console.info('[DentMetric] SW registered:', r);
+      },
+      onRegisterError(error) {
+        console.warn('[DentMetric] SW registration error:', error);
+      },
+    });
+    watch(
+      sw.needRefresh,
+      (v) => {
+        pwaNeedRefresh.value = !!v;
+      },
+      { immediate: true }
+    );
+    pwaUpdateSW.value = sw.updateServiceWorker;
+  } catch (_e) {
+    /* PWA optional without plugin / dev */
+  }
   loadHistory();
+  const snapshot = [...(historyItems.value || [])];
+  const { records: migratedRecords, result: migrationResult } = await migrateLegacyPhotosToIdb(snapshot);
+  if (migrationResult.migrated > 0) {
+    console.info(
+      `[DentMetric] Migrated ${migrationResult.migrated} photos to IDB. Skipped: ${migrationResult.skipped}. Failed: ${migrationResult.failed}.`
+    );
+    historyPinia.safeSaveHistory(migratedRecords, { allowEviction: true });
+    loadHistory(true);
+    refreshBackupStorageInfo();
+  }
+  void initNotificationsRuntime();
+  void marketPricesStore.flush();
+  if (marketPricesStore.consentGranted) {
+    void marketPricesStore.fetchForCurrentCity();
+  }
+  marketPricesPollId = setInterval(() => {
+    if (!marketPricesStore.consentGranted || !navigator.onLine) return;
+    void marketPricesStore.fetchForCurrentCity();
+    void marketPricesStore.flush();
+  }, 15 * 60 * 1000);
 });
 
 watch(
@@ -4071,13 +5115,147 @@ watch(
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', handleKeyDown);
+  window.removeEventListener('online', onAppOnline);
+  window.removeEventListener('offline', onAppOffline);
   window.removeEventListener('resize', updateFooterHeight);
   if (footerResizeObserver && bottomNavRef.value) footerResizeObserver.unobserve(bottomNavRef.value);
   if (footerResizeObserver) footerResizeObserver.disconnect();
+  if (notifPollIntervalId) {
+    clearInterval(notifPollIntervalId);
+    notifPollIntervalId = null;
+  }
+  if (marketPricesPollId) {
+    clearInterval(marketPricesPollId);
+    marketPricesPollId = null;
+  }
 });
 </script>
 
 <style scoped>
+.offline-banner {
+  background: var(--dm-surface-2, hsl(0 0% 12%));
+  border-bottom: 1px solid var(--dm-border, hsl(0 0% 16%));
+  padding: 8px 16px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--dm-text-secondary, hsl(0 0% 53%));
+  flex-shrink: 0;
+}
+.sw-update-toast {
+  position: fixed;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--dm-surface, #161616);
+  border: 1px solid var(--dm-accent, #a0e040);
+  border-radius: 20px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 9999;
+  white-space: nowrap;
+  font-size: 13px;
+  color: var(--dm-text-primary, #fff);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.sw-update-toast__btn {
+  background: var(--dm-accent, #a0e040);
+  border: none;
+  border-radius: 10px;
+  color: #000;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 12px;
+  min-height: 32px;
+}
+.dm-settings-row--storage-bar {
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.storage-bar-wrap {
+  flex: 1;
+  min-width: 80px;
+  height: 6px;
+  background: var(--dm-border, #2a2a2a);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.storage-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+.storage-bar-label {
+  font-size: 11px;
+  color: var(--dm-text-secondary, #888);
+  white-space: nowrap;
+  flex-shrink: 0;
+  width: 100%;
+  text-align: right;
+}
+@media (min-width: 360px) {
+  .dm-settings-row--storage-bar .storage-bar-label {
+    width: auto;
+  }
+}
+.settings-import-result {
+  padding: 8px 0;
+  font-size: 12px;
+}
+.settings-import-result--error {
+  color: var(--dm-danger, #e53935);
+}
+.settings-import-result--ok {
+  color: var(--dm-accent, #a0e040);
+}
+.dm-settings-row__value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--dm-text-primary, #fff);
+}
+.top-leading-cluster {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.notif-bell-btn {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  cursor: pointer;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.notif-bell-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+.notif-bell-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 16px;
+  height: 16px;
+  background: var(--dm-danger);
+  color: hsl(0 0% 100%);
+  border-radius: 8px;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
 .text-metric-green { color: #88e523; }
 .text-metric-silver { color: #a0aec0; }
 .bg-metric-green { background-color: #88e523; }
@@ -4864,6 +6042,52 @@ body.graphics-fullscreen-active {
   outline: 2px solid rgba(136, 229, 35, 0.5);
   outline-offset: 2px;
 }
-</style>
 
-<!-- build test -->
+.autocopy-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  line-height: 1.3;
+  background: var(--dm-surface-2);
+  border: 1px solid var(--dm-accent);
+  color: var(--dm-text-primary);
+  max-width: 100%;
+}
+.autocopy-pill__dismiss {
+  min-height: 44px;
+  padding: 0 8px;
+  margin: -6px -10px -6px 0;
+  border: none;
+  background: transparent;
+  color: var(--dm-accent);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.apply-all-btn {
+  padding: 6px 12px;
+  min-height: 44px;
+  max-width: 100%;
+  background: transparent;
+  border: 1px solid var(--dm-border);
+  border-radius: 10px;
+  color: var(--dm-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+  text-align: center;
+}
+.apply-all-btn--applied {
+  border-color: var(--dm-accent);
+  color: var(--dm-accent);
+}
+</style>

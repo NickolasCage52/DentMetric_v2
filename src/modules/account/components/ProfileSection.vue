@@ -160,14 +160,18 @@
 
 <script setup>
 import { computed, ref, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import { useAccount } from '../useAccount'
 import { PLAN_INFO, TRIAL_DAYS } from '../planFeatures'
 import { hapticLight } from '../utils/animations'
 import { accountApi } from '../api/accountApi'
 
 const emit = defineEmits(['edit', 'plans', 'payments', 'referral', 'stats', 'logout'])
+const router = useRouter()
+const authStore = useAuthStore()
 const account = useAccount()
-const { profile, subscription, currentPlan, isTrialActive, trialDaysLeft, startTrial, logout, can } = account
+const { profile, subscription, currentPlan, isTrialActive, trialDaysLeft, startTrial, can } = account
 
 const referralCount = ref(0)
 
@@ -314,9 +318,15 @@ async function onStartTrial() {
   }
 }
 
-function onLogout() {
-  logout()
+async function onLogout() {
+  const confirmed = window.confirm(
+    'Выйти из аккаунта? Локальные данные сохранятся на устройстве.'
+  )
+  if (!confirmed) return
+  hapticLight()
+  await authStore.logout()
   emit('logout')
+  await router.replace('/login')
 }
 </script>
 

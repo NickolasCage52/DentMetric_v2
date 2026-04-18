@@ -27,6 +27,8 @@ const FREE_FEATURES: FeatureGates = {
   crmEnabled: false,
   apiAccess: false,
   prioritySupport: false,
+  marketPrices: false,
+  aggregatorFeed: false,
 }
 
 /** Demo — пробный период Master (7 дней). Те же фичи что Master */
@@ -39,6 +41,7 @@ const DEMO_FEATURES: FeatureGates = {
   historyLimit: 999,
   searchByPhone: true,
   clientHistory: true,
+  marketPrices: true,
 }
 
 /** Master — расчёт + история + поиск по телефону. Без аналитики. ТЗ: 500–990 ₽/мес */
@@ -65,6 +68,7 @@ const CORPORATE_FEATURES: FeatureGates = {
   multiMaster: true,
   attachmentsPerDent: 10,
   apiAccess: true,
+  aggregatorFeed: true,
 }
 
 export const PLAN_FEATURES: Record<PlanId, FeatureGates> = {

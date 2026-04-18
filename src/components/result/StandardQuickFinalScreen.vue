@@ -231,10 +231,38 @@
           </div>
         </div>
 
-        <!-- Демонстрация -->
-        <div v-show="activeTab === 'demo'" class="sqf-panel sqf-demo">
-          <p class="sqf-demo__t">Версия демонстрации</p>
-          <p class="sqf-demo__sub">Будет реализовано позже</p>
+        <!-- Клиенту -->
+        <div v-show="activeTab === 'demo'" class="sqf-panel sqf-client-pres">
+          <ClientPresentationView
+            v-if="activeTab === 'demo'"
+            :photo-url="detailPhotoDataUrl"
+            :total="worksheetGrandTotal"
+            :currency="sessionMoneyCurrency"
+            :dents="clientPresentationDents"
+            :repair-time-hours="displayRepairHours"
+            :master-name="draft.masterName"
+            :client="clientPresentationClient"
+            :comment="draft.comment"
+          >
+            <template #details>
+              <div class="space-y-2">
+                <PerDentFinalCard
+                  v-for="(row, idx) in uiRows"
+                  :key="row.dent?.id ?? idx"
+                  :index="idx"
+                  :row="row"
+                  :breakdown-rows="buildDetailedBreakdown(row)"
+                  :user-settings="userSettings"
+                  :engine-line-items="engineLineItems"
+                  :read-only="false"
+                  :detail-ux-parity="detailUxParity"
+                  :estimate-draft="detailUxParity ? draft : null"
+                  :history-display-currency="sessionMoneyCurrency"
+                  @open-discount="$emit('open-discount', $event)"
+                />
+              </div>
+            </template>
+          </ClientPresentationView>
         </div>
       </div>
     </ResultFourTabs>
@@ -261,6 +289,7 @@ import PerDentFinalCard from './PerDentFinalCard.vue';
 import AttachmentPicker from '../AttachmentPicker.vue';
 import ClientMoodPicker from '../ClientMoodPicker.vue';
 import PrepaymentBlock from '../PrepaymentBlock.vue';
+import ClientPresentationView from './ClientPresentationView.vue';
 import { formatMoneyWithCurrency } from '../../utils/regionFormat';
 
 const props = defineProps({
@@ -382,6 +411,29 @@ const additionalSum = computed(() =>
 );
 
 const worksheetGrandTotal = computed(() => dentRemovalTotal.value + additionalSum.value);
+
+const clientPresentationClient = computed(() => ({
+  name: props.draft.clientName ?? props.clientDisplay.name ?? '',
+  phone: props.draft.clientPhone ?? props.clientDisplay.phone ?? '',
+  brand: props.draft.carBrand ?? props.clientDisplay.brand ?? '',
+  model: props.draft.carModel ?? props.clientDisplay.model ?? '',
+  plate: props.draft.carPlate ?? '',
+}));
+
+const clientPresentationDents = computed(() =>
+  uiRows.value.map((r) => ({
+    panelElement: r.dent?.panelElement ?? null,
+    total: r.displayTotal ?? 0,
+    length:
+      r.dent?.sizeLengthMm != null && Number.isFinite(Number(r.dent.sizeLengthMm))
+        ? Number(r.dent.sizeLengthMm)
+        : undefined,
+    width:
+      r.dent?.sizeWidthMm != null && Number.isFinite(Number(r.dent.sizeWidthMm))
+        ? Number(r.dent.sizeWidthMm)
+        : undefined,
+  }))
+);
 
 const addingWork = ref(false);
 const newWorkTitle = ref('');
@@ -797,19 +849,9 @@ watch(
   font-size: 14px;
   min-height: 48px;
 }
-.sqf-demo {
-  text-align: center;
-  padding: 48px 20px;
-  color: #9ca3af;
-}
-.sqf-demo__t {
-  font-size: 15px;
-  margin: 0;
-}
-.sqf-demo__sub {
-  font-size: 12px;
-  margin: 10px 0 0;
-  opacity: 0.65;
+.sqf-client-pres {
+  padding: 0;
+  min-height: 0;
 }
 .dm-total-price {
   color: var(--dm-accent, #a0e040) !important;

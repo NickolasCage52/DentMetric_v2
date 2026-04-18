@@ -54,7 +54,7 @@ const tabs = [
   { id: 'calculation', label: 'Расчёт' },
   { id: 'client', label: 'Клиент' },
   { id: 'files', label: 'Файлы' },
-  { id: 'demo', label: 'Демонстрация' }
+  { id: 'demo', label: 'Клиенту' }
 ];
 
 const rootRef = ref(null);

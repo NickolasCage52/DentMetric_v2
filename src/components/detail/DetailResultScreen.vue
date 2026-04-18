@@ -23,18 +23,33 @@
     </div>
 
     <div
-      class="graphics-action-bar flex gap-0 shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10"
+      class="graphics-action-bar flex flex-nowrap gap-0 shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10 min-w-0"
     >
+      <ShareButton compact class="shrink-0 mr-1" :record="shareableRecord" />
+      <PortalShareButton
+        compact
+        class="shrink-0 mr-1"
+        :record="shareableRecord"
+        :estimate-id="estimateDraft.id"
+      />
       <button
         type="button"
-        class="qc-s3-btn qc-s3-btn--left flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[40px]"
+        class="shrink-0 min-w-[48px] min-h-[44px] py-2.5 px-1 text-[16px] leading-none border border-white/10 rounded-xl text-gray-200 touch-manipulation"
+        aria-label="Заказ-наряд"
+        @click="openOrderDocument"
+      >
+        📋
+      </button>
+      <button
+        type="button"
+        class="qc-s3-btn qc-s3-btn--left flex-1 min-w-0 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[44px]"
         @click="$emit('back')"
       >
         Назад
       </button>
       <button
         type="button"
-        class="qc-s3-btn qc-s3-btn--mid flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white border border-white/15 min-h-[40px] transition-colors hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="qc-s3-btn qc-s3-btn--mid flex-1 min-w-0 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white border border-white/15 min-h-[44px] transition-colors hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed"
         :disabled="finalActionsDisabled"
         @click="$emit('save')"
       >
@@ -42,7 +57,7 @@
       </button>
       <button
         type="button"
-        class="qc-s3-btn qc-s3-btn--right flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 min-h-[40px] transition-colors hover:bg-metric-green/10 disabled:opacity-50 disabled:cursor-not-allowed"
+        class="qc-s3-btn qc-s3-btn--right flex-1 min-w-0 py-2.5 text-[11px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 min-h-[44px] transition-colors hover:bg-metric-green/10 disabled:opacity-50 disabled:cursor-not-allowed"
         :disabled="finalActionsDisabled"
         @click="$emit('record')"
       >
@@ -56,8 +71,13 @@
 <script setup>
 import { computed } from 'vue';
 import StandardQuickFinalScreen from '../result/StandardQuickFinalScreen.vue';
+import ShareButton from '../ShareButton.vue';
+import { buildOrderDocument } from '../../utils/buildOrderDocument';
+import { useServiceDataStore } from '../../stores/serviceData';
 import { buildQuickFinalBreakdown } from '../../utils/buildQuickFinalBreakdown';
 import { formatArmaturnayaSummary } from '../../data/armaturnayaWorks';
+import { applyPriceRoundingCeil } from '../../utils/priceRounding';
+import { displayCurrencyForRegionCountry } from '../../utils/regionFormat';
 
 const props = defineProps({
   session: { type: Object, required: true },
@@ -70,7 +90,17 @@ const props = defineProps({
   finalActionsDisabled: { type: Boolean, default: false },
 });
 
-defineEmits(['back', 'save', 'record', 'open-discount', 'open-comment', 'sync-detail-client']);
+const emit = defineEmits([
+  'back',
+  'save',
+  'record',
+  'open-discount',
+  'open-comment',
+  'sync-detail-client',
+  'open-order-document',
+]);
+
+const serviceDataStore = useServiceDataStore();
 
 /** Разбор цены здесь, без передачи Function через пропсы (надёжно в Telegram WebView). */
 function runBuildDetailedBreakdown(dentItem) {
@@ -90,6 +120,95 @@ const clientForDisplay = computed(() => {
     company: c?.company ?? d?.clientCompany ?? '',
   };
 });
+
+const sessionMoneyCurrency = computed(() =>
+  displayCurrencyForRegionCountry(props.userSettings.regionCountry)
+);
+
+function effectiveDentLineTotal(item) {
+  const dent = item?.dent;
+  const step = props.userSettings.priceRoundStep ?? 0;
+  const rawM = dent?.manualLineTotal;
+  if (rawM != null && rawM !== '' && Number.isFinite(Number(rawM))) {
+    return applyPriceRoundingCeil(Number(rawM), step);
+  }
+  return item?.appliedTotal ?? item?.total ?? 0;
+}
+
+const worksheetGrandTotal = computed(() => {
+  let s = 0;
+  for (const item of props.lineItems || []) {
+    s += effectiveDentLineTotal(item);
+  }
+  for (const w of props.estimateDraft.additionalWorks || []) {
+    s += Number(w.price) || 0;
+  }
+  return s;
+});
+
+const defaultRepairHours = computed(() => {
+  const total = props.engineDentsTotal;
+  const rate = props.userSettings.hourlyRate > 0 ? props.userSettings.hourlyRate : 4000;
+  if (total <= 0 || rate <= 0) return 0;
+  return Math.round((total / rate) * 100) / 100;
+});
+
+const displayRepairHours = computed(() => {
+  const m = props.estimateDraft.repairTimeHours;
+  if (m != null && m !== '' && Number.isFinite(Number(m))) return Number(m);
+  return defaultRepairHours.value;
+});
+
+const shareableRecord = computed(() => {
+  const d = props.estimateDraft;
+  const c = clientForDisplay.value;
+  return {
+    id: props.estimateDraft?.id,
+    annotatedPhotoUrl:
+      props.session.annotatedPhotoDataUrl || props.session.photoDataUrl || undefined,
+    client: {
+      name: c.name,
+      phone: c.phone,
+      brand: c.brand,
+      model: c.model,
+      plate: d.carPlate ?? props.session.client?.plateNumber ?? '',
+    },
+    total: worksheetGrandTotal.value,
+    currency: sessionMoneyCurrency.value,
+    dents: (props.lineItems || []).map((item) => {
+      const dent = item.dent;
+      return {
+        panelElement: dent?.panelElement ?? undefined,
+        length:
+          dent?.sizeLengthMm != null && Number.isFinite(Number(dent.sizeLengthMm))
+            ? Number(dent.sizeLengthMm)
+            : undefined,
+        width:
+          dent?.sizeWidthMm != null && Number.isFinite(Number(dent.sizeWidthMm))
+            ? Number(dent.sizeWidthMm)
+            : undefined,
+        total: effectiveDentLineTotal(item),
+      };
+    }),
+    repairTimeHours: displayRepairHours.value > 0 ? displayRepairHours.value : undefined,
+    masterName: d.masterName,
+    comment: d.comment,
+  };
+});
+
+function openOrderDocument() {
+  const doc = buildOrderDocument({
+    serviceData: serviceDataStore.data,
+    record: {
+      ...shareableRecord.value,
+      id: props.estimateDraft?.id,
+      discountPercent: props.estimateDraft?.discountPercent,
+      additionalWorks: props.estimateDraft?.additionalWorks,
+      prepayment: props.estimateDraft?.prepayment,
+    },
+  });
+  emit('open-order-document', doc);
+}
 </script>
 
 <style scoped>

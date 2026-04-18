@@ -1,9 +1,20 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { isAdminTokenValid } from '@/services/adminApi'
+import { useAuthStore } from '@/stores/auth'
 
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    {
+      path: '/e/:token',
+      name: 'client-portal',
+      meta: {
+        requiresAuth: false,
+        requiresGuest: false,
+        isPublicPortal: true,
+      },
+      component: () => import('@/views/portal/ClientPortalView.vue'),
+    },
     {
       path: '/admin',
       component: () => import('@/layouts/AdminLayout.vue'),
@@ -22,14 +33,24 @@ export const router = createRouter({
       ],
     },
     {
+      path: '/login',
+      name: 'login',
+      meta: { requiresGuest: true },
+      component: () => import('@/views/auth/LoginView.vue'),
+    },
+    {
       path: '/',
       name: 'main',
+      meta: { requiresAuth: true },
       component: () => import('@/App.vue'),
     },
   ],
 })
 
 router.beforeEach((to) => {
+  if (to.meta?.isPublicPortal) {
+    return true
+  }
   if (to.name === 'admin-login' && isAdminTokenValid()) {
     return { name: 'admin-dashboard' }
   }
@@ -37,5 +58,23 @@ router.beforeEach((to) => {
     if (!isAdminTokenValid()) {
       return { name: 'admin-login' }
     }
+  }
+
+  if (to.path.startsWith('/admin')) {
+    return
+  }
+
+  const authStore = useAuthStore()
+  if (!authStore.isInitialized) {
+    authStore.initialize()
+  }
+
+  const isLoggedIn = authStore.isAuthenticated
+
+  if (to.meta.requiresGuest && isLoggedIn) {
+    return { path: '/' }
+  }
+  if (to.meta.requiresAuth && !isLoggedIn) {
+    return { path: '/login' }
   }
 })

@@ -159,6 +159,7 @@
         @sync-detail-client="onDetailResultSyncClient"
         @open-discount="(d) => openDetailDiscountModal(d)"
         @open-comment="openDetailCommentModal"
+        @open-order-document="(doc) => emit('open-order-document', doc)"
       />
       <!-- LEGACY / non-new flow: original photo-based Detail -->
       <QuickStyleClientSection
@@ -305,6 +306,9 @@
         :client="detailClientForDisplay"
         :client-mood="estimateDraft.clientMood ?? null"
         :prepayment="estimateDraft.prepayment ?? { amount: 0, method: null }"
+        :repair-time-hours="legacyFinalRepairHours"
+        :master-name="estimateDraft.masterName || ''"
+        :car-plate="estimateDraft.carPlate || ''"
         @back="goBack"
         @save="onSaveHistory"
         @book="onSaveHistory"
@@ -397,7 +401,18 @@
 <script setup>
 import { ref, computed, watch, onMounted, nextTick, onBeforeUnmount, inject } from 'vue';
 
-const emit = defineEmits(['update:selectedClassId', 'update:selectedPartId', 'close', 'dents-change', 'home', 'save-history', 'book-history', 'open-record', 'open-client-history']);
+const emit = defineEmits([
+  'update:selectedClassId',
+  'update:selectedPartId',
+  'close',
+  'dents-change',
+  'home',
+  'save-history',
+  'book-history',
+  'open-record',
+  'open-client-history',
+  'open-order-document',
+]);
 import {
   initKonva,
   destroyKonva,
@@ -777,6 +792,18 @@ const preDiscountTotal = computed(() =>
 const displayTotal = computed(() =>
   applyPriceRoundingCeil(totalPrice.value, props.userSettings?.priceRoundStep ?? 0)
 );
+
+/** Время ремонта для шаринга на legacy-финале (шаг 5). */
+const legacyFinalRepairHours = computed(() => {
+  const d = props.estimateDraft;
+  const m = d?.repairTimeHours;
+  if (m != null && m !== '' && Number.isFinite(Number(m))) return Number(m);
+  const total = displayTotal.value;
+  const rate = props.userSettings?.hourlyRate > 0 ? props.userSettings.hourlyRate : 4000;
+  if (total <= 0 || rate <= 0) return null;
+  return Math.round((total / rate) * 100) / 100;
+});
+
 const breakdown = computed(() => {
   const sizeCode = dentsForPricing.value?.[0]?.sizeCode ?? 'STRIP_DEFAULT';
   const items = buildBreakdown(basePrice.value, conditionsForCalc.value, props.initialData, sizeCode);

@@ -79,6 +79,10 @@ export interface FeatureGates {
   crmEnabled: boolean
   apiAccess: boolean
   prioritySupport: boolean
+  /** Рыночные ориентиры по городу (анонимная статистика) — Master+ */
+  marketPrices: boolean
+  /** Входящие заявки от страховых и автопарков (агрегатор) — Corporate */
+  aggregatorFeed: boolean
 }
 
 export interface PlanInfo {

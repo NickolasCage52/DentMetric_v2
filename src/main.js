@@ -1,7 +1,13 @@
 import { createApp } from 'vue'
+import { createPinia } from 'pinia'
 import AppShell from './AppShell.vue'
 import './styles.css'
 import { router } from './router/index.js'
+import { useAuthStore } from './stores/auth'
+import { useEmployeesStore } from './stores/employees'
+import { useBookingsStore } from './stores/bookings'
+import { useSyncStore } from './stores/sync'
+import { useHistoryPiniaStore } from './stores/history'
 import {
   isFirstVisit,
   markUserAsRegistered,
@@ -10,6 +16,7 @@ import {
 import { trackUserRegistration } from './services/trackingService'
 import { runDevAudit } from './utils/devAudit'
 import { runDevAuditSettings } from './utils/devAuditSettings'
+import { showToast } from './utils/toast'
 
 function initTracking() {
   void (async () => {
@@ -28,7 +35,18 @@ function initTracking() {
 initTracking()
 
 const app = createApp(AppShell)
+const pinia = createPinia()
+app.use(pinia)
 app.use(router)
+
+const authStore = useAuthStore()
+authStore.initialize()
+useEmployeesStore().loadEmployees()
+useBookingsStore().loadBookings()
+useHistoryPiniaStore().loadHistory(true)
+const syncStore = useSyncStore()
+syncStore.updatePendingCount()
+syncStore.initAutoSync()
 
 app.config.errorHandler = (err, instance, info) => {
   console.error('[Vue error]', err, info)
@@ -51,6 +69,18 @@ if (typeof window !== 'undefined') {
   }
   window.addEventListener('unhandledrejection', (e) => {
     console.error('[Unhandled rejection]', e.reason)
+    try {
+      e.preventDefault()
+    } catch {
+      /* ignore */
+    }
+    const reason = e.reason
+    const msg =
+      reason && typeof reason === 'object' && 'message' in reason
+        ? String((reason).message)
+        : String(reason ?? '')
+    if (/abort|AbortError/i.test(msg)) return
+    showToast('Произошла ошибка. Попробуйте ещё раз', 'error', 3200)
     if (import.meta.env?.DEV) {
       console.error('[DentMetric DEV] Unhandled rejection. If History black screen, check window.__VUE_HISTORY_ERROR__', e?.reason)
     }

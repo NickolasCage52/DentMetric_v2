@@ -25,6 +25,14 @@
           Подставить данные
         </button>
         <button
+          class="client-found-card__btn client-found-card__btn--profile"
+          type="button"
+          data-testid="btn-client-profile"
+          @click="emitOpenProfile"
+        >
+          Профиль клиента &rsaquo;
+        </button>
+        <button
           class="client-found-card__btn client-found-card__btn--history"
           type="button"
           data-testid="btn-client-open-history"
@@ -39,11 +47,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
-import { formatVisitDate, formatPrice, extractClientFields, type ClientAggregation, type ClientFields } from '../utils/clientSearch';
+import { formatVisitDate, formatPrice, extractClientFields, normalizePhone, type ClientAggregation, type ClientFields } from '../utils/clientSearch';
 
-const props = defineProps<{ client: ClientAggregation | null }>();
+const props = defineProps<{ client: ClientAggregation | null; phoneSearchRegion?: 'RU' | 'BY' }>();
 const emit = defineEmits<{
   'open-history': [payload?: { phone?: string }];
+  'open-client-profile': [phone: string];
   'autofill-client': [fields: ClientFields];
 }>();
 
@@ -70,6 +79,13 @@ function phoneForHistoryOpen(): string {
 
 function emitOpenHistory() {
   emit('open-history', { phone: phoneForHistoryOpen() });
+}
+
+function emitOpenProfile() {
+  const raw = phoneForHistoryOpen();
+  const reg = props.phoneSearchRegion === 'BY' ? 'BY' : 'RU';
+  const digits = normalizePhone(raw, reg);
+  if (digits.length >= 10) emit('open-client-profile', digits);
 }
 
 const visitLabel = computed(() => {
@@ -153,6 +169,10 @@ const avgPrice = computed(() =>
 .client-found-card__btn--autofill {
   border-color: #555;
   color: #aaa;
+}
+.client-found-card__btn--profile {
+  border-color: #555;
+  color: #c8e67a;
 }
 .client-found-card__btn:hover {
   color: #fff;

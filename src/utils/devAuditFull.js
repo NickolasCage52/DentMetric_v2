@@ -25,7 +25,7 @@ export async function runFullAudit() {
     const r10 = Array.from({ length: 10 }, (_, i) =>
       normalizeRecord({ client: { name: `C${i}` }, total: i * 1000, totalEstimate: i * 1000 })
     ).filter(Boolean);
-    safeSaveHistory(r10);
+    safeSaveHistory(r10, { allowEviction: true });
     const loaded = safeLoadHistory();
     if (loaded.length !== 10) throw new Error(`History: expected 10, got ${loaded.length}`);
     if (!loaded.every((r) => r?.id)) throw new Error('History: not all have id');

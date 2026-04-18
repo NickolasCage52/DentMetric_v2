@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { VitePWA } from 'vite-plugin-pwa'
 import { writeFileSync } from 'fs'
 import { dirname, join, resolve } from 'path'
 import { fileURLToPath } from 'url'
@@ -17,8 +18,13 @@ function normalizeViteBase(raw) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const base = normalizeViteBase(env.VITE_BASE_PATH)
+  /** PWA icons: using existing JPEG; replace with192/512 PNG + maskable when assets are ready. */
+  const pwaIcon = `${base === '/' ? '' : base.replace(/\/$/, '')}/new_logo.jpg`.replace(/([^:]\/)\/+/g, '$1')
 
   return {
+  define: {
+    __APP_VERSION__: JSON.stringify(process.env.npm_package_version || '0.0.0'),
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),
@@ -50,6 +56,45 @@ export default defineConfig(({ mode }) => {
   },
   plugins: [
     vue(),
+    VitePWA({
+      registerType: 'prompt',
+      includeAssets: ['dm-logo.svg', 'new_logo.jpg'],
+      manifest: {
+        name: 'DentMetric',
+        short_name: 'DentMetric',
+        description: 'PDR Masters — Расчёт стоимости ремонта вмятин',
+        theme_color: '#0f0f0f',
+        background_color: '#0f0f0f',
+        display: 'standalone',
+        orientation: 'portrait',
+        start_url: base === '/' ? '/' : base,
+        scope: base === '/' ? '/' : base,
+        icons: [
+          { src: pwaIcon, sizes: '192x192', type: 'image/jpeg' },
+          { src: pwaIcon, sizes: '512x512', type: 'image/jpeg' },
+          { src: pwaIcon, sizes: '512x512', type: 'image/jpeg', purpose: 'maskable' },
+        ],
+      },
+      workbox: {
+        navigateFallback: 'index.html',
+        navigateFallbackDenylist: [/^\/api\//, /^\/admin/],
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,jpg,jpeg,woff,woff2}'],
+        cleanupOutdatedCaches: true,
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'supabase-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 5 * 60,
+              },
+            },
+          },
+        ],
+      },
+    }),
     {
       name: 'meta-json',
       closeBundle() {

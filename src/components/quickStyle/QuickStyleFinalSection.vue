@@ -84,12 +84,14 @@
       <!-- Смайлики адекватности клиента (PDF стр. 6-7) -->
       <ClientMoodPicker :model-value="clientMood" @update:model-value="$emit('update:clientMood', $event)" />
     </div>
-    <div class="graphics-action-bar flex gap-0 shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10">
-      <button type="button" @click="$emit('back')" class="qc-s3-btn qc-s3-btn--left flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[40px]">Назад</button>
-      <button type="button" @click="$emit('save')" :disabled="historySaving || !(lineItems?.length > 0)" class="qc-s3-btn qc-s3-btn--mid flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white border border-white/15 min-h-[40px] transition-colors hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed">
+    <div class="graphics-action-bar flex flex-nowrap gap-0 shrink-0 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] border-t border-white/10 min-w-0">
+      <ShareButton compact class="shrink-0 mr-1" :record="shareableRecord" />
+      <PortalShareButton compact class="shrink-0 mr-1" :record="shareableRecord" :estimate-id="recordId || null" />
+      <button type="button" @click="$emit('back')" class="qc-s3-btn qc-s3-btn--left flex-1 min-w-0 py-2.5 text-[11px] font-bold uppercase tracking-widest text-gray-300 border border-white/10 min-h-[44px]">Назад</button>
+      <button type="button" @click="$emit('save')" :disabled="historySaving || !(lineItems?.length > 0)" class="qc-s3-btn qc-s3-btn--mid flex-1 min-w-0 py-2.5 text-[11px] font-bold uppercase tracking-widest text-white border border-white/15 min-h-[44px] transition-colors hover:bg-white/5 disabled:opacity-50 disabled:cursor-not-allowed">
         {{ historySaving ? '...' : 'Сохранить' }}
       </button>
-      <button type="button" @click="$emit('book')" :disabled="historySaving || !(lineItems?.length > 0)" class="qc-s3-btn qc-s3-btn--right flex-1 py-2.5 text-[11px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 min-h-[40px] transition-colors hover:bg-metric-green/10 disabled:opacity-50 disabled:cursor-not-allowed">
+      <button type="button" @click="$emit('book')" :disabled="historySaving || !(lineItems?.length > 0)" class="qc-s3-btn qc-s3-btn--right flex-1 min-w-0 py-2.5 text-[11px] font-bold uppercase tracking-widest text-metric-green border border-metric-green/40 min-h-[44px] transition-colors hover:bg-metric-green/10 disabled:opacity-50 disabled:cursor-not-allowed">
         {{ historySaving ? '...' : 'Записать' }}
       </button>
     </div>
@@ -104,6 +106,8 @@ import ClientInfoBlock from '../ClientInfoBlock.vue';
 import ClientMoodPicker from '../ClientMoodPicker.vue';
 import PrepaymentBlock from '../PrepaymentBlock.vue';
 import { formatMoneyWithCurrency } from '../../utils/regionFormat';
+import ShareButton from '../ShareButton.vue';
+import PortalShareButton from '../PortalShareButton.vue';
 
 const props = defineProps({
   lineItems: { type: Array, default: () => [] },
@@ -121,6 +125,10 @@ const props = defineProps({
   clientMood: { type: String, default: null },
   prepayment: { type: Object, default: () => ({ amount: 0, method: null }) },
   displayCurrency: { type: String, default: 'RUB' },
+  /** Часы ремонта для текста «Поделиться» (если известны) */
+  repairTimeHours: { type: Number, default: null },
+  masterName: { type: String, default: '' },
+  carPlate: { type: String, default: '' },
 });
 
 defineEmits(['back', 'save', 'book', 'open-discount', 'open-comment', 'update:attachments', 'update:clientMood', 'update:prepayment']);
@@ -138,6 +146,37 @@ const moneyCurrency = computed(() => (props.displayCurrency === 'BYN' ? 'BYN' : 
 const grandTotal = computed(() =>
   (props.lineItems || []).reduce((sum, item) => sum + (item.appliedTotal ?? 0), 0)
 );
+
+const shareableRecord = computed(() => {
+  const c = clientForDisplay.value;
+  const hours =
+    props.repairTimeHours != null &&
+    props.repairTimeHours !== '' &&
+    Number.isFinite(Number(props.repairTimeHours)) &&
+    Number(props.repairTimeHours) > 0
+      ? Number(props.repairTimeHours)
+      : undefined;
+  return {
+    id: props.recordId || undefined,
+    annotatedPhotoUrl: props.detailPhotoUrl || undefined,
+    client: {
+      name: c.name,
+      phone: c.phone,
+      brand: c.brand,
+      model: c.model,
+      plate: props.carPlate || '',
+    },
+    total: grandTotal.value,
+    currency: moneyCurrency.value,
+    dents: (props.lineItems || []).map((item) => ({
+      panelElement: item.dent?.panelElement ?? undefined,
+      total: item.appliedTotal ?? item.total ?? 0,
+    })),
+    repairTimeHours: hours,
+    masterName: props.masterName,
+    comment: props.comment,
+  };
+});
 
 const canSave = () => (props.lineItems?.length ?? 0) > 0;
 

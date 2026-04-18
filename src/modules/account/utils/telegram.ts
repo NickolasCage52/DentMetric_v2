@@ -12,7 +12,8 @@ export interface TelegramUser {
 }
 
 export function getTelegramInitData(): string {
-  return (typeof window !== 'undefined' && window.Telegram?.WebApp?.initData) ?? ''
+  if (typeof window === 'undefined') return ''
+  return window.Telegram?.WebApp?.initData ?? ''
 }
 
 export function getTelegramUser(): TelegramUser | null {
@@ -33,7 +34,9 @@ export function expandTelegramWebApp(): void {
 }
 
 export function getTelegramColorScheme(): 'dark' | 'light' {
-  return (typeof window !== 'undefined' && window.Telegram?.WebApp?.colorScheme) ?? 'dark'
+  if (typeof window === 'undefined') return 'dark'
+  const cs = window.Telegram?.WebApp?.colorScheme
+  return cs === 'light' || cs === 'dark' ? cs : 'dark'
 }
 
 /** В DEV без initData — имитация для локальной разработки */

@@ -562,3 +562,43 @@ h3 { font-size: clamp(1rem, 2.5vw, 1.25rem); }
   border-top-left-radius: 0;
   border-bottom-left-radius: 0;
 }
+
+@media print {
+  .order-doc__header,
+  .order-doc__action-bar,
+  .journal,
+  .emp-list,
+  nav,
+  [class*="tab-bar"],
+  .bottom-nav,
+  [class*="bottom-nav"] {
+    display: none !important;
+  }
+
+  .order-doc__scroll {
+    overflow: visible !important;
+    padding: 0 !important;
+    background: hsl(0 0% 100%) !important;
+  }
+
+  .order-doc__paper {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+  }
+
+  body {
+    background: hsl(0 0% 100%) !important;
+  }
+}
+
+/* Меньше «резины» на iOS; минимум 16px у полей ввода — без лишнего zoom */
+html {
+  overscroll-behavior: none;
+}
+input:not([type='checkbox']):not([type='radio']),
+textarea,
+select {
+  font-size: max(16px, 1rem);
+}

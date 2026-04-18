@@ -136,19 +136,31 @@
           <span class="pdc-row__label">Итоговая среднерыночная стоимость:</span>
           <span class="pdc-row__val pdc-row__val--muted pdc-row__val--span2">{{ fmt(row.marketDisplay) }} {{ moneySuffix }}</span>
         </div>
+        <PriceBenchmark
+          v-if="dentBenchmark"
+          :benchmark="dentBenchmark"
+          :master-price="Number(row.displayTotal) || 0"
+          :city="benchmarkCitySlug"
+        />
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, nextTick, computed } from 'vue';
+import { ref, nextTick, computed, onMounted, watch } from 'vue';
 import { applyPriceRoundingCeil } from '../../utils/priceRounding';
 import { resolveDentShapeType } from '../../utils/resolveDentShapeType';
 import { formatBreakdownDelta, deltaClass as deltaClassFn } from '../../utils/buildDetailedBreakdown';
 import { formatRepairTime } from '../../utils/formatRepairTime';
 import { clampDiscount } from '../../utils/discount';
 import { formatRubForDisplay, currencySuffix } from '../../utils/regionFormat';
+import PriceBenchmark from '@/components/analytics/PriceBenchmark.vue';
+import { useMarketPricesStore } from '@/stores/marketPrices';
+import { useAuthStore } from '@/stores/auth';
+import { useAccount } from '@/modules/account/useAccount';
+import { isSupabaseConfigured } from '@/services/supabase';
+import { normalizeCitySlug } from '@/services/marketPricesService';
 
 const props = defineProps({
   index: { type: Number, required: true },
@@ -165,6 +177,48 @@ const props = defineProps({
 });
 
 defineEmits(['open-discount']);
+
+const marketPricesStore = useMarketPricesStore();
+const authStore = useAuthStore();
+const account = useAccount();
+
+const benchmarkCitySlug = computed(() => {
+  const c = authStore.user?.city;
+  return c ? normalizeCitySlug(String(c)) : '';
+});
+
+const panelElForBenchmark = computed(
+  () => props.row.dent?.panelElement || props.row.dent?.conditions?.panelElement || '',
+);
+
+const carClassForBenchmark = computed(() => props.row.dent?.conditions?.carClassCode || 'C');
+
+const priceBenchmarkReady = computed(
+  () =>
+    isSupabaseConfigured() &&
+    marketPricesStore.consentGranted &&
+    account.can('marketPrices') &&
+    !!authStore.user?.city?.trim(),
+);
+
+const dentBenchmark = computed(() => {
+  if (!priceBenchmarkReady.value || !panelElForBenchmark.value) return null;
+  return marketPricesStore.getBenchmark(panelElForBenchmark.value, carClassForBenchmark.value);
+});
+
+function maybeFetchMarketPrices() {
+  if (priceBenchmarkReady.value) {
+    void marketPricesStore.fetchForCurrentCity();
+  }
+}
+
+onMounted(() => {
+  maybeFetchMarketPrices();
+});
+
+watch(priceBenchmarkReady, (ready) => {
+  if (ready) void marketPricesStore.fetchForCurrentCity();
+});
 
 const lengthLabel = computed(() => (props.detailUxParity ? 'Длина' : 'Диаметр'));
 
