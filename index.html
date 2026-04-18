@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    <meta name="theme-color" content="#0f0f0f" />
+    <link rel="icon" type="image/svg+xml" href="/DentMetric_v2/dm-logo.svg" />
+    <link rel="apple-touch-icon" href="/DentMetric_v2/new_logo.jpg" />
+    <title>DentMetric</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              metric: {
+                green: '#88E523',
+                black: '#000000',
+                dark: '#0a0a0a',
+                silver: '#A0AEC0',
+              }
+            },
+            fontFamily: {
+              sans: ['Montserrat', 'Roboto', 'SF Pro Display', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Helvetica Neue', 'Arial', 'sans-serif'],
+            },
+            boxShadow: {
+              'neon': '0 0 10px rgba(136, 229, 35, 0.3), inset 0 0 5px rgba(136, 229, 35, 0.1)',
+              'metal': 'inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 4px 6px -1px rgba(0, 0, 0, 0.8)',
+            },
+            backgroundImage: {
+              'metal-gradient': 'linear-gradient(180deg, #2a2a2a 0%, #151515 100%)',
+              'metal-gradient-active': 'linear-gradient(180deg, #333333 0%, #1a1a1a 100%)',
+            }
+          }
+        }
+      }
+    </script>
+    <script type="module" crossorigin src="/DentMetric_v2/assets/index-DaOvfSnm.js"></script>
+    <link rel="stylesheet" crossorigin href="/DentMetric_v2/assets/index-BxxPw7ID.css">
+  <link rel="manifest" href="/DentMetric_v2/manifest.webmanifest"></head>
+  <body class="select-none font-sans antialiased min-h-screen bg-black text-white">
+    <style>
+      /* Разрешить выделение текста в полях ввода */
+      input, select, textarea { -webkit-user-select: text; user-select: text; }
+    </style>
+    <div id="app"></div>
+  </body>
+</html>

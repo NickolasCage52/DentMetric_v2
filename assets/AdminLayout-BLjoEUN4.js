@@ -1,0 +1,1 @@
+import{_ as o,k as t,c,l as n,m as s}from"./index-DaOvfSnm.js";const a={},r={class:"admin-layout"};function _(d,i){const e=s("router-view");return t(),c("div",r,[n(e)])}const l=o(a,[["render",_],["__scopeId","data-v-7112806f"]]);export{l as default};
