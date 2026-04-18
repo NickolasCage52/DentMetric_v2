@@ -33,6 +33,10 @@
         {{ isSending ? 'Отправка...' : 'Получить код' }}
       </button>
 
+      <p class="login-screen__mock-hint" role="note">
+        Демо-вход: после «Получить код» введите <strong>1234</strong>
+      </p>
+
       <div class="login-screen__divider">
         <span>или</span>
       </div>
@@ -73,9 +77,9 @@
         >
       </div>
 
-      <div v-if="isDev" class="login-screen__dev-hint">
-        Тестовый код: <strong>1234</strong>
-      </div>
+      <p class="login-screen__mock-hint" role="note">
+        Код подтверждения (демо): <strong>1234</strong>
+      </p>
 
       <button
         type="button"
@@ -208,8 +212,6 @@ import {
 const router = useRouter();
 const authStore = useAuthStore();
 const account = useAccount();
-const isDev = import.meta.env.DEV;
-
 type Step = 'phone' | 'otp' | 'email';
 type EmailMode = 'login' | 'register';
 
@@ -543,13 +545,18 @@ async function handleEmailSubmit() {
   border-color: var(--dm-accent);
 }
 
-.login-screen__dev-hint {
+.login-screen__mock-hint {
   text-align: center;
   font-size: 12px;
+  line-height: 1.4;
   color: var(--dm-text-secondary);
   background: var(--dm-surface-2);
   border-radius: 8px;
-  padding: 8px;
+  padding: 8px 10px;
+  margin: 0;
+}
+.login-screen__body > .login-screen__mock-hint {
+  margin-top: 10px;
 }
 
 .login-screen__primary-btn {
