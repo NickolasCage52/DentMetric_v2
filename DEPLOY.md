@@ -52,6 +52,23 @@ location / {
 
 ## GitHub Pages
 
-В настройках репозитория GitHub: **Pages → Build and deployment → Branch `gh-pages`, folder `/`**.
+### Вариант A — GitHub Actions (рекомендуется)
+
+В репозитории есть workflow **`.github/workflows/deploy-github-pages.yml`**: при каждом push в **`main`** выполняется `npm run build:gh-pages` (берёт `VITE_BASE_PATH` из **`.env.github-pages`**) и ветка **`gh-pages`** перезаписывается содержимым `dist` (`force_orphan`, без ручного `npm run deploy`).
+
+В **Settings → Pages** выберите источник **Deploy from a branch**, ветка **`gh-pages`**, папка **`/`**.
+
+### Вариант B — локально `npm run deploy`
+
+Как раньше: скрипт `scripts/deploy.js` после сборки пушит в `gh-pages`.
+
+### Vercel (без подкаталога, чаще проще, чем `*.github.io/Repo/`)
+
+Сайт открывается как **`https://<проект>.vercel.app/`** с **`base: '/'`** — отдельно задавать `VITE_BASE_PATH` не нужно, чёрный экран из‑за неверного base обычно пропадает.
+
+1. Зайдите на [vercel.com](https://vercel.com), **Add New → Project**, импортируйте этот репозиторий.
+2. Framework Preset: **Vite** (или оставьте авто). Build: **`npm run build`**, Output: **`dist`** (совпадает с **`vercel.json`**).
+3. В **Environment Variables** при необходимости добавьте `VITE_*` из `.env.local` (Supabase и т.д.), без секретов в публичном виде не кладите service role.
+4. Deploy. Для Vue Router в репозитории уже есть **`vercel.json`** с fallback на `index.html`.
 
 Не коммитьте секреты; каталог `dist/` в git обычно не нужен (см. `.gitignore`).
