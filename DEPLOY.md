@@ -24,7 +24,8 @@ npm run preview
 Если сайт отдаётся **из подкаталога** (project pages: `https://user.github.io/DentMetric_v2/`), путь к ассетам должен включать имя репозитория.
 
 - **Рекомендуется:** в репозитории есть файл `.env.github-pages` с `VITE_BASE_PATH=DentMetric_v2` (подставьте своё имя репо). Сборка под Pages: `npm run build:gh-pages`.
-- **`npm run deploy`** вызывает как раз `build:gh-pages`, затем пушит `dist` в ветку `gh-pages`.
+- **`npm run deploy`** вызывает как раз `build:gh-pages`, затем пушит `dist` в ветку `gh-pages`. Если ветки **`gh-pages` на GitHub ещё нет**, скрипт создаёт её первым push’ем из временной копии `dist` (`--force` только для этой ветки).
+- **`npm run deploy:setup`** только проверяет `origin` и подсказывает, есть ли уже `gh-pages`.
 - Локально для обычного прод-сайта в корне домена по-прежнему: `npm run build` (base `/`).
 
 Альтернатива: задать то же в `.env.production` (файл у вас в `.gitignore`) перед `npm run build`.
@@ -49,6 +50,8 @@ location / {
 
 Скрипт `telegram-web-app.js` в `index.html` не ломает обычный браузер. Вызовы API обёрнуты: без Telegram WebApp приложение запускается как обычный сайт.
 
-## Старый деплой на GitHub Pages
+## GitHub Pages
 
-Скрипт `npm run deploy` по-прежнему собирает проект и пушит `dist`. Для project pages задайте `VITE_BASE_PATH` под имя репозитория, иначе ресурсы будут искаться с корня `base`.
+В настройках репозитория GitHub: **Pages → Build and deployment → Branch `gh-pages`, folder `/`**.
+
+Не коммитьте секреты; каталог `dist/` в git обычно не нужен (см. `.gitignore`).

@@ -11,6 +11,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, '..');
 const distPath = join(root, 'dist');
 const worktreeDir = join(root, '.gh-pages-worktree');
+const firstPushTmp = join(root, '.deploy-gh-pages-tmp');
 
 function run(cmd, cwd = root) {
   execSync(cmd, { cwd, stdio: 'inherit', shell: true });
@@ -29,26 +30,76 @@ function hasOrigin() {
   return remotes.includes('origin');
 }
 
-function hasGhPagesBranch() {
-  runSilent('git fetch origin');
-  const branches = runSilent('git branch -a');
-  return branches.includes('gh-pages') || branches.includes('origin/gh-pages');
+/** После fetch: есть ли origin/gh-pages */
+function remoteHasGhPages() {
+  const ref = runSilent('git rev-parse --verify refs/remotes/origin/gh-pages');
+  return ref.length > 0;
+}
+
+function safeRemoveWorktreeDir() {
+  try {
+    execSync(`git worktree remove --force "${worktreeDir}"`, {
+      cwd: root,
+      stdio: 'pipe',
+      shell: true,
+    });
+  } catch {
+    /* не зарегистрирован как worktree */
+  }
+  if (existsSync(worktreeDir)) {
+    rmSync(worktreeDir, { recursive: true, force: true });
+  }
+  runSilent('git worktree prune');
 }
 
 /**
- * deploy:setup — проверяет origin и создаёт gh-pages при необходимости
+ * Первый выклад: на remote ещё нет gh-pages (git worktree --orphan есть не во всех версиях Git for Windows).
+ * Копируем dist во временный каталог, git init, один коммит, force push в gh-pages.
+ */
+function deployFirstGhPagesBranch() {
+  const remoteUrl = runSilent('git remote get-url origin');
+  if (!remoteUrl) {
+    console.error('Error: could not read origin URL');
+    process.exit(1);
+  }
+
+  console.log('[deploy] Первый push: создаю ветку gh-pages на origin (временный repo + --force)');
+
+  safeRemoveWorktreeDir();
+  if (existsSync(firstPushTmp)) {
+    rmSync(firstPushTmp, { recursive: true, force: true });
+  }
+  cpSync(distPath, firstPushTmp, { recursive: true });
+  writeFileSync(join(firstPushTmp, '.nojekyll'), '');
+
+  const quotedRemote = remoteUrl.includes(' ') ? `"${remoteUrl.replace(/"/g, '\\"')}"` : remoteUrl;
+
+  run('git init', firstPushTmp);
+  run('git checkout -b gh-pages', firstPushTmp);
+  run('git add -A', firstPushTmp);
+  run('git commit -m "Deploy to GitHub Pages"', firstPushTmp);
+  run(`git remote add origin ${quotedRemote}`, firstPushTmp);
+  run('git push -u origin gh-pages --force', firstPushTmp);
+
+  rmSync(firstPushTmp, { recursive: true, force: true });
+  run('git fetch origin');
+
+  console.log('[deploy] Done: origin/gh-pages создана. Следующие деплои пойдут через worktree.');
+}
+
+/**
+ * deploy:setup — проверяет origin (ветка gh-pages создаётся при первом deploy)
  */
 function setup() {
   if (!hasOrigin()) {
     console.error('Error: No remote "origin" found. Add it with: git remote add origin <url>');
     process.exit(1);
   }
-  if (!hasGhPagesBranch()) {
-    console.log('Creating gh-pages branch...');
-    run('git push origin main:gh-pages');
-    console.log('gh-pages branch created.');
+  runSilent('git fetch origin');
+  if (remoteHasGhPages()) {
+    console.log('Remote branch gh-pages exists. Publish: npm run deploy');
   } else {
-    console.log('gh-pages branch already exists.');
+    console.log('Remote gh-pages ещё нет — она будет создана при первом `npm run deploy`.');
   }
   console.log('Deploy setup OK.');
 }
@@ -61,10 +112,6 @@ function deploy() {
     console.error('Error: No remote "origin" found. Run: npm run deploy:setup');
     process.exit(1);
   }
-  if (!hasGhPagesBranch()) {
-    console.error('Error: gh-pages branch not found. Run: npm run deploy:setup');
-    process.exit(1);
-  }
 
   console.log('[deploy] Building for GitHub Pages (VITE_BASE_PATH from .env.github-pages)...');
   run('npm run build:gh-pages');
@@ -74,7 +121,12 @@ function deploy() {
     process.exit(1);
   }
 
-  run('git fetch origin gh-pages');
+  run('git fetch origin');
+
+  if (!remoteHasGhPages()) {
+    deployFirstGhPagesBranch();
+    return;
+  }
 
   const worktreeExists = existsSync(worktreeDir);
   const hasLocalGhPages = runSilent('git branch --list gh-pages').trim().length > 0;

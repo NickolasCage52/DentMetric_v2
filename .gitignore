@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 .gh-pages-worktree
+.deploy-gh-pages-tmp
 *.local
 .env
 .env.local
