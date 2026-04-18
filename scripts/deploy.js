@@ -66,8 +66,8 @@ function deploy() {
     process.exit(1);
   }
 
-  console.log('[deploy] Building...');
-  run('npm run build');
+  console.log('[deploy] Building for GitHub Pages (VITE_BASE_PATH from .env.github-pages)...');
+  run('npm run build:gh-pages');
 
   if (!existsSync(distPath)) {
     console.error('Error: dist/ not found after build');

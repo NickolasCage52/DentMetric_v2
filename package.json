@@ -8,6 +8,7 @@
     "server": "tsx server/index.ts",
     "server:dev": "nodemon --watch server --exec tsx server/index.ts",
     "build": "vite build",
+    "build:gh-pages": "vite build --mode github-pages",
     "type-check": "vue-tsc --noEmit -p tsconfig.json",
     "preview": "vite preview",
     "deploy:setup": "node scripts/deploy.js setup",

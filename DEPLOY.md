@@ -21,13 +21,13 @@ npm run preview
 
 По умолчанию `vite.config.js` задаёт `base: '/'` — подходит для `https://example.com/`.
 
-Если сайт отдаётся **из подкаталога** (например GitHub Pages `https://user.github.io/DentMetric/`), перед сборкой задайте в `.env.production`:
+Если сайт отдаётся **из подкаталога** (project pages: `https://user.github.io/DentMetric_v2/`), путь к ассетам должен включать имя репозитория.
 
-```env
-VITE_BASE_PATH=/DentMetric
-```
+- **Рекомендуется:** в репозитории есть файл `.env.github-pages` с `VITE_BASE_PATH=DentMetric_v2` (подставьте своё имя репо). Сборка под Pages: `npm run build:gh-pages`.
+- **`npm run deploy`** вызывает как раз `build:gh-pages`, затем пушит `dist` в ветку `gh-pages`.
+- Локально для обычного прод-сайта в корне домена по-прежнему: `npm run build` (base `/`).
 
-(имя каталога без пробелов, без завершающего слэша — в конфиге путь нормализуется до `/DentMetric/`).
+Альтернатива: задать то же в `.env.production` (файл у вас в `.gitignore`) перед `npm run build`.
 
 ## Apache / ispmanager
 
